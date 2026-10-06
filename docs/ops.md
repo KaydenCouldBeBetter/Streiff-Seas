@@ -17,7 +17,7 @@
 | Cloudflare Access app, whole hostname | Cloudflare Zero Trust | — | Kayden | Explicit email list; one-time PIN; 7-day session; Service Auth policy for the probe; no Bypass policies |
 | Cloudflare Access app, `/_/` | Cloudflare Zero Trust | — | Kayden | Path-specific; allows only Kayden's email; superuser MFA stays on behind it |
 | Domain / DNS | TODO registrar, DNS on Cloudflare | — | Kayden | Auto-renew **on** (TODO confirm) |
-| GitHub repo | Private, `TODO/fishing-scoreboard` | — | Kayden | GitHub Pro (Student Pack); ruleset requires CI on `main`; releases hold deploy bundles |
+| GitHub repo | Private, `KaydenCouldBeBetter/ChromeFishingV2` | — | Kayden | Created 6 Oct 2026; GitHub Pro (Student Pack). Rulesets: `main` needs a pull request (no bypass); `v*` tags restricted, Repository admin bypass. The dev VM's deploy key also bypasses the tag ruleset, so CI and `deploy.sh` only accept tags on `main` (section 5). Required CI check added after M0-05 |
 | Healthchecks.io | Check `TODO` | — | Kayden | Alerts to TODO (phone) |
 | SMTP for PocketBase OTP | TODO provider | — | Kayden | Sender `TODO`; SPF and DKIM set on the domain so codes don't land in spam |
 | Photo archive, copy 1 | Proxmox host, `TODO` path | — | Kayden | Written by `archive-event.sh`; pull-only account `TODO` for the other two copies |
@@ -62,6 +62,7 @@
 | SMTP credentials | PocketBase settings (in `pb_data`) | superuser | Off-season | Repo |
 | B2 application key (this bucket only) | Proxmox host only | root | Off-season | Prod LXC, dev VM |
 | Backup encryption key / passphrase | Proxmox host, root-only file `TODO`; copy on the sealed break-glass sheet | root | Off-season, only together with a fresh full backup (old backups still need the old key) | Prod LXC, dev VM, B2 |
+| GitHub deploy key, write, this repo only (`~/.ssh/chromie_deploy`, passphrase, no agent) | Dev VM only | Kayden | Off-season; remove it from the repo at once if the dev VM is compromised | Prod LXC, CI, any other machine |
 | Desktop SSH key for archive pulls (read-only, archive folder only) | Desktop | Kayden | Off-season | Server, laptop |
 | Laptop SSH key for archive pulls (separate key, same restrictions) | Laptop | Kayden | Off-season; revoke at once if the laptop is lost | Server, desktop |
 
@@ -75,10 +76,10 @@
 
 Prod runs a CI-built bundle from a GitHub release; see `architecture.md` section 5.
 
-1. Merge green PR to `main`; tag it (for example `v2027.05.1`). CI uploads `bundle.tar.gz` and its sha256 to the release.
+1. Merge green PR to `main`; tag a commit **on `main`** (for example `v2027.05.1`, by drafting a release on GitHub). CI uploads `bundle.tar.gz` and its sha256 to the release only if the tagged commit is on `main`.
 2. On prod: `deploy.sh <tag>`. It:
    1. refuses if `/etc/scoreboard/FREEZE` exists (unless `--force`, logged in section 12);
-   2. refuses if a tournament is `live` and the bundle adds migrations or changes `POCKETBASE_VERSION` (change control, decided 2026-10-01);
+   2. refuses a tag whose commit isn't on `main` (GitHub compare API `main...<tag>` must be identical or behind; decided 2026-10-06), and if a tournament is `live` and the bundle adds migrations or changes `POCKETBASE_VERSION` (change control, decided 2026-10-01);
    3. downloads the bundle and sha256 with the read-only token, verifies;
    4. takes a PocketBase backup (method TODO: settle in the restore drill);
    5. unpacks to `releases/<tag>`, verifies the PocketBase binary against `POCKETBASE_VERSION`;
@@ -263,8 +264,8 @@ Use this only when the judge can't carry on during a live or closed tournament. 
 | Proxmox VE on the home server | Done 6 Oct 2026 | Version TODO in section 1 |
 | Cloudflare tunnel | Done 6 Oct 2026 | Named tunnel; `cloudflared` runs inside the prod LXC (confirmed 6 Oct) |
 | Domain on Cloudflare DNS | TODO | |
-| Dev VM on its own VLAN, sandbox proven | TODO | `touch ~/sandbox-probe` refused; `curl --noproxy '*'` can't resolve |
-| Private repo, ruleset, guardrails installed | TODO | Hook blocks a test edit to `.claude/settings.json` |
+| Dev VM on its own VLAN, sandbox proven | VM built 6 Oct 2026; sandbox proof pending | `touch ~/sandbox-probe` refused; `curl --noproxy '*'` can't resolve |
+| Private repo, rulesets, guardrails installed | Done 6 Oct 2026 except the Claude Code tests | Direct push to `main` refused (GH013); guard hook blocks `.claude/settings.json` when run by hand; tag test showed the deploy-key bypass (section 1). Still to run: the three Claude Code tests |
 | Prod LXC, prod VLAN and firewall | TODO | Section 2 check in `evidence/m0.txt` |
 | Access apps (whole hostname, `/_/`), service token | TODO | X-ACC-01 to 04 in `evidence/m0.txt` |
 | SMTP and PocketBase auth settings | TODO | Section 14 sign-in values |
