@@ -1,0 +1,59 @@
+M0 evidence: Chromie Fishing walking skeleton
+=============================================
+Paste command output under each heading. Date every entry. Never paste a secret.
+
+## Dev VM and Claude Code guardrails (2026-10-06)
+
+Claude Code v2.1.291 (native install) on the dev VM (Debian 13, own VLAN).
+User settings: sandbox enabled, failIfUnavailable true; guard hook installed.
+
+1. Fail closed: before bubblewrap was installed, `claude -p "say hi"` refused to start:
+   "Error: sandbox required but unavailable: ... bubblewrap (bwrap) not installed ...
+    sandbox.failIfUnavailable is set — refusing to start without a working sandbox."
+   exit code 1. Installed bubblewrap and socat; Claude Code then started.
+
+2. Sandbox write probe (run by Claude inside the sandbox):
+   touch ~/sandbox-probe
+   -> "touch: cannot touch '/home/dev/sandbox-probe': Read-only file system"; file absent afterwards.
+
+3. Sandbox network probe (run by Claude inside the sandbox):
+   curl --noproxy '*' https://example.com
+   -> "curl: (6) Could not resolve host: example.com" (exit 6).
+
+4. Edit tool on .claude/settings.json:
+   -> "File is in a directory that is denied by your permission settings." File unchanged.
+
+5. Shell append to .claude/settings.json:
+   echo "// test" >> .claude/settings.json
+   -> "Permission to use Bash with command ... has been denied." Nothing ran.
+
+6. Push to main from Claude Code:
+   git push origin main
+   -> "Permission to use Bash with command git push origin main ... has been denied." Nothing ran.
+
+7. Guard hook run by hand:
+   echo '{"tool_input":{"file_path":"/x/.claude/settings.json"}}' | ~/.claude/hooks/guard-files.sh
+   -> "Blocked: /x/.claude/settings.json matches protected pattern '/.claude/settings'." exit 2
+
+## GitHub repo rules (2026-10-06)
+
+8. Direct push to main (deploy key):
+   -> "remote: error: GH013: Repository rule violations found for refs/heads/main.
+       - Changes must be made through a pull request." Push rejected.
+
+9. Tag v0.0.0-test pushed with the deploy key:
+   -> "remote: Bypassed rule violations for refs/tags/v0.0.0-test:
+       - Cannot create ref due to creations being restricted."
+   The deploy key bypasses the v* tag ruleset even with only Repository admin on the
+   bypass list. Test tag deleted. Mitigation (decisions.md 2026-10-06): CI builds and
+   deploy.sh installs only tags whose commit is on main (backlog item M0-05).
+
+## Still to record for the M0 gate
+
+- Network isolation: from the prod LXC, a LAN host and the Proxmox UI unreachable;
+  from the dev VM, the prod LXC and the Proxmox UI unreachable.
+- X-ACC-01 to X-ACC-04 (Access checks, security.md).
+- X-ACC-05: 15-minute idle soak through the named tunnel, catch appears within 5 s,
+  recovers after phone lock and unlock.
+- Backup reaches B2 and restores; Healthchecks alert reaches the phone.
+- Photo spike result recorded in decisions.md.
