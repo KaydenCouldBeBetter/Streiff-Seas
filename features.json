@@ -1,0 +1,216 @@
+[
+  {
+    "id": "M0-01-scaffold",
+    "description": "Repo scaffold: pinned PocketBase, the React + Vite + TypeScript app in web/, and a test harness that boots a throwaway PocketBase from pb_migrations/ and pb_hooks/",
+    "steps": [
+      "POCKETBASE_VERSION holds the pinned version and the sha256 of its linux_amd64 zip (Kayden writes this file; the guard blocks Claude); scripts/fetch-pb.sh downloads that release and exits non-zero if the checksum doesn't match",
+      "package.json pins Node 24 in engines and .nvmrc says 24; npm ci --ignore-scripts installs; the only runtime dependencies are react, react-dom and pocketbase",
+      "web/ is a Vite + React + TypeScript (strict) app; npm run build runs tsc and vite build into pb_public/, which is gitignored; PocketBase serves it with an index fallback so client routes load on refresh (confirm the serve option on the pinned version and note it in progress.md)",
+      "npm run dev runs Vite with /api proxied to the local PocketBase on 127.0.0.1:8090, so development is same-origin like prod",
+      "One shared PocketBase SDK client in web/src/lib/pb.ts, and one helper that corrects the phone's clock by the offset from the server's Date header (decisions.md 2026-10-05, server clock)",
+      "npm test (Vitest) starts a fresh PocketBase in a temp directory with pb_migrations/ and pb_hooks/, runs every test file against it and shuts it down; two runs in a row both pass",
+      "Smoke test: the PocketBase health endpoint returns 200 (record the path used on the pinned version in progress.md)",
+      "Test helpers create the security.md fixture users (K, O, S, N, M, W, X, Y), act as each through the superuser impersonate endpoint (no email in tests), and act as anon",
+      ".gitignore covers the pocketbase binary, pb_data/, pb_public/, node_modules/, .env*, CLAUDE.local.md and .claude/settings.local.json; env.example exists",
+      "npm test and npm run build output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-02-schema",
+    "description": "Migrations for all six collections with every field security.md v0.9 lists and every API rule locked (null); species seeded",
+    "steps": [
+      "Collections users (auth), events, species, entries, catches and audit_log exist with exactly the fields in security.md 'Collections', including events.deadline_ext_min (default 0), events.code_word_prev and events.code_word_changed_at, catches.photo_captured_at, catches.flags and catches.rev, and the audit_log catch and event relations",
+      "users auth: OTP on, password and OAuth2 off; emailVisibility defaults to false; role is member or organizer; display_units is lb or lb_oz",
+      "catches.photo is a protected multi-file field: at most 4 files, image/jpeg only, 5 MB per file (the minimum of 2 is enforced by the S1 rule and hook)",
+      "Unique indexes: catches.client_uuid; entries (event, angler); species.name",
+      "Every list, view, create, update and delete rule is null on all six collections, and users.manageRule is null",
+      "Species seeded by migration: largemouth bass and smallmouth bass",
+      "A test boots from an empty pb_data, applies every migration from zero, and confirms anon and a signed-in member are refused for every collection and action (an early form of R-ALL-ANON-01; the full sweeps come with S1)",
+      "Migrations are new files only; Kayden reads every migration diff before merge",
+      "npm test output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-03-live-skeleton",
+    "description": "Heartbeat hook, a bare OTP sign-in and a bare live list of catches that proves realtime works and admits when it is stale",
+    "steps": [
+      "pb_hooks/heartbeat.pb.js sends a 'heartbeat' realtime message every minute to every client subscribed to it (dev-lifecycle-guide.md Phase 2 pattern)",
+      "Opens the list and view rules of events, entries and catches exactly as security.md v0.9 writes them, with their tests passing in the same commit (R-EVT-L-01 to R-EVT-L-03, R-EVT-V-01, R-ENT-L-01 to R-ENT-L-06, R-CAT-L-01 to R-CAT-L-08, R-CAT-L-10 to R-CAT-L-12, R-CAT-V-01); every other rule stays null",
+      "A bare sign-in page requests a PocketBase OTP code and accepts it (no design yet; the AUTH screens come with S1)",
+      "One React hook, web/src/lib/useLive.ts, subscribes to catches and to 'heartbeat', unsubscribes on unmount, refetches everything on PB_CONNECT and when the page becomes visible again, and polls every 30 s if nothing (not even a heartbeat) arrives for 150 s",
+      "A bare page lists the live event's pending and verified catches with a Live / Reconnecting / Updated h:mm badge; any event status shown uses the status words (Draft, Live, Closed, Final), kept apart from the badge (decisions.md 2026-10-05)",
+      "Locally, a catch added in the admin UI appears on the page without a reload",
+      "Checked at 390 px wide; npm test and npm run build output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-04-spike-photo",
+    "description": "Spike: prove the photo pipeline and three rule mechanics on the pinned binary before S1 builds submit (decisions.md L2; security.md open item 7)",
+    "steps": [
+      "Fixtures in test/fixtures/: gps.jpg (EXIF GPS), xmp-gps.jpg (XMP GPS), iphone.heic and text-chunk.png, plus two clean JPEGs for the required photos",
+      "The chosen server approach (A: exiftool through $os.cmd, if it can run in the prod LXC; or B: fail closed on any file that still carries location metadata) leaves no location data in any stored original or thumbnail, on a two-photo create and on an added photo; test/upload.test.ts proves it for all four fixtures",
+      "In the browser, DateTimeOriginal is read from each photo before re-encoding, on iPhone Safari (including an iPhone HEIC from the photo picker) and on Android Chrome; what each browser delivers is written down",
+      "A hook compares the new photo list with the stored one and refuses before PocketBase deletes any file (append-only); if that can't be done on the pinned version, say so (the fallback is retract-and-resubmit only)",
+      "On the pinned binary: @request.body.photo:length counts the uploaded files in a multipart create; the update hook can re-read rev inside the save transaction; judge.role resolves against the submitted body in the events create rule",
+      "Spike code stays off main unless it becomes the real implementation; the results, the chosen option and the reasons are drafted as a decisions.md row for Kayden to review and commit"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-05-ci-deploy",
+    "description": "The CI job, the release bundle on a tag, deploy.sh and the systemd unit, drafted and tested locally for Kayden to install",
+    "steps": [
+      "docs/drafts/ci.yml (Kayden copies it to .github/workflows/ci.yml; the guard blocks Claude there): runs on pull requests and pushes to main with Node 24; npm ci --ignore-scripts, scripts/fetch-pb.sh, npm test, npm run build, gitleaks; permissions contents: read; every action pinned to a full commit SHA",
+      "On a tag, a separate job with contents: write packages bundle.tar.gz (built pb_public/, pb_hooks/, pb_migrations/, POCKETBASE_VERSION) with its sha256 and attaches both to the release",
+      "deploy.sh <tag> follows ops.md §5 in order: refuses while /etc/scoreboard/FREEZE exists unless --force; refuses while an event is live if the bundle adds migrations or changes POCKETBASE_VERSION; downloads with the read-only token from a root-only env file; verifies the sha256; takes a backup; unpacks to releases/<tag>; verifies the PocketBase binary; switches the current symlink; restarts; smoke-tests through Cloudflare with the service token; appends a deploy-log line; switches back if the smoke test fails",
+      "deploy.sh passes shellcheck and runs against a fake bundle in a temp directory with its network calls stubbed (never against prod)",
+      "A systemd unit draft runs PocketBase as a non-root user on 127.0.0.1:8090 from the current symlink, with NoNewPrivileges, ProtectSystem=strict and write access only to pb_data",
+      ".github/pull_request_template.md lists the Definition of Done: npm test and build green; every migration and rule diff read; any rule change has its security.md row and test in the same commit"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-06-infra",
+    "human": true,
+    "description": "Kayden, by hand: prod container, network, tunnel, Access, SMTP and the first deploy",
+    "steps": [
+      "Unprivileged Debian LXC on the isolated prod VLAN with the ops.md §2 firewall; from the LXC a LAN host and the Proxmox UI are unreachable, and from the dev VM the LXC and the Proxmox UI are unreachable (output in docs/evidence/m0.txt)",
+      "cloudflared runs a named tunnel inside the LXC to 127.0.0.1:8090; the tunnel token is a root-only file there",
+      "Access: one app on the whole hostname with an Emails include list, a 7-day session, one-time PIN and no Bypass; a second app on /_/ for Kayden's email only; the uptime-probe service token; X-ACC-01 to X-ACC-04 pass (security.md 'Access checks')",
+      "SMTP set in PocketBase with SPF and DKIM on the domain; the sign-in values (screens.md Gap 19) set and recorded in ops.md §14",
+      "Superuser created with MFA; at least two test members invited, each with a name (ops.md §9)",
+      "The first tagged bundle deployed with deploy.sh, and its deploy-log line written (ops.md §13)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-07-soak",
+    "human": true,
+    "description": "Kayden: 15-minute idle live-update soak through the real named tunnel and Access",
+    "steps": [
+      "Phone on mobile data, signed in through Access and PocketBase, live list open and idle for 15 minutes",
+      "A catch verified in the admin UI after the idle period appears within 5 seconds (X-ACC-05)",
+      "The page recovers after the phone is locked and unlocked",
+      "Output and observations pasted into docs/evidence/m0.txt"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-08-backups-monitoring",
+    "human": true,
+    "description": "Kayden: encrypted offsite backups that restore, and an uptime alert that reaches the phone",
+    "steps": [
+      "restic or rclone crypt chosen and recorded in decisions.md",
+      "Nightly vzdump plus a PocketBase backup on the host; the host encrypts and pushes to B2; the container holds no B2 key",
+      "A backup is fetched from B2, decrypted on the host and restored into a throwaway container, which serves the app",
+      "Cron in the LXC probes the public URL every 5 minutes with the service token and pings Healthchecks on 200; a deliberate outage alerts Kayden's phone",
+      "Results pasted into docs/evidence/m0.txt"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-09-gate",
+    "human": true,
+    "description": "Kayden: check the M0 exit gate before any S1 work",
+    "steps": [
+      "A phone on mobile data sees a catch entered in the admin UI appear live, including after the phone is locked and unlocked",
+      "After a 15-minute idle subscription through the real tunnel, a newly verified catch renders within 5 seconds",
+      "An unlisted email is denied by Access, and an anonymous API write is denied",
+      "Connections from the container to the home LAN and to Proxmox management fail",
+      "A backup reached B2 and restored",
+      "The photo spike's result is recorded in decisions.md",
+      "Every earlier M0 item passes; docs/evidence/m0.txt holds the evidence"
+    ],
+    "passes": false
+  },
+  {
+    "id": "S1-submit",
+    "description": "A member signs in, joins a live tournament and submits a catch with the two required photos; it is stored as pending with no location data, and the angler can edit, add photos to or retract it while it is pending",
+    "steps": [
+      "Fixtures K, O, S, N, M, W, X, Y and events E1, E2, EL, ED, EC, EF are seeded from security.md 'Test fixtures'; every rules test also runs with Access absent (invariant 8)",
+      "Sign-in is PocketBase OTP only: password sign-in is refused and an OTP request for an unlisted email creates no user (R-USR-A-01, R-USR-A-02); anonymous sign-up and member user-create are refused (R-USR-C-01, R-USR-C-02, R-USR-C-03)",
+      "Users: anon sees none, M sees only own record and can't view X's, K sees all (R-USR-L-01, R-USR-L-02, R-USR-L-03, R-USR-V-01, R-USR-V-02)",
+      "Profile: M changes own name and display units but not role, email, verified or anyone else's record; K can't change roles; nobody deletes a user (R-USR-U-01, R-USR-U-02, R-USR-U-03, R-USR-U-04, R-USR-U-05, R-USR-D-01)",
+      "A signed-in member lists species and non-draft events; anon sees none; M can't view a draft (R-SPC-L-01, R-SPC-L-02, R-SPC-L-03, R-EVT-L-01, R-EVT-L-02, R-EVT-V-01)",
+      "Join: X joins E1 and gets display_name and a join audit row; joining as someone else, twice, in ED/EC/EF, after submit_deadline, anonymously, or with server-only fields is refused (R-ENT-C-01 to R-ENT-C-07, R-AUD-H-02); K and S were entered when E1 was created, so joining again fails and leaves one entry each (R-ENT-C-08, R-EVT-C-08)",
+      "Entries list: anon none; M sees non-withdrawn entries and not W's; W sees own withdrawn entry (R-ENT-L-01, R-ENT-L-02, R-ENT-L-03, R-ENT-L-04)",
+      "Withdraw and rejoin self: allowed in E1 and EC with a withdraw row; rejoin only after self-withdrawal, while E1 is live and before the deadline; W can't undo K's withdrawal; M can't touch X's entry or change event, angler, display_name or withdrawn_by; nobody deletes an entry (R-ENT-U-01 to R-ENT-U-06, R-ENT-U-11, R-ENT-D-01)",
+      "Submit: M picks a species from E1's list, enters 3 lb 7 oz and attaches the two required photos (holding the fish; on the scale) with photo_captured_at; the record is pending with rev 1, weight_hoz 5500 and a create audit row with the fixed snapshot; one photo or none is refused, and photo_captured_at must have one entry per file with the first equal to captured_at (R-CAT-C-01, R-CAT-C-19, R-CAT-C-21, R-AUD-H-01, R-AUD-H-05; scoring.md examples 5, 24); K and S submit to their own entries the same way (R-CAT-C-18)",
+      "Length entry in EL: 17 5/8 in is stored as length_q 70 and 14 7/8 in as 59 (scoring.md example 6)",
+      "Refused create bodies: another angler's entry, status, judged_by, reason or flags, rev, before starts_at, after submit_deadline, non-live event, anonymous, wrong measurement for the metric, withdrawn entry; a body-set created never sticks (R-CAT-C-02 to R-CAT-C-08, R-CAT-C-11 to R-CAT-C-15, R-CAT-C-23)",
+      "Species blocked: the submit screen offers only E1's species and the API refuses walleye in E1 (R-CAT-C-09; scoring.md example 7)",
+      "Double submit: the same client_uuid twice leaves one record (R-CAT-C-10); the UI shows Sending, Received and NOT SENT with Retry, and a retry after a lost response confirms the catch by client_uuid",
+      "Photos: for the four fixtures (gps.jpg, xmp-gps.jpg, iphone.heic, text-chunk.png) neither the stored original nor any thumbnail has location data (test/upload.test.ts); an oversize or non-image file is refused (R-CAT-C-16)",
+      "Flags set on create, as fixed codes: no_capture_time, before_window, after_window, late_submit, extra_photo_no_time and extra_photo_far, exactly the matching ones and none on a clean catch (R-CAT-C-20, R-CAT-C-22; scoring.md examples 13, 14, 17, 25)",
+      "Edit while pending: M edits own weight_hoz (rev + 1, edit row); edits to another species, after judging, after the deadline or in EC, setting status other than retracted, reason or rev, on Y's catch, on a withdrawn entry, with the wrong measurement, anonymously, or changing captured_at are refused (R-CAT-U-16 to R-CAT-U-20, R-CAT-U-22 to R-CAT-U-25, R-CAT-U-28); every edit echoes the current rev, and a missing or stale rev is refused with no audit row (R-CAT-U-39)",
+      "Add photos: a third photo sent with the current rev keeps photos 1 and 2 in place, adds photo_added (and extra_photo_no_time or extra_photo_far when it applies), bumps rev and writes an edit row; earlier capture times can't change; a retried upload whose first attempt landed, or two simultaneous adds, add the photo once; removing or replacing a photo deletes nothing and is refused; a 5th photo or a non-JPEG over 5 MB is refused (R-CAT-U-21, R-CAT-U-26, R-CAT-U-27, R-CAT-U-34 to R-CAT-U-36, R-CAT-U-39, R-CAT-U-40)",
+      "Retract: M retracts own pending catch (retract row, hidden from others, never scores); retract after judging or after the deadline and un-retract are refused (R-CAT-U-29, R-CAT-U-30, R-CAT-U-32; scoring.md example 20)",
+      "Visibility: anon sees no catches; M sees pending and verified catches on non-withdrawn entries, own rejected catch with its reason, own retracted catch and, for W, own catches on the withdrawn entry; not others' rejected or retracted catches or W's; photos need a file token and follow the view rule (R-CAT-L-01 to R-CAT-L-04, R-CAT-L-07, R-CAT-L-10 to R-CAT-L-12, R-CAT-V-01, R-CAT-F-01, R-CAT-F-02, R-CAT-F-03)",
+      "Nothing is deleted and denied requests write no audit row (R-CAT-D-01, R-AUD-H-04)",
+      "Sweeps over all six collections pass and are re-run in every later slice: anonymous view/create/update/delete all denied; view by id matches each caller's list; delete denied for every role (R-ALL-ANON-01, R-ALL-V-01, R-ALL-D-01)",
+      "Submit, edit and Join screens checked at 390 px wide, primary buttons about 48 px tall, light high-contrast theme",
+      "npm test output shown; /security-review run on the rules, hooks and upload code"
+    ],
+    "passes": false
+  },
+  {
+    "id": "S2-score",
+    "description": "The pure scoring module computes standings from verified catches only, and the leaderboard shows them live in each member's display units",
+    "steps": [
+      "web/src/lib/scoring.ts is pure, has no dependencies and uses integers only (weight_hoz, length_q); test/scoring.test.ts takes its fixtures straight from scoring.md (invariant 1)",
+      "Best 10, culls and pending: scoring.md examples 1, 2, 3 and 4 pass",
+      "Ties and shared places: scoring.md examples 8, 9, 10 and 11 pass",
+      "Withdrawn entries are left out of the standings, and a self-rejoin brings their verified fish back (scoring.md example 19)",
+      "Rejected and retracted catches never score and aren't counted as pending (scoring.md example 20)",
+      "A judge's correction of a verified catch re-culls: A goes from 28.05 to 27.60 (scoring.md example 21)",
+      "Leaderboard rows show total, counted fish, biggest fish and pending count; only anglers with at least one pending or verified catch on a non-withdrawn entry appear (R-CAT-L-02, R-CAT-L-07, R-ENT-L-03)",
+      "Display units: decimal pounds and pounds-and-ounces views match scoring.md examples 5 and 16, and switching changes no score or ranking (R-USR-U-01)",
+      "Name sync: M's name change updates display_name in live and closed events but not in final ones (R-USR-U-06)",
+      "Realtime: a member subscribed to catches gets no event for another angler's rejected catch (R-CAT-L-09); the board refetches on PB_CONNECT and when the tab becomes visible, shows Live / Reconnecting / last updated, and polls every 30 s after 150 s of silence",
+      "Leaderboard checked at 390 px wide; npm test output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "S3-judge",
+    "description": "The judge and backup judge work a queue with flags: approve, reject with a reason, correct to the photo, or re-judge, against the current rev, with every change audited; the organizer can withdraw or reinstate anglers",
+    "steps": [
+      "Queue: K sees every catch in E1, including rejected, and in every event; S sees rejected catches only where the angler is K or S (R-CAT-L-05, R-CAT-L-06, R-CAT-L-08)",
+      "Flags shown in the queue as their fixed codes (no_capture_time, before_window, after_window, late_submit, photo_added, extra_photo_no_time, extra_photo_far) with hours from capture to receipt; judging a flagged catch leaves flags unchanged (R-CAT-C-20, R-CAT-U-38; scoring.md examples 13, 14, 17, 25)",
+      "Approve, reject and correct: approve with the current rev sets judged_by and writes an approve row; reject needs a reason; a correction needs a reason, sets the catch verified and writes exactly one correct row with before and after, from pending, verified or rejected; correct and reject can't be combined; a judge update that only rewrites the reason is refused (R-CAT-U-01 to R-CAT-U-05, R-CAT-U-41, R-CAT-U-44, R-CAT-U-45; scoring.md example 15)",
+      "No self-judging and backup scope: K can't approve own catch; S approves K's catch in E1 only, not M's and not in E2; M can't approve Y's; O, an organizer who isn't the judge, can't judge (R-CAT-U-06 to R-CAT-U-10, R-CAT-U-46; scoring.md examples 12 and 18); outside catches and audit_log, S and N get exactly what an ordinary member gets (R-ALL-S-01)",
+      "Stale rev: K's approval after M edited the catch is refused and the queue reloads it (R-CAT-U-13)",
+      "Re-judge: verified to rejected with a reason in a live or closed event is allowed and audited; the standings re-cull; changing a decision needs a reason either way, and a re-approval shows in the catch history (R-CAT-U-11, R-CAT-U-42, R-CAT-U-43, R-AUD-L-07; scoring.md examples 21, 26)",
+      "Judge guards: status other than verified or rejected, server-only fields, a photo or photo_captured_at in the body, and any action on a retracted catch are refused (R-CAT-U-14, R-CAT-U-15, R-CAT-U-31, R-CAT-U-33, R-CAT-U-37)",
+      "Audit visibility: anon none; M reads every row of the catches M can see (own, and others' pending or verified catches on non-withdrawn entries, including an overturned rejection), every row of own rejected and retracted catches, and no event or entry rows; others' rejected or retracted catches and catches on W's entry stay hidden; K sees all; S sees rows for K's catches plus own and what any member sees; after a step-down, a judge without the organizer role reads every row of the catches they judge; nobody creates, updates or deletes audit rows (R-AUD-L-01 to R-AUD-L-09, R-AUD-C-01, R-AUD-C-02, R-AUD-U-01, R-AUD-U-02, R-AUD-D-01)",
+      "Every approve, reject and correct writes exactly one row with actor, catch, event, before and after, with the fixed snapshot fields (R-AUD-H-01, R-AUD-H-05)",
+      "Organizer screen: K lists all entries, withdraws M only with a reason and reinstates W, each with an audit row; K withdraws own entry with no reason, and withdraws or reinstates in a closed event; S can't withdraw anyone, and still sees K's entry after K withdraws (R-ENT-L-05, R-ENT-L-06, R-ENT-U-13, R-ENT-U-14, R-ENT-U-07, R-ENT-U-08, R-ENT-U-09, R-ENT-U-12; scoring.md example 19)",
+      "Judge photos and code word: K and S fetch rejected photos within their scope with a file token, N can't (R-CAT-F-04); when the code word changed within 24 h of photo 1, the review shows code_word_prev and code_word with the time of the change (scoring.md example 27)",
+      "Judge tab: the Judging home lists every live or closed tournament the viewer judges or backup-judges, stacked, with pending counts (R-CAT-L-05, R-CAT-L-06)",
+      "Outage: the queue shows hours from capture to receipt so the judge can apply the outage allowance from the outage log (scoring.md example 22)",
+      "Queue checked at 390 px wide; npm test output shown; /security-review run"
+    ],
+    "passes": false
+  },
+  {
+    "id": "S4-finalize",
+    "description": "The organizer runs the tournament lifecycle (create, open, close, finalize), the event locks, results and audit CSVs are hashed for the group chat, and photos are archived and removed outside the API",
+    "steps": [
+      "Create and edit: K sees drafts and creates a draft whose submit_deadline is ends_at + 24 h; members and S can't create or update events; live status, a body-set submit_deadline, or judge = backup_judge on create or update are refused; any field can change on a draft; nobody deletes an event; the judge must hold the organizer role on create and on any change; the judge and backup judge are entered automatically; a body can't set the code word history (R-EVT-L-03, R-EVT-C-01 to R-EVT-C-05, R-EVT-C-07 to R-EVT-C-10, R-EVT-U-16, R-EVT-U-17, R-EVT-U-01, R-EVT-U-02, R-EVT-U-11, R-EVT-D-01)",
+      "Species: K adds walleye; members can't; duplicate names fail; nobody renames or deletes a species (R-SPC-C-01, R-SPC-C-02, R-SPC-C-03, R-SPC-U-01, R-SPC-U-02, R-SPC-D-01)",
+      "Live edits: metric, best_n, species, starts_at and judge are locked once live; name, the code word, backup_judge and ends_at (later only, while the window is open) can change, audited, with the deadline recomputed; a code word change on a live event stores the previous word and when it changed. Once closed, only backup_judge can change, and the new backup judge gets no entry (R-EVT-U-03, R-EVT-U-04, R-EVT-U-18, R-EVT-U-20 to R-EVT-U-24, R-EVT-U-27 to R-EVT-U-29)",
+      "Lifecycle: draft to live writes an open row; close before submit_deadline, final with a pending catch, skipping a step and going backward are refused; every status change or live edit writes one row; Open is refused until the draft is complete (R-EVT-U-06 to R-EVT-U-10, R-EVT-U-25, R-AUD-H-03)",
+      "Outage extension: K extends the final deadline by the outage length without moving ends_at, and a fish photographed after ends_at is still flagged while the event is live, never lowering it and never on a draft or closed event; a body can't set it on create; each change is an event_edit row; the extension is set in whole hours, and raising it after the deadline reopens joining and submitting (R-EVT-C-06, R-EVT-U-12 to R-EVT-U-15, R-EVT-U-26, R-CAT-C-17; scoring.md example 23)",
+      "Judge step-down, as a superuser step in its own test file: S becomes judge of E1 without the organizer role and N backup judge; N gets an entry; S then reads every audit row of the catches S judges (R-EVT-U-19, R-AUD-L-08; scoring.md example 28)",
+      "Final lock: no change to any catch, entry or event in EF through the API (R-CAT-U-12, R-ENT-U-10, R-EVT-U-05; invariant 7)",
+      "Exports: the results CSV is built in the organizer's browser by web/src/lib/scoring.ts and matches the leaderboard; the audit CSV covers every audit row for the event; the screen shows the SHA-256 of each, ready to post with the standings in the group chat, and the same data always gives the same hash",
+      "Final events show 'Photo archived' and the app never requests their photo files",
+      "archive-event.sh, run on a seeded copy: copies every photo of the event with a sha256 manifest, stops if any file has location metadata, and removes files from pb_data only after the desktop copy's manifest verifies, never through the API (invariant 6)",
+      "npm test output shown; the ops.md 'Close and finalize' checklist walked once against a seeded event"
+    ],
+    "passes": false
+  }
+]

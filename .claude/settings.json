@@ -1,0 +1,63 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npm test *)",
+      "Bash(npm run build)",
+      "Bash(npm ci --ignore-scripts)",
+      "Bash(scripts/fetch-pb.sh)",
+      "Bash(./pocketbase migrate create *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch -c item/*)",
+      "Bash(git checkout -b item/*)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npx *)",
+      "Edit(/package.json)",
+      "Edit(/scripts/fetch-pb.sh)",
+      "Edit(/deploy.sh)",
+      "Bash(npm run dev)",
+      "Bash(./pocketbase serve --dev *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.cloudflared/**)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/.claude/**)",
+      "Edit(/.github/workflows/**)",
+      "Edit(/POCKETBASE_VERSION)",
+      "Edit(/pb_data/**)",
+      "Edit(/pb_public/**)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(cloudflared *)",
+      "Bash(pct *)",
+      "Bash(./deploy.sh *)",
+      "Bash(bash deploy.sh *)",
+      "Bash(git tag *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(gh release *)",
+      "Bash(npm publish *)",
+      "Bash(./pocketbase update *)",
+      "Bash(./pocketbase superuser *)",
+      "Bash(git push * main)",
+      "Bash(git push * main:*)",
+      "Bash(git push * HEAD:main)",
+      "Bash(git switch main)",
+      "Bash(git checkout main)",
+      "Bash(git merge *)",
+      "Bash(gh pr merge *)"
+    ]
+  }
+}
