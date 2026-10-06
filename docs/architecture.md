@@ -351,8 +351,8 @@ flowchart LR
 
 **Build and deploy, in order:**
 1. Claude Code commits on an `item/<id>` branch in the dev VM; Kayden pushes it and opens a pull request, which runs the one CI job. Kayden reads every migration and rule diff, merges a green PR to `main` and tags it by hand.
-2. On a tag, the same job also packages the bundle and uploads it with its sha256 to the GitHub release. That step needs `contents: write` on tag runs only; branch and PR runs stay read-only.
-3. On prod, `deploy.sh <tag>` checks `FREEZE`, refuses migrations or a PocketBase change while a tournament is live, downloads the bundle with a fine-grained, read-only, single-repo token, verifies the sha256, takes a backup, unpacks into `releases/<tag>`, verifies the PocketBase binary's sha256, switches the `current` symlink, restarts and smoke-tests through Cloudflare. Rollback is switching the symlink back.
+2. On a tag, the same job also packages the bundle and uploads it with its sha256 to the GitHub release, but only if the tagged commit is on `main`. That step needs `contents: write` on tag runs only; branch and PR runs stay read-only.
+3. On prod, `deploy.sh <tag>` checks `FREEZE`, refuses a tag whose commit isn't on `main`, refuses migrations or a PocketBase change while a tournament is live, downloads the bundle with a fine-grained, read-only, single-repo token, verifies the sha256, takes a backup, unpacks into `releases/<tag>`, verifies the PocketBase binary's sha256, switches the `current` symlink, restarts and smoke-tests through Cloudflare. Rollback is switching the symlink back.
 4. Vite's dev server proxies `/api` to a local PocketBase, so development is same-origin too. Built files never live in git: `pb_public/` is a build output and is gitignored.
 
 ---
