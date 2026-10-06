@@ -24,7 +24,7 @@
 | Photo archive, copy 2 | Desktop, `TODO` path | — | Kayden | Pulls and verifies the manifest; must verify before photos leave the app |
 | Photo archive, copy 3 | Laptop, `TODO` path | — | Kayden | Pulls on the home LAN; full-disk encryption **on** (TODO confirm) |
 | Offsite backups | Backblaze B2 bucket `TODO` (free tier, 10 GB) | Tool: restic or rclone crypt (TODO pick in Phase 2) | Kayden | Encrypted on the host before upload; the host holds both keys, never the container |
-| Dev VM *(proposed, `decisions.md` 2026-10-06)* | Proxmox VM (not an LXC, so the Claude Code sandbox can start), dev VLAN `TODO` | Debian 13; Node 24 LTS; Claude Code from the signed apt repo, stable channel | Kayden | Claude Code with the sandbox on (`failIfUnavailable`); seed data only; no prod credentials |
+| Dev VM | Proxmox VM (not an LXC, so the Claude Code sandbox can start), dev VLAN `TODO`; built 6 Oct 2026 | Debian 13; Node 24 LTS; Claude Code from the signed apt repo, stable channel | Kayden | Claude Code with the sandbox on (`failIfUnavailable`); seed data only; no prod credentials |
 
 ## 2. Network and firewall
 
@@ -264,8 +264,8 @@ Use this only when the judge can't carry on during a live or closed tournament. 
 | Proxmox VE on the home server | Done 6 Oct 2026 | Version TODO in section 1 |
 | Cloudflare tunnel | Done 6 Oct 2026 | Named tunnel; `cloudflared` runs inside the prod LXC (confirmed 6 Oct) |
 | Domain on Cloudflare DNS | TODO | |
-| Dev VM on its own VLAN, sandbox proven | VM built 6 Oct 2026; sandbox proof pending | `touch ~/sandbox-probe` refused; `curl --noproxy '*'` can't resolve |
-| Private repo, rulesets, guardrails installed | Done 6 Oct 2026 except the Claude Code tests | Direct push to `main` refused (GH013); guard hook blocks `.claude/settings.json` when run by hand; tag test showed the deploy-key bypass (section 1). Still to run: the three Claude Code tests |
+| Dev VM on its own VLAN, sandbox proven | Done 6 Oct 2026 | Sandbox probes refused (`touch ~/sandbox-probe`: read-only; `curl --noproxy`: can't resolve). `failIfUnavailable` stopped Claude Code until bubblewrap was installed. `docs/evidence/m0.txt` | `touch ~/sandbox-probe` refused; `curl --noproxy '*'` can't resolve |
+| Private repo, rulesets, guardrails installed | Done 6 Oct 2026 | Direct push to `main` refused (GH013); tag test showed the deploy-key bypass (section 1); Claude Code refused an edit to `.claude/settings.json`, a shell append to it and `git push origin main`; the guard hook blocks when run by hand. `docs/evidence/m0.txt` |
 | Prod LXC, prod VLAN and firewall | TODO | Section 2 check in `evidence/m0.txt` |
 | Access apps (whole hostname, `/_/`), service token | TODO | X-ACC-01 to 04 in `evidence/m0.txt` |
 | SMTP and PocketBase auth settings | TODO | Section 14 sign-in values |
