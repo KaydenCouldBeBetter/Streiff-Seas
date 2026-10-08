@@ -48,10 +48,39 @@ User settings: sandbox enabled, failIfUnavailable true; guard hook installed.
    bypass list. Test tag deleted. Mitigation (decisions.md 2026-10-06): CI builds and
    deploy.sh installs only tags whose commit is on main (backlog item M0-05).
 
+## Network isolation, prod and dev VM (2026-10-08, 10:16-11:34 EDT)
+
+Prod: CT 110 `site1`, unprivileged, bridge vmbr1, 10.10.20.20/24, gw 10.10.20.1; cloudflared active.
+Dev VM: bridge vmbr2, 10.10.30.20/24, gw 10.10.30.1.
+Proxmox host addresses: 10.10.10.1, 10.10.20.1, 10.10.30.1 (bridges), 10.34.17.173 (Wi-Fi uplink,
+gw 10.34.0.1), 100.90.129.113 (Tailscale).
+Method: fwcheck.sh, a TCP connect with a 4 s timeout (TIMEOUT = filtered, OPEN = reached), and ICMP.
+Every deny row has a control from the Proxmox host showing the target answers there.
+
+10. Control, from the Proxmox host: UI :8006 and SSH :22 OPEN on all five host addresses;
+    dev VM 10.10.30.20:22 OPEN. The upstream gateway 10.34.0.1 answers ping (2/2) but drops
+    TCP (80, 443, 53, 22, 8080, 8443 all TIMEOUT), so the LAN is tested with ICMP.
+
+11. From prod (pct exec 110 -- bash fwcheck.sh): all ten Proxmox UI/SSH lines TIMEOUT;
+    dev VM 10.10.30.20:22 TIMEOUT; api.github.com:443 and region1.v2.argotunnel.com:7844 OPEN.
+
+12. From prod's network namespace (nsenter -t <CT 110 init PID> -n, the host's ping; the
+    container has no ping): ping 1.1.1.1 -> 2/2 replies; ping 10.34.0.1 -> 0/2, 100% loss.
+
+13. From the dev VM: all ten Proxmox UI/SSH lines TIMEOUT, including its own gateway
+    10.10.30.1:22; prod 10.10.20.20:22 TIMEOUT (sshd listens on *:22 there: OPEN from
+    inside prod); upstream gateway TCP all TIMEOUT; ping 10.34.0.1 -> 0/2; ping 1.1.1.1 -> 2/2;
+    api.github.com:443 and registry.npmjs.org:443 OPEN.
+
+14. Findings, not failures (decisions.md Open items #11-#14): prod outbound isn't limited to
+    ops.md section 2's list (registry.npmjs.org:443 OPEN from prod); a hand-installed PocketBase
+    (pocketbase.service, /opt/pocketbase/releases/v0.40.4) listens on 127.0.0.1:8090; sshd on
+    *:22 and Postfix on 127.0.0.1:25 run in prod.
+
 ## Still to record for the M0 gate
 
-- Network isolation: from the prod LXC, a LAN host and the Proxmox UI unreachable;
-  from the dev VM, the prod LXC and the Proxmox UI unreachable.
+- Network isolation for the staging LXC, once built: from staging, a LAN host, the
+  Proxmox UI and the prod LXC unreachable; from the dev VM, staging unreachable.
 - X-ACC-01 to X-ACC-04 (Access checks, security.md).
 - X-ACC-05: 15-minute idle soak through the named tunnel, catch appears within 5 s,
   recovers after phone lock and unlock.

@@ -11,7 +11,7 @@
 | Thing | Where | Version / ID | Owner | Notes |
 |---|---|---|---|---|
 | Proxmox VE host | Homelab, UPS-backed | Installed 6 Oct 2026; version TODO | Kayden | Runs backups, encrypts and pushes them to B2, runs `archive-event.sh` |
-| Prod container | Unprivileged Debian LXC, CT `TODO` | Debian TODO | Kayden | Isolated prod VLAN `TODO`, no inbound ports |
+| Prod container | Unprivileged Debian LXC, CT 110 (`site1`) | Debian TODO | Kayden | Own bridge `vmbr1`, 10.10.20.20/24, routed and filtered by the host (checks 10-14, 8 Oct 2026); no inbound ports |
 | PocketBase | Prod LXC, `127.0.0.1:8090`, systemd unit `TODO` | Pinned in `POCKETBASE_VERSION`: v0.40.4 (released 12 Sep 2026), sha256 of the linux_amd64 zip checked against the release's `checksums.txt` | Kayden | Never run `./pocketbase update` on prod. Non-root user, `NoNewPrivileges`, `ProtectSystem=strict`, writes only to `pb_data` |
 | cloudflared | Prod LXC | TODO | Kayden | Named tunnel `TODO`, created 6 Oct 2026; confirmed named and running inside the prod LXC (6 Oct). Never a Quick Tunnel (Quick Tunnels buffer SSE), never on the Proxmox host |
 | Cloudflare Access app, whole hostname | Cloudflare Zero Trust | — | Kayden | Explicit email list; one-time PIN; 7-day session; Service Auth policy for the probe; no Bypass policies |
@@ -24,7 +24,7 @@
 | Photo archive, copy 2 | Desktop, `TODO` path | — | Kayden | Pulls and verifies the manifest; must verify before photos leave the app |
 | Photo archive, copy 3 | Laptop, `TODO` path | — | Kayden | Pulls on the home LAN; full-disk encryption **on** (TODO confirm) |
 | Offsite backups | Backblaze B2 bucket `TODO` (free tier, 10 GB) | restic (decided 2026-10-07), one repository in the bucket | Kayden | Encrypted by restic on the host before upload; the host holds the B2 key and the restic password, never a container. `restic check` weekly |
-| Dev VM | Proxmox VM (not an LXC, so the Claude Code sandbox can start), dev VLAN `TODO`; built 6 Oct 2026 | Debian 13; Node 24 LTS; Claude Code (native installer, stable channel) | Kayden | Claude Code with the sandbox on (`failIfUnavailable`); seed data only; no prod or staging credentials; `pre-push` hook from `.githooks/` runs `npm run check` |
+| Dev VM | Proxmox VM (not an LXC, so the Claude Code sandbox can start), own bridge `vmbr2`, 10.10.30.20/24; built 6 Oct 2026 | Debian 13; Node 24 LTS; Claude Code (native installer, stable channel) | Kayden | Claude Code with the sandbox on (`failIfUnavailable`); seed data only; no prod or staging credentials; `pre-push` hook from `.githooks/` runs `npm run check` |
 | Staging container | Unprivileged Debian LXC, CT `TODO`, staging VLAN `TODO` | Same Debian, systemd unit, `deploy.sh` and pinned PocketBase as prod | Kayden | Decided 2026-10-07 (`decisions.md` L3). Seed data only, never prod data or photos; its own superuser. A systemd timer runs `deploy.sh --staging` every 5 min |
 | cloudflared (staging) | Staging LXC | TODO | Kayden | Its own named tunnel to `staging.TODO` → `127.0.0.1:8090`, never shared with prod |
 | Cloudflare Access app, staging hostname | Cloudflare Zero Trust | — | Kayden | Same email list and settings as prod (one-time PIN, 7-day session, no Bypass); Service Auth policy for the `staging-probe` token |
@@ -78,7 +78,7 @@
 | restic repository password (backup encryption) | Proxmox host, root-only file `TODO`; copy on the sealed break-glass sheet | root | Off-season (`restic key add` then `restic key remove` the old one) | Prod and staging LXCs, dev VM, B2 |
 | GitHub deploy key, write, this repo only (`~/.ssh/chromie_deploy`, passphrase, no agent) | Dev VM only | Kayden | Off-season; remove it from the repo at once if the dev VM is compromised | Prod LXC, CI, any other machine |
 | Desktop SSH key for archive pulls (read-only, archive folder only) | Desktop | Kayden | Off-season | Server, laptop |
-| Laptop SSH key for archive pulls (separate key, same restrictions) | Laptop | Kayden | Off-season; revoke at once if the laptop is lost | Server, desktop |
+| Laptop SSH key for archive pulls (separate key, same restrictions) | Laptop | Kayden | Off-season; revoke at once if the laptop is lost, and log it in section 12 | Server, desktop |
 
 ## 4. Accounts and recovery (bus factor)
 
@@ -304,7 +304,7 @@ Decided 2026-10-07 (`decisions.md`, "Sign-in values"). Set them in the `users` c
 | Domain on Cloudflare DNS | TODO | |
 | Dev VM on its own VLAN, sandbox proven | Done 6 Oct 2026 | Sandbox probes refused (`touch ~/sandbox-probe`: read-only; `curl --noproxy`: can't resolve). `failIfUnavailable` stopped Claude Code until bubblewrap was installed. `docs/evidence/m0.txt` | `touch ~/sandbox-probe` refused; `curl --noproxy '*'` can't resolve |
 | Private repo, rulesets, guardrails installed | Done 6 Oct 2026 | Direct push to `main` refused (GH013); tag test showed the deploy-key bypass (section 1); Claude Code refused an edit to `.claude/settings.json`, a shell append to it and `git push origin main`; the guard hook blocks when run by hand. `docs/evidence/m0.txt` |
-| Prod LXC, prod VLAN and firewall | TODO | Section 2 check in `evidence/m0.txt` |
+| Prod LXC, prod VLAN and firewall | Done 8 Oct 2026 for prod and the dev VM | CT 110 on `vmbr1`; checks 10-14 in `evidence/m0.txt`; staging still to test |
 | Access apps (whole hostname, `/_/`), service token | TODO | X-ACC-01 to 04 in `evidence/m0.txt` |
 | SMTP and PocketBase auth settings | TODO | Section 14 |
 | First deploy of a tag | TODO | Section 13 |
