@@ -1,0 +1,10 @@
+{
+  // The browser bundle: the DOM and Vite's client types, and no Node types, so a Node API
+  // in app code fails the type check instead of the phone (test/tsconfig.test.ts).
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

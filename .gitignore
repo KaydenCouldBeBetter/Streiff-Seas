@@ -1,6 +1,7 @@
 # PocketBase binary and data (fetched by scripts/fetch-pb.sh; data is never committed)
 /pocketbase
 /pocketbase_*.zip
+/.fetch-pb.*/
 pb_data/
 
 # Build output (npm run build writes the app here)

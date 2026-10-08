@@ -1,0 +1,11 @@
+{
+  // What runs in Node: the tests, their harness and the build configs. No DOM here. App
+  // modules a test imports are checked a second time under these types.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["test", "web/build-info.ts", "web/src/vite-env.d.ts", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["test/fixtures"]
+}

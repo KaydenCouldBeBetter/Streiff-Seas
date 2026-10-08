@@ -16,7 +16,7 @@
       ".gitignore covers the pocketbase binary, pb_data/, pb_public/, node_modules/, .env*, CLAUDE.local.md and .claude/settings.local.json; env.example exists",
       "npm run check output shown, run twice"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-02-schema",
