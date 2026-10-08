@@ -1,0 +1,5 @@
+{
+  // The browser project's settings over one file that uses Node (test/tsconfig.test.ts).
+  "extends": "../../../web/tsconfig.json",
+  "include": ["leak.ts"]
+}

@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import { buildInfo } from "./web/build-info.ts";
+import { buildDefine, buildInfo } from "./web/build-info.ts";
 
 const info = buildInfo(process.env, new Date());
 
@@ -24,9 +24,7 @@ export default defineConfig({
   // The app is same-origin and needs no env files; .env* are off limits anyway.
   envDir: false,
   plugins: [react(), buildJson()],
-  define: {
-    __BUILD_SHA__: JSON.stringify(info.sha),
-  },
+  define: buildDefine(info),
   build: {
     outDir: "../pb_public",
     emptyOutDir: true,

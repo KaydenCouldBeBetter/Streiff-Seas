@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Downloads the PocketBase release pinned in POCKETBASE_VERSION and unpacks the
-# binary to ./pocketbase. Exits non-zero, leaving no binary behind, if the zip's
-# sha256 doesn't match the pinned one. linux_amd64 only (decisions.md 2026-10-06).
+# binary to ./pocketbase. Exits non-zero if the zip's sha256 doesn't match the pinned
+# one, and then leaves any ./pocketbase already there as it was; the test harness is
+# what refuses a binary that isn't the pinned version. linux_amd64 only (decisions.md
+# 2026-10-06).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,11 +33,14 @@ else
 fi
 url="$base/v${version}/${zip_name}"
 
-work="$(mktemp -d)"
+# Work inside the repo, not in the system temp directory, so the last step is a rename on
+# one filesystem: ./pocketbase is the old file or the whole new one, never part of a copy.
+work="$(mktemp -d "$root/.fetch-pb.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 echo "fetch-pb: downloading $url"
-curl --fail --silent --show-error --location --proto "$proto" --output "$work/$zip_name" "$url"
+curl --fail --silent --show-error --location --proto "$proto" --proto-redir '=https' --retry 3 \
+  --output "$work/$zip_name" "$url"
 
 got_sha="$(sha256sum "$work/$zip_name" | cut -d' ' -f1)"
 if [[ "$got_sha" != "$want_sha" ]]; then

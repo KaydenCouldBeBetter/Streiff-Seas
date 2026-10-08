@@ -1,23 +1,11 @@
 {
+  // What runs in Node: the tests, their harness and the build configs. No DOM here. App
+  // modules a test imports are checked a second time under these types.
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "types": ["node", "vite/client"],
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "noEmit": true
+    "lib": ["ES2023"],
+    "types": ["node"]
   },
-  "include": ["web/src", "web/build-info.ts", "test", "vite.config.ts", "vitest.config.ts"]
+  "include": ["test", "web/build-info.ts", "web/src/vite-env.d.ts", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["test/fixtures"]
 }

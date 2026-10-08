@@ -44,8 +44,11 @@ export async function createFixtureUsers(harness: Harness): Promise<FixtureUsers
 }
 
 /** A client that acts as the given user, through the superuser impersonate endpoint. */
-export function actAs(harness: Harness, user: RecordModel): Promise<PocketBase> {
-  return harness.superuser.collection("users").impersonate(user.id, IMPERSONATE_SECONDS);
+export async function actAs(harness: Harness, user: RecordModel): Promise<PocketBase> {
+  const client = await harness.superuser.collection("users").impersonate(user.id, IMPERSONATE_SECONDS);
+  // impersonate() returns a new client with the SDK's defaults; match harness.client().
+  client.autoCancellation(false);
+  return client;
 }
 
 /** A client with no auth at all. */
