@@ -7,12 +7,14 @@
       "package.json pins Node 24 in engines and .nvmrc says 24; npm ci --ignore-scripts installs; the only runtime dependencies are react, react-dom and pocketbase",
       "web/ is a Vite + React + TypeScript (strict) app; npm run build runs tsc and vite build into pb_public/, which is gitignored; PocketBase serves it with an index fallback so client routes load on refresh (confirm the serve option on the pinned version and note it in progress.md)",
       "npm run dev runs Vite with /api proxied to the local PocketBase on 127.0.0.1:8090, so development is same-origin like prod",
+      "package.json script check runs tsc --noEmit, npm test and npm run build in that order and stops at the first failure; it is the one command that says the work is green on the dev VM (decisions.md L3)",
       "One shared PocketBase SDK client in web/src/lib/pb.ts, and one helper that corrects the phone's clock by the offset from the server's Date header (decisions.md 2026-10-05, server clock)",
+      "npm run build also writes pb_public/build.json ({\"sha\", \"built_at\"}; sha is \"dev\" outside CI), and the app shows the short sha in a small footer, so the deploy smoke tests and Kayden on staging can see which commit is running",
       "npm test (Vitest) starts a fresh PocketBase in a temp directory with pb_migrations/ and pb_hooks/, runs every test file against it and shuts it down; two runs in a row both pass",
       "Smoke test: the PocketBase health endpoint returns 200 (record the path used on the pinned version in progress.md)",
       "Test helpers create the security.md fixture users (K, O, S, N, M, W, X, Y), act as each through the superuser impersonate endpoint (no email in tests), and act as anon",
       ".gitignore covers the pocketbase binary, pb_data/, pb_public/, node_modules/, .env*, CLAUDE.local.md and .claude/settings.local.json; env.example exists",
-      "npm test and npm run build output shown"
+      "npm run check output shown, run twice"
     ],
     "passes": false
   },
@@ -28,7 +30,7 @@
       "Species seeded by migration: largemouth bass and smallmouth bass",
       "A test boots from an empty pb_data, applies every migration from zero, and confirms anon and a signed-in member are refused for every collection and action (an early form of R-ALL-ANON-01; the full sweeps come with S1)",
       "Migrations are new files only; Kayden reads every migration diff before merge",
-      "npm test output shown"
+      "npm run check output shown"
     ],
     "passes": false
   },
@@ -42,7 +44,7 @@
       "One React hook, web/src/lib/useLive.ts, subscribes to catches and to 'heartbeat', unsubscribes on unmount, refetches everything on PB_CONNECT and when the page becomes visible again, and polls every 30 s if nothing (not even a heartbeat) arrives for 150 s",
       "A bare page lists the live event's pending and verified catches with a Live / Reconnecting / Updated h:mm badge; any event status shown uses the status words (Draft, Live, Closed, Final), kept apart from the badge (decisions.md 2026-10-05)",
       "Locally, a catch added in the admin UI appears on the page without a reload",
-      "Checked at 390 px wide; npm test and npm run build output shown"
+      "Checked at 390 px wide; npm run check output shown"
     ],
     "passes": false
   },
@@ -61,29 +63,35 @@
   },
   {
     "id": "M0-05-ci-deploy",
-    "description": "The CI job, the release bundle on a tag, deploy.sh and the systemd unit, drafted and tested locally for Kayden to install",
+    "description": "The pipeline in decisions.md L3: CI with a bundle artifact on every push to main, a release job that attaches that artifact to a tag, deploy.sh for prod and for staging (--staging), the systemd units, the pre-push hook and the staging seed script, drafted and tested locally for Kayden to install",
     "steps": [
       "docs/drafts/ci.yml (Kayden copies it to .github/workflows/ci.yml; the guard blocks Claude there): runs on pull requests and pushes to main with Node 24; npm ci --ignore-scripts, scripts/fetch-pb.sh, npm test, npm run build, gitleaks; permissions contents: read; every action pinned to a full commit SHA",
-      "On a tag, a separate job with contents: write packages bundle.tar.gz (built pb_public/, pb_hooks/, pb_migrations/, POCKETBASE_VERSION) with its sha256 and attaches both to the release, but only when the tagged commit is on main (git merge-base --is-ancestor against origin/main); a tag on any other commit fails the job and attaches nothing",
-      "deploy.sh <tag> follows ops.md §5 in order: refuses while /etc/scoreboard/FREEZE exists unless --force; refuses a tag whose commit isn't on main (GitHub compare API: main...<tag> must be identical or behind); refuses while an event is live if the bundle adds migrations or changes POCKETBASE_VERSION; downloads with the read-only token from a root-only env file; verifies the sha256; takes a backup; unpacks to releases/<tag>; verifies the PocketBase binary; switches the current symlink; restarts; smoke-tests through Cloudflare with the service token; appends a deploy-log line; switches back if the smoke test fails",
-      "Tests show both checks: the release job fails for a tag on an unmerged branch commit, and deploy.sh refuses such a tag against a stubbed compare response",
-      "deploy.sh passes shellcheck and runs against a fake bundle in a temp directory with its network calls stubbed (never against prod)",
-      "A systemd unit draft runs PocketBase as a non-root user on 127.0.0.1:8090 from the current symlink, with NoNewPrivileges, ProtectSystem=strict and write access only to pb_data",
-      ".github/pull_request_template.md lists the Definition of Done: npm test and build green; every migration and rule diff read; any rule change has its security.md row and test in the same commit"
+      "On a push to main, once the tests pass, the same workflow packages bundle.tar.gz (built pb_public/ with build.json, pb_hooks/, pb_migrations/, POCKETBASE_VERSION, and BUILD_INFO holding the commit SHA) with bundle.sha256 and uploads both as the artifact bundle-<sha>, kept 90 days; still contents: read. Pull request runs build but upload nothing",
+      "On a v* tag, a release job (the only job with contents: write, plus actions: read) checks the tagged commit is on main (git merge-base --is-ancestor against origin/main), finds that commit's successful ci.yml push run on main, downloads its bundle artifact, verifies the sha256 and attaches bundle.tar.gz and bundle.sha256 to the release. It never rebuilds, and it fails and attaches nothing if the commit isn't on main or has no green main build",
+      "deploy.sh <tag> follows ops.md §5 in order: refuses while /etc/scoreboard/FREEZE exists unless --force; refuses a tag whose commit isn't on main (GitHub compare API: main...<tag> must be identical or behind); refuses while an event is live if the bundle adds migrations or changes POCKETBASE_VERSION; downloads with the read-only token from a root-only env file; verifies the sha256; backs up by stopping PocketBase and archiving pb_data to /var/backups/scoreboard/pre-deploy-<tag>-<time>.tar.zst; unpacks to releases/<tag>; verifies the PocketBase binary; switches the current symlink; starts; smoke-tests through Cloudflare with the service token (health endpoint and build.json sha); appends a deploy-log line; switches back if the smoke test fails",
+      "deploy.sh --staging follows ops.md §5: with the staging token, finds the newest successful ci.yml push run on main; exits quietly if that commit is already running; otherwise downloads and verifies the artifact, checks the commit is on main, backs up, unpacks to releases/<sha>, switches, starts, smoke-tests with the staging-probe token, switches back on failure, and pings the Healthchecks staging URL (its /fail URL on failure). It skips the FREEZE and live-event checks, and refuses to run unless /etc/scoreboard/ENVIRONMENT says staging",
+      "Tests show: the release job fails for a tag off main and for a commit with no green main build; deploy.sh refuses an off-main tag against a stubbed compare response; deploy.sh --staging deploys a new commit, does nothing for an unchanged one, and rolls back a failing smoke test, against stubbed GitHub and smoke endpoints",
+      "deploy.sh passes shellcheck and runs against a fake bundle in a temp directory with its network calls stubbed (never against prod or staging)",
+      "systemd drafts: the PocketBase unit runs as a non-root user on 127.0.0.1:8090 from the current symlink, with NoNewPrivileges, ProtectSystem=strict and write access only to pb_data; for staging, scoreboard-staging-deploy.service plus a .timer that runs deploy.sh --staging every 5 minutes",
+      "docs/drafts/pre-push (Kayden installs it as .githooks/pre-push and runs git config core.hooksPath .githooks; .githooks/ is guard-protected): runs npm run check and refuses the push if it fails",
+      "scripts/seed-staging, run by Kayden on staging only, creates the security.md fixture users (each with a name) and one live event through the staging superuser, and refuses to run unless /etc/scoreboard/ENVIRONMENT says staging",
+      ".github/pull_request_template.md lists the Definition of Done: npm run check and CI green; every migration and rule diff read; any rule change has its security.md row and test in the same commit"
     ],
     "passes": false
   },
   {
     "id": "M0-06-infra",
     "human": true,
-    "description": "Kayden, by hand: prod container, network, tunnel, Access, SMTP and the first deploy",
+    "description": "Kayden, by hand: prod and staging containers, network, tunnels, Access, SMTP, the pipeline install and the first deploys",
     "steps": [
       "Unprivileged Debian LXC on the isolated prod VLAN with the ops.md §2 firewall; from the LXC a LAN host and the Proxmox UI are unreachable, and from the dev VM the LXC and the Proxmox UI are unreachable (output in docs/evidence/m0.txt)",
       "cloudflared runs a named tunnel inside the LXC to 127.0.0.1:8090; the tunnel token is a root-only file there",
+      "Staging LXC on its own staging VLAN, set up like prod (/etc/scoreboard/ENVIRONMENT says staging): its own named tunnel to staging.<domain>, an Access app with the same email list and the staging-probe service token, the GitHub staging token (Actions read, Contents read), a staging superuser with MFA, and scripts/seed-staging run once; from the staging LXC a LAN host, the Proxmox UI and the prod LXC are unreachable, and from the dev VM the staging LXC is unreachable (docs/evidence/m0.txt)",
       "Access: one app on the whole hostname with an Emails include list, a 7-day session, one-time PIN and no Bypass; a second app on /_/ for Kayden's email only; the uptime-probe service token; X-ACC-01 to X-ACC-04 pass (security.md 'Access checks')",
-      "SMTP set in PocketBase with SPF and DKIM on the domain; the sign-in values (screens.md Gap 19) set and recorded in ops.md §14",
+      "SMTP set in PocketBase with SPF and DKIM on the domain; the sign-in values (decisions.md 2026-10-07) set on prod and staging and recorded in ops.md §14",
       "Superuser created with MFA; at least two test members invited, each with a name (ops.md §9)",
-      "The first tagged bundle deployed with deploy.sh, and its deploy-log line written (ops.md §13)"
+      "The pipeline installed from docs/drafts/: ci.yml in .github/workflows/, the ci check required on main, the pre-push hook (git config core.hooksPath .githooks), the staging systemd units; .githooks/ added to the user-level guard hook's protected paths and an Edit(./.githooks/**) deny added to .claude/settings.json",
+      "The staging timer deploys a green main build on its own; that commit is then tagged, the release job attaches the same bundle, and deploy.sh <tag> puts it on prod with its deploy-log line (ops.md §13)"
     ],
     "passes": false
   },
@@ -104,10 +112,11 @@
     "human": true,
     "description": "Kayden: encrypted offsite backups that restore, and an uptime alert that reaches the phone",
     "steps": [
-      "restic or rclone crypt chosen and recorded in decisions.md",
-      "Nightly vzdump plus a PocketBase backup on the host; the host encrypts and pushes to B2; the container holds no B2 key",
-      "A backup is fetched from B2, decrypted on the host and restored into a throwaway container, which serves the app",
+      "restic (decided 2026-10-07) set up on the host: one repository in the B2 bucket, its password in a root-only file and on the break-glass sheet, retention as in ops.md §7",
+      "Nightly vzdump plus a PocketBase backup on the host; restic encrypts and pushes to B2; no container holds a B2 key",
+      "A backup is restored from B2 with restic on the host into a throwaway container, which serves the app; restic check passes",
       "Cron in the LXC probes the public URL every 5 minutes with the service token and pings Healthchecks on 200; a deliberate outage alerts Kayden's phone",
+      "Healthchecks staging check: one deliberately broken build merged to main makes the staging deploy fail its smoke test, roll back and alert Kayden's phone; the fix is merged after",
       "Results pasted into docs/evidence/m0.txt"
     ],
     "passes": false
@@ -120,8 +129,9 @@
       "A phone on mobile data sees a catch entered in the admin UI appear live, including after the phone is locked and unlocked",
       "After a 15-minute idle subscription through the real tunnel, a newly verified catch renders within 5 seconds",
       "An unlisted email is denied by Access, and an anonymous API write is denied",
-      "Connections from the container to the home LAN and to Proxmox management fail",
+      "Connections from the prod and staging containers to the home LAN and to Proxmox management fail, and neither container nor the dev VM reaches the others",
       "A backup reached B2 and restored",
+      "Staging deployed a green main build on its own, and prod runs that same bundle through a tag",
       "The photo spike's result is recorded in decisions.md",
       "Every earlier M0 item passes; docs/evidence/m0.txt holds the evidence"
     ],
@@ -133,6 +143,7 @@
     "steps": [
       "Fixtures K, O, S, N, M, W, X, Y and events E1, E2, EL, ED, EC, EF are seeded from security.md 'Test fixtures'; every rules test also runs with Access absent (invariant 8)",
       "Sign-in is PocketBase OTP only: password sign-in is refused and an OTP request for an unlisted email creates no user (R-USR-A-01, R-USR-A-02); anonymous sign-up and member user-create are refused (R-USR-C-01, R-USR-C-02, R-USR-C-03)",
+      "Sign-in values as in ops.md §14 (decisions.md 2026-10-07): the code screen offers \"Send a new code\" after 60 s; when the app opens with a valid token it refreshes it, so a member who opens the app within 14 days isn't asked for a code; an expired or invalid token goes to SYS-04",
       "Users: anon sees none, M sees only own record and can't view X's, K sees all (R-USR-L-01, R-USR-L-02, R-USR-L-03, R-USR-V-01, R-USR-V-02)",
       "Profile: M changes own name and display units but not role, email, verified or anyone else's record; K can't change roles; nobody deletes a user (R-USR-U-01, R-USR-U-02, R-USR-U-03, R-USR-U-04, R-USR-U-05, R-USR-D-01)",
       "A signed-in member lists species and non-draft events; anon sees none; M can't view a draft (R-SPC-L-01, R-SPC-L-02, R-SPC-L-03, R-EVT-L-01, R-EVT-L-02, R-EVT-V-01)",
@@ -143,6 +154,7 @@
       "Length entry in EL: 17 5/8 in is stored as length_q 70 and 14 7/8 in as 59 (scoring.md example 6)",
       "Refused create bodies: another angler's entry, status, judged_by, reason or flags, rev, before starts_at, after submit_deadline, non-live event, anonymous, wrong measurement for the metric, withdrawn entry; a body-set created never sticks (R-CAT-C-02 to R-CAT-C-08, R-CAT-C-11 to R-CAT-C-15, R-CAT-C-23)",
       "Species blocked: the submit screen offers only E1's species and the API refuses walleye in E1 (R-CAT-C-09; scoring.md example 7)",
+      "Club rules (RULES-01a): read only, worded from the scoring.md version in force; opened from a tournament page it adds that tournament's species, metric, fishing window, final deadline (with the extension note) and whether the code word is on; opened from home, club-wide rules only (decisions.md 2026-10-07, Gap 37)",
       "Double submit: the same client_uuid twice leaves one record (R-CAT-C-10); the UI shows Sending, Received and NOT SENT with Retry, and a retry after a lost response confirms the catch by client_uuid",
       "Photos: for the four fixtures (gps.jpg, xmp-gps.jpg, iphone.heic, text-chunk.png) neither the stored original nor any thumbnail has location data (test/upload.test.ts); an oversize or non-image file is refused (R-CAT-C-16)",
       "Flags set on create, as fixed codes: no_capture_time, before_window, after_window, late_submit, extra_photo_no_time and extra_photo_far, exactly the matching ones and none on a clean catch (R-CAT-C-20, R-CAT-C-22; scoring.md examples 13, 14, 17, 25)",
@@ -153,7 +165,7 @@
       "Nothing is deleted and denied requests write no audit row (R-CAT-D-01, R-AUD-H-04)",
       "Sweeps over all six collections pass and are re-run in every later slice: anonymous view/create/update/delete all denied; view by id matches each caller's list; delete denied for every role (R-ALL-ANON-01, R-ALL-V-01, R-ALL-D-01)",
       "Submit, edit and Join screens checked at 390 px wide, primary buttons about 48 px tall, light high-contrast theme",
-      "npm test output shown; /security-review run on the rules, hooks and upload code"
+      "npm run check output shown; /security-review run on the rules, hooks and upload code"
     ],
     "passes": false
   },
@@ -171,7 +183,7 @@
       "Display units: decimal pounds and pounds-and-ounces views match scoring.md examples 5 and 16, and switching changes no score or ranking (R-USR-U-01)",
       "Name sync: M's name change updates display_name in live and closed events but not in final ones (R-USR-U-06)",
       "Realtime: a member subscribed to catches gets no event for another angler's rejected catch (R-CAT-L-09); the board refetches on PB_CONNECT and when the tab becomes visible, shows Live / Reconnecting / last updated, and polls every 30 s after 150 s of silence",
-      "Leaderboard checked at 390 px wide; npm test output shown"
+      "Leaderboard checked at 390 px wide; npm run check output shown"
     ],
     "passes": false
   },
@@ -192,7 +204,7 @@
       "Judge photos and code word: K and S fetch rejected photos within their scope with a file token, N can't (R-CAT-F-04); when the code word changed within 24 h of photo 1, the review shows code_word_prev and code_word with the time of the change (scoring.md example 27)",
       "Judge tab: the Judging home lists every live or closed tournament the viewer judges or backup-judges, stacked, with pending counts (R-CAT-L-05, R-CAT-L-06)",
       "Outage: the queue shows hours from capture to receipt so the judge can apply the outage allowance from the outage log (scoring.md example 22)",
-      "Queue checked at 390 px wide; npm test output shown; /security-review run"
+      "Queue checked at 390 px wide; npm run check output shown; /security-review run"
     ],
     "passes": false
   },
@@ -210,7 +222,7 @@
       "Exports: the results CSV is built in the organizer's browser by web/src/lib/scoring.ts and matches the leaderboard; the audit CSV covers every audit row for the event; the screen shows the SHA-256 of each, ready to post with the standings in the group chat, and the same data always gives the same hash",
       "Final events show 'Photo archived' and the app never requests their photo files",
       "archive-event.sh, run on a seeded copy: copies every photo of the event with a sha256 manifest, stops if any file has location metadata, and removes files from pb_data only after the desktop copy's manifest verifies, never through the API (invariant 6)",
-      "npm test output shown; the ops.md 'Close and finalize' checklist walked once against a seeded event"
+      "npm run check output shown; the ops.md 'Close and finalize' checklist walked once against a seeded event"
     ],
     "passes": false
   }

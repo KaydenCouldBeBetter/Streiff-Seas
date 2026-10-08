@@ -1,6 +1,7 @@
 # Screens: Fishing Scoreboard (UI step 1, screen inventory)
 
-**Status:** Draft v0.6, 5 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**Status:** Draft v0.7, 7 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**v0.7:** applies the Figma pass-3b review (`claude/review-figma-pass3.md` §5, in the Claude Project: all 130 rows have frames, §7.3) and Kayden's answers of 7 Oct 2026, recorded in `decisions.md`: Gap 19 values (8-digit code, 10 minutes, a new code after 60 s, 14-day token refreshed on open), Gap 37 (Club rules adds the tournament's values when opened from a tournament page). The open questions moved to `decisions.md` Open items; the status-word rule gained one sentence. Sources now use repo paths (`decisions.md` 2026-10-07: the repo is the source of truth).
 **v0.6:** applies the independent review of 5 Oct 2026 and Kayden's answers, recorded in `decisions.md` 2026-10-05: new rows JDG-00a and JDG-00b (the Judge tab opens a Judging home), RULES-01a (Club rules), and a NOT SENT row for every change screen (MY-03c, MY-05c, JDG-02j, JDG-03b, JDG-04b, JDG-05c, ORG-04c, ORG-05c, ORG-06c, ORG-09c); the status-word rule and the tab rule in §0; JDG-02i reads the code word history stored on the event; JDG-01c wording; LB-01e places; test IDs from `security.md` v0.9 (Gap 33 settled); "Ask the judge" is out (messaging is on SPEC's Not doing list). 117 → 130 rows; the 13 new rows have no Figma frame yet (§7.3).
 **v0.5:** applies Kayden's answers of 5 Oct 2026 (Figma pass 2), recorded in `decisions.md`: Gap 9 (name editable while live; once closed, only the backup judge), Gap 10 (`ends_at` later only, while the window is open), Gap 11 (Open preconditions enforced by the hook), Gap 15 (CSV format; hashed files only when final; unhashed preview while closed), Gap 16 (reload and infer the reason), Gap 17 (server clock offset), Gap 19 (neutral sign-in wording), Gap 20 (names always set; Join asks for one), Gap 21 (same angler and catch pages for everyone), Gap 25 (which screens update live), Gap 28 (members see an extension), Gap 31 (pending or verified). New row: EVT-02n (Join: name needed first). Later the same day (Kayden, `decisions.md`): `scoring.md` v0.6 is in force with no group vote; a backup judge named after close gets no entry; ORG-08c (Entries: empty, unreachable) dropped; exports gain "Share file and hash". Every row in section 2 has a Figma frame (117, scripted check of 5 Oct).
 **v0.4:** applies Kayden's answers of 3 Oct 2026, recorded in `decisions.md`: `scoring.md` v0.5 agreed; home screen option A (a list) and landing with two live entries (Gap 29); judge queue filters (Gap 22); judge names from their entries (Gap 13); the withdraw reason shown (Gap 24); the code word can change while live and the judge can only step down, with the backup taking over (Gap 9, details open); "Photo archived" from finalize (Gap 32). New rows: EVT-01d, JDG-01f, JDG-01g, JDG-02i.
@@ -51,7 +52,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 - **[L]** length from `length_q`, shown as inches and quarter-inches (70 → 17 1/2 in) (`scoring.md` §4, example 6). `display_units` never changes lengths.
 - Weight **entry** offers both formats regardless of `display_units` (`scoring.md` §4).
 
-**Sources.** SPEC = `SPEC.md`; SEC = `security.md` (named by collection); SCO = `scoring.md` (§ or example); DEC = `decisions.md` (date and entry); FEAT = `claude/features.json` (slice and step number); ARCH = `claude/architecture.md`; OPS = `claude/ops.md`.
+**Sources.** SPEC = `SPEC.md`; SEC = `security.md` (named by collection); SCO = `scoring.md` (§ or example); DEC = `decisions.md` (date and entry); FEAT = `features.json` (slice and step number); ARCH = `architecture.md`; OPS = `ops.md`.
 
 **Facts that hold on every screen**
 - No location data exists in any field or file (invariant 4), so no screen shows location.
@@ -64,7 +65,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 - Every angler change (edit, add photos, retract) and every judge action sends back the `rev` the screen loaded; a stale `rev` is refused and the screen reloads (R-CAT-U-13, U-39).
 - **Refusals** reload the record and event and say what changed, inferred from `status`, `rev`, `submit_deadline`, `withdrawn` and the event status (Gap 16, settled 2026-10-05).
 - **No reply** (DEC 2026-10-05 "No reply on any change"). Any change that gets no reply (submit, edit, add photos, retract, a judge decision, an organizer action) shows NOT SENT with Retry and keeps the inputs, locked. Retry reloads the record first: if it already shows the change, the screen says it was saved and sends nothing; if it changed in some other way, the screen's refused state shows (Gap 16); otherwise it resends. NOT SENT (no reply) stays separate from Not accepted (refused).
-- **Status words** (DEC 2026-10-05 "Event status and the live badge use different words"). The event status chip shows `events.status`: Draft, Live, Closed or Final. The realtime badge (Live, Reconnecting, Updated h:mm) appears only on screens that update live (Gap 25): LB-01 (not when final), JDG-01 and the counts on ORG-01.
+- **Status words** (DEC 2026-10-05 "Event status and the live badge use different words"). The event status chip shows `events.status`: Draft, Live, Closed or Final. The realtime badge (Live, Reconnecting, Updated h:mm) appears only on screens that update live (Gap 25): LB-01 (not when final), JDG-01 and the counts on ORG-01. Nowhere else does the word "Live" describe data, so list-link details say "You're 4th", not "Live · you're 4th".
 - **Tabs.** The Judge tab shows when the viewer is `events.judge` or `events.backup_judge` of any live or closed tournament, and opens JDG-00a (DEC 2026-10-05 "The Judge tab opens a Judging home"). Every EVT-01 and EVT-02 screen has a Club rules link (→ RULES-01a). There is no "Ask the judge" control: in-app messaging is out of the MVP (DEC 2026-10-05).
 - "Gap n" points to section 5.
 
@@ -128,9 +129,9 @@ One row per distinct state. The table is split by area; the columns are the same
 |---|---|---|---|---|---|---|---|---|---|
 | AUTH-01a | Sign in: email | anon | n/a | — | Email field | Request a sign-in code | Password sign-in, sign-up, OAuth2: OTP is the only method (R-USR-A-01, R-USR-C-01) | `users` auth settings (OTP on); R-USR-A-01 | SEC users "Auth settings"; DEC L1 §2; SPEC Must 1 |
 | AUTH-01b | Sign in: email, no such user | anon | n/a | Email has no PocketBase user | The same as AUTH-02a: "If that email is registered, a code is on its way" (Gap 19, settled 2026-10-05); any code entered then fails as AUTH-02b | Change email; enter a code | Create an account (R-USR-C-01); anything that reveals whether the email is a member | R-USR-A-02 | SEC users; DEC 2026-10-05 sign-in wording |
-| AUTH-02a | Sign in: code | anon | n/a | Code requested | Email the code went to; code field | Submit code; use a different email (→ AUTH-01) | — | `users` auth settings (OTP on) | SEC users; DEC L1 |
-| AUTH-02b | Sign in: wrong code | anon | n/a | Code not accepted | Error: code not accepted; field kept for another try (attempt limits: Gap 19) | Try again; request a new code (→ AUTH-01) | — | `users` auth settings | SEC users; FEAT S1 step 2 |
-| AUTH-02c | Sign in: expired code | anon | n/a | Code expired | Error: code expired (expiry length: Gap 19) | Request a new code (→ AUTH-01) | Submitting the same code again | `users` auth settings | SEC users; FEAT S1 step 2 |
+| AUTH-02a | Sign in: code | anon | n/a | Code requested | Email the code went to; code field | Submit code; Send a new code (offered after 60 s); use a different email (→ AUTH-01) | — | `users` auth settings (OTP on) | SEC users; DEC L1; DEC 2026-10-07 sign-in values |
+| AUTH-02b | Sign in: wrong code | anon | n/a | Code not accepted | Error: code not accepted; field kept for another try (tries are rate-limited: OPS §14, Gap 19) | Try again; request a new code (→ AUTH-01) | — | `users` auth settings | SEC users; FEAT S1 step 2 |
+| AUTH-02c | Sign in: expired code | anon | n/a | Code expired | Error: code expired (a code lasts 10 minutes: Gap 19) | Request a new code (→ AUTH-01) | Submitting the same code again | `users` auth settings | SEC users; FEAT S1 step 2 |
 
 ### 2.2 Tournaments and the tournament page
 
@@ -289,8 +290,8 @@ One row per distinct state. The table is split by area; the columns are the same
 | SYS-01a | Offline | M, J, S, K | any | — | "No connection"; data on screen is the last loaded; submissions go to SUB-02c; leaderboard to LB-01b or c | Retry where the screen offers it | — | FEAT S1 step 13, S2 step 10 (no test ID) | ARCH §4 |
 | SYS-02a | Not found / not allowed | M, J, S | — | A draft event, another angler's rejected or retracted catch, a catch on someone else's withdrawn entry, or a JDG or ORG screen without the role | "Not available" (the API returns the record as absent) | Back | — | R-EVT-V-01, R-CAT-V-01, R-ALL-V-01, R-EVT-U-02, R-CAT-U-10 | SEC conventions "What Deny means" |
 | SYS-03a | Locked | M, J, S, K | final | — | "This tournament is final; nothing can change" after a refused change; the screen reloads read only | Reload | Any change (R-CAT-U-12, R-ENT-U-10, R-EVT-U-05) | R-CAT-U-12, R-ENT-U-10, R-EVT-U-05 | SPEC invariant 7 |
-| SYS-04a | Session ended | M, J, S, K | any | PocketBase auth no longer valid | "Please sign in again"; your catches are safe, an unsent photo is still in the camera roll. After repeated network failures the app does a full page reload so an expired Access session can prompt (Gap 19) | Sign in (→ AUTH-01) | — | R-USR-A-01; invariant 8 | SPEC invariant 8; DEC L1; DEC 2026-10-05 |
-| RULES-01a | Club rules | M, J, S, K | any | — | Read only, worded from the `scoring.md` version in force (version and date shown): what counts (SCO §2); proof photos and the code word (§5); submitting, the 24-hour rule, the final deadline, editing, retracting and outages (§6); photo limits (`image/jpeg`, 5 MB per file, 4 per catch; capture time kept, location removed). Whether it also shows the open tournament's own values is open (Gap 37) | Back | — | none (static content) | DEC 2026-10-05 "Club rules screen"; SCO §2, §5, §6; DEC 2026-10-01 "Photo field limits" |
+| SYS-04a | Session ended | M, J, S, K | any | PocketBase auth no longer valid | "Please sign in again"; your catches are safe, an unsent photo is still in the camera roll. A valid token is refreshed each time the app opens (14-day lifetime), so this shows only after two weeks away or a revoked session. After repeated network failures the app does a full page reload so an expired Access session can prompt (Gap 19) | Sign in (→ AUTH-01) | — | R-USR-A-01; invariant 8 | SPEC invariant 8; DEC L1; DEC 2026-10-05 |
+| RULES-01a | Club rules | M, J, S, K | any | — | Read only, worded from the `scoring.md` version in force (version and date shown): what counts (SCO §2); proof photos and the code word (§5); submitting, the 24-hour rule, the final deadline, editing, retracting and outages (§6); photo limits (`image/jpeg`, 5 MB per file, 4 per catch; capture time kept, location removed). Opened from a tournament page, a "This tournament" section adds that tournament's species, metric, fishing window, final deadline (with the extension note when extended) and whether the code word is on; opened from home, club-wide rules only (Gap 37, settled 2026-10-07) | Back | — | none (static content; the tournament section reads the event, R-EVT-L-02) | DEC 2026-10-05 "Club rules screen"; DEC 2026-10-07 "Club rules also shows the open tournament's values"; SCO §2, §5, §6; DEC 2026-10-01 "Photo field limits" |
 
 ---
 
@@ -495,7 +496,7 @@ Screens: EVT-02, SUB-01, MY-02, ORG-01, ORG-05.
 `decisions.md` "Every angler change echoes `rev`": the NOT SENT form is locked and leaving warns; before any retry the app reloads and compares `rev` and the photo count; every angler change sends the loaded `rev`, so a duplicate is refused even if two attempts are in flight, and the hook re-checks `rev` inside the save. Tests: R-CAT-U-39, U-40. To confirm on the pinned binary: that re-check (`security.md` open item 7).
 Screens: SUB-02c, SUB-02d, MY-03a, MY-04a, MY-04b, MY-05a.
 
-**19. Partly settled 2026-10-05: sign-in wording and expired sessions** (`decisions.md` "Sign-in wording for an unknown email", option a). The email step always says "If that email is registered, a code is on its way" and moves on (AUTH-01b looks like AUTH-02a); after repeated network failures the app does a full page reload so an expired Cloudflare Access session can show its own sign-in. **Still open:** OTP code length, expiry, resend and attempt limits, and the PocketBase token lifetime against the 7-day Access session (to set in the auth settings and `ops.md`).
+**19. Settled 2026-10-05 and 2026-10-07: sign-in wording, expired sessions and sign-in values** (`decisions.md` "Sign-in wording for an unknown email", option a). The email step always says "If that email is registered, a code is on its way" and moves on (AUTH-01b looks like AUTH-02a); after repeated network failures the app does a full page reload so an expired Cloudflare Access session can show its own sign-in. **Values settled 2026-10-07** (`decisions.md` "Sign-in values"): an 8-digit code, valid 10 minutes; "Send a new code" after 60 s; OTP requests and tries rate-limited per client IP; a 14-day PocketBase token, refreshed each time the app opens, alongside the 7-day Access session. Set and checked on the pinned binary in M0-06 (`ops.md` §14).
 Screens: AUTH-01b, AUTH-02b, AUTH-02c, SYS-04a, LB-01b.
 
 **20. Settled 2026-10-05: no blank names on the board** (`decisions.md` "No blank names on the board", both options). Inviting a member always sets their name (an `ops.md` step), which covers the automatically entered judge and backup judge; and Join asks for a name first if it's empty (new row EVT-02n). Two members with the same name are still told apart only by the superuser choosing distinct names.
@@ -555,7 +556,7 @@ Screens: MY-01c, MY-02i, LB-02b, LB-03b, JDG-02h.
 - Raising `deadline_ext_min` after `submit_deadline` has passed, which reopens joining and submitting (ORG-01c): R-EVT-U-26.
 - An angler reads every row of their own rejected or retracted catch (MY-06a): R-AUD-L-09.
 
-**34. [Info] `dev-lifecycle-guide.md` conflicts, already settled by precedence.**
+**34. [Info] `dev-lifecycle-guide.md` conflicts, settled by precedence and, since 2026-10-07, fixed in the guide's v2.**
 Listed so nobody reopens them: "director" (now judge, backup judge, organizer); `pb_public/scoring.js` (now `web/src/lib/scoring.ts`); "no build step" (now React + Vite + TypeScript); grace window `grace_min` (now `submit_deadline`); `min_length_q` and `dead` fields (dropped); roles `angler | director | admin` (now `member | organizer` plus per-event judges); T-7d freeze (now a 3-day hard freeze); "three screens" (index, submit, director); a DEC report screen (not pursued); tie-break by earliest submission (now fish by fish, then shared place); paper fallback and printable results (not in current docs).
 
 **35. Settled 2026-10-02: every photo after the first gets the capture-time check.**
@@ -566,16 +567,17 @@ Screens: SUB-01a, MY-04a, JDG-01a, JDG-02a.
 `decisions.md` "Code word with two photos": when the code word is on, it must be visible in the holding photo or the scale/board photo; the judge checks it, and the app doesn't. Written into the `scoring.md` v0.5 draft §5 and §7.
 Screens: SUB-01a, JDG-02a.
 
-**37. Open: does Club rules also show the open tournament's values?**
+**37. Settled 2026-10-07: yes, from a tournament page** (`decisions.md` "Club rules also shows the open tournament's values", option B). Opened from home, club-wide rules only.
+**Original question:** does Club rules also show the open tournament's values?
 RULES-01a shows the club-wide upload rules. Opened from a tournament page, should it also show that tournament's species, metric, fishing window, final deadline (with the extension note) and whether the code word is on? (`decisions.md` "Proposed, not yet confirmed".)
 Screens: RULES-01a.
 
-**Other docs now out of step** (not UI gaps; listed in `decisions.md` "Still to do in Phase 1"):
-- `claude/architecture.md` §2 and §3 still describe own-only audit visibility and have no `photo_captured_at` or two-photo rule.
+**Other docs that were out of step** (not UI gaps; all done by 2026-10-06):
+- ~~`claude/architecture.md` §2 and §3 still describe own-only audit visibility and have no `photo_captured_at` or two-photo rule.~~ Done in `architecture.md` v0.5 (2026-10-06).
 - ~~`claude/features.json` doesn't cite the `security.md` v0.5 or v0.6 test IDs.~~ Done 2026-10-05: it cites every v0.9 test ID.
 - ~~`security.md` needs the 2026-10-03 and 2026-10-05 rule changes (judge step-down; closed-event branch; later-only `ends_at`; Open preconditions; `name` while live).~~ Done in `security.md` v0.9.
 - ~~`security.md` open item 8: some older tests use catches by X, whom the fixtures describe as not joined.~~ Done in v0.9 (fixture Y).
-- `claude/ops.md` still needs the judge step-down procedure (§12) and the "always set a name" invite step.
+- ~~`claude/ops.md` still needs the judge step-down procedure (§12) and the "always set a name" invite step.~~ Done in `ops.md` v0.6 (2026-10-06).
 
 ---
 
@@ -591,13 +593,15 @@ Highest impact first.
 
 **Settled 2026-10-05** (Figma pass 2, recorded in `decisions.md`): Gap 9 (rest), Gap 10, Gap 11, Gap 15, Gap 16, Gap 17, Gap 19 (wording; values still open), Gap 20, Gap 21, Gap 25, Gap 28, Gap 31. Later the same day: `scoring.md` v0.6 in force without a group vote; no entry for a backup judge named after close; ORG-08c dropped; the Finalize switch confirmed; Share added to exports.
 
-**Still open**
+**Settled 2026-10-07** (recorded in `decisions.md`): Gap 19 (sign-in values), Gap 37 (Club rules shows the tournament's values from a tournament page).
+
+**Still open:** none here. Everything left (the phone checks from `claude/design-research.md` §12, the Figma fixes F1–F11) is in the one list, `decisions.md` Open items.
 1. ~~`security.md` changes from the 2026-10-03 and 2026-10-05 rows (judge step-down; Gaps 9, 10, 11; no entry for a backup judge named after close).~~ Done in `security.md` v0.9.
-2. Sign-in values (Gap 19): code length, expiry, resend and attempt limits; token lifetime.
+2. ~~Sign-in values (Gap 19): code length, expiry, resend and attempt limits; token lifetime.~~ Settled 2026-10-07.
 3. ~~The test gaps in Gap 33.~~ Settled in `security.md` v0.9.
-4. Phone checks from `claude/design-research.md` §12: the date picker, CSV file names in Files, the copied hash, and sharing a file from the app.
-5. Club rules: whether it also shows the open tournament's values (Gap 37).
-6. Figma frames for the 13 rows added in v0.6 (§7.3).
+4. ~~Phone checks from `claude/design-research.md` §12: the date picker, CSV file names in Files, the copied hash, and sharing a file from the app.~~ Moved to `decisions.md` Open items #6.
+5. ~~Club rules: whether it also shows the open tournament's values (Gap 37).~~ Settled 2026-10-07.
+6. ~~Figma frames for the 13 rows added in v0.6 (§7.3).~~ Done: JDG-00a, JDG-00b and RULES-01a in pass 3; the 10 NOT SENT rows in pass 3b (6 Oct).
 
 ---
 
@@ -640,9 +644,6 @@ Highest impact first.
 
 **Not mapped to any screen (by design, outside the app):** posting the hashes and standings in the group chat; the post-finalize backup; `archive-event.sh`; the desktop and laptop pulls and verification; removing photos from `pb_data`. These are host-side or manual steps in OPS §9 and §11. Nothing in SPEC's roles table or Must do list is otherwise unmapped.
 
-### 7.3 Figma coverage (pass 2, 5 Oct 2026; v0.6 rows not yet drawn)
+### 7.3 Figma coverage (pass 3b, 6 Oct 2026)
 
-**v0.6:** the 13 rows added on 5 Oct have no frame yet. JDG-00a, JDG-00b and RULES-01a are in the Figma pass-3 brief; the 10 NOT SENT rows (MY-03c, MY-05c, JDG-02j, JDG-03b, JDG-04b, JDG-05c, ORG-04c, ORG-05c, ORG-06c, ORG-09c) need a follow-up pass.
-
-
-Every row in section 2 (117, including EVT-02n; ORG-08c dropped) has a frame on the Figma Flows page, named with its row ID; a scripted check found none missing. See `claude/figma-file-map.md` for sections and frame counts.
+Every row in section 2 (130) has exactly one frame on the Figma Flows page, named with its row ID (scripted check, 6 Oct). JDG-00a, JDG-00b and RULES-01a were drawn in pass 3; the 10 NOT SENT rows in pass 3b. Findings: `claude/review-figma-pass3.md`; frame IDs and sections: `claude/figma-file-map.md` (both in the Claude Project). RULES-01a's "This tournament" section, drawn as an option, is now the decided design (Gap 37), which settles review finding F4.

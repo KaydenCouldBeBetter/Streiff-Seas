@@ -12,6 +12,7 @@ with photos, the judge approves or rejects, standings update live. One developer
 - Tests: `npm test` (Vitest; boots a throwaway PocketBase from pb_migrations/ and pb_hooks/).
   One file: `npm test -- test/rules.test.ts`
 - Build: `npm run build` (tsc + vite build into pb_public/).
+- All checks: `npm run check` (tsc --noEmit, npm test, npm run build). The pre-push hook and CI run the same.
 - New migration: `./pocketbase migrate create <snake_name>`
 - Install: `npm ci --ignore-scripts`. Don't propose Vercel, Supabase, Cloudflare Pages, another backend or framework.
 
@@ -30,14 +31,15 @@ with photos, the judge approves or rejects, standings update live. One developer
 - Runtime deps are react, react-dom and pocketbase only. Ask before adding any dependency, dev deps included.
 - Don't change an existing test unless the matching docs/security.md row or docs/scoring.md example changes
   in the same commit; name that row or example in the commit message.
-- Files you can't edit (.github/workflows/, POCKETBASE_VERSION, .claude/): write a draft in docs/drafts/
+- Files you can't edit (.github/workflows/, .githooks/, POCKETBASE_VERSION, .claude/): write a draft in docs/drafts/
   and tell Kayden to install it.
 
 ## Read on demand (paths, not imports)
 - Scope, roles, invariants: `docs/SPEC.md`   Scoring rules and worked examples: `docs/scoring.md`
 - Who may do what, with test IDs: `docs/security.md`
 - Why things are the way they are: `docs/decisions.md` (it wins over every other doc)
-- Diagrams: `docs/architecture.md`   Ops (read-only for you): `docs/ops.md`
+- Screens, states and copy: `docs/screens.md`   Diagrams: `docs/architecture.md`
+- Ops and the release pipeline (read-only for you): `docs/ops.md`
 
 ## Each session
 - Start: read progress.md, then work on the first features.json item with "passes": false. One item per session.
@@ -45,7 +47,7 @@ with photos, the judge approves or rejects, standings update live. One developer
 - Work on a branch `item/<features.json id>` created from main. Never push, switch to or merge into main;
   Kayden pushes, opens the pull request and merges after CI is green.
 - Use plan mode for migrations, API rules, uploads and scoring.
-- Done means `npm test` and `npm run build` output shown and the item's steps checked, not asserted.
+- Done means `npm run check` output shown and the item's steps checked, not asserted.
   Only then set "passes": true.
 - End: append 2–5 lines to progress.md and commit on the item branch.
 - When compacting, keep: files changed, failing tests, the current features.json id.
