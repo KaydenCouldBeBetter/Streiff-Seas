@@ -37,7 +37,6 @@
       "Edit(/.github/workflows/**)",
       "Edit(/POCKETBASE_VERSION)",
       "Edit(/pb_data/**)",
-      "Edit(/pb_public/**)",
       "Bash(ssh *)",
       "Bash(scp *)",
       "Bash(rsync *)",
