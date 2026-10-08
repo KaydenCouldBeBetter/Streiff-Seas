@@ -35,6 +35,19 @@
     "passes": false
   },
   {
+    "id": "M0-04-spike-photo",
+    "description": "Spike: prove the photo pipeline and three rule mechanics on the pinned binary before S1 builds submit (decisions.md L2; security.md open item 7)",
+    "steps": [
+      "Fixtures in test/fixtures/: gps.jpg (EXIF GPS), xmp-gps.jpg (XMP GPS), iphone.heic and text-chunk.png, plus two clean JPEGs for the required photos",
+      "The chosen server approach (A: exiftool through $os.cmd, if it can run in the prod LXC; or B: fail closed on any file that still carries location metadata) leaves no location data in any stored original or thumbnail, on a two-photo create and on an added photo; test/upload.test.ts proves it for all four fixtures",
+      "In the browser, DateTimeOriginal is read from each photo before re-encoding, on iPhone Safari (including an iPhone HEIC from the photo picker) and on Android Chrome; what each browser delivers is written down",
+      "A hook compares the new photo list with the stored one and refuses before PocketBase deletes any file (append-only); if that can't be done on the pinned version, say so (the fallback is retract-and-resubmit only)",
+      "On the pinned binary: @request.body.photo:length counts the uploaded files in a multipart create; the update hook can re-read rev inside the save transaction; judge.role resolves against the submitted body in the events create rule",
+      "Spike code stays off main unless it becomes the real implementation; the results, the chosen option and the reasons are drafted as a decisions.md row for Kayden to review and commit"
+    ],
+    "passes": false
+  },
+  {
     "id": "M0-03-live-skeleton",
     "description": "Heartbeat hook, a bare OTP sign-in and a bare live list of catches that proves realtime works and admits when it is stale",
     "steps": [
@@ -49,33 +62,44 @@
     "passes": false
   },
   {
-    "id": "M0-04-spike-photo",
-    "description": "Spike: prove the photo pipeline and three rule mechanics on the pinned binary before S1 builds submit (decisions.md L2; security.md open item 7)",
-    "steps": [
-      "Fixtures in test/fixtures/: gps.jpg (EXIF GPS), xmp-gps.jpg (XMP GPS), iphone.heic and text-chunk.png, plus two clean JPEGs for the required photos",
-      "The chosen server approach (A: exiftool through $os.cmd, if it can run in the prod LXC; or B: fail closed on any file that still carries location metadata) leaves no location data in any stored original or thumbnail, on a two-photo create and on an added photo; test/upload.test.ts proves it for all four fixtures",
-      "In the browser, DateTimeOriginal is read from each photo before re-encoding, on iPhone Safari (including an iPhone HEIC from the photo picker) and on Android Chrome; what each browser delivers is written down",
-      "A hook compares the new photo list with the stored one and refuses before PocketBase deletes any file (append-only); if that can't be done on the pinned version, say so (the fallback is retract-and-resubmit only)",
-      "On the pinned binary: @request.body.photo:length counts the uploaded files in a multipart create; the update hook can re-read rev inside the save transaction; judge.role resolves against the submitted body in the events create rule",
-      "Spike code stays off main unless it becomes the real implementation; the results, the chosen option and the reasons are drafted as a decisions.md row for Kayden to review and commit"
-    ],
-    "passes": false
-  },
-  {
-    "id": "M0-05-ci-deploy",
-    "description": "The pipeline in decisions.md L3: CI with a bundle artifact on every push to main, a release job that attaches that artifact to a tag, deploy.sh for prod and for staging (--staging), the systemd units, the pre-push hook and the staging seed script, drafted and tested locally for Kayden to install",
+    "id": "M0-05a-ci-release",
+    "description": "The CI half of the pipeline in decisions.md L3: ci.yml with a bundle artifact on every push to main, a release job that attaches that artifact to a tag, the pre-push hook and the pull request template, drafted and tested for Kayden to install",
     "steps": [
       "docs/drafts/ci.yml (Kayden copies it to .github/workflows/ci.yml; the guard blocks Claude there): runs on pull requests and pushes to main with Node 24; npm ci --ignore-scripts, scripts/fetch-pb.sh, npm test, npm run build, gitleaks; permissions contents: read; every action pinned to a full commit SHA",
       "On a push to main, once the tests pass, the same workflow packages bundle.tar.gz (built pb_public/ with build.json, pb_hooks/, pb_migrations/, POCKETBASE_VERSION, and BUILD_INFO holding the commit SHA) with bundle.sha256 and uploads both as the artifact bundle-<sha>, kept 90 days; still contents: read. Pull request runs build but upload nothing",
       "On a v* tag, a release job (the only job with contents: write, plus actions: read) checks the tagged commit is on main (git merge-base --is-ancestor against origin/main), finds that commit's successful ci.yml push run on main, downloads its bundle artifact, verifies the sha256 and attaches bundle.tar.gz and bundle.sha256 to the release. It never rebuilds, and it fails and attaches nothing if the commit isn't on main or has no green main build",
+      "Tests show the release job fails for a tag off main and for a commit with no green main build",
+      "docs/drafts/pre-push (Kayden installs it as .githooks/pre-push and runs git config core.hooksPath .githooks; .githooks/ is guard-protected): runs npm run check and refuses the push if it fails",
+      ".github/pull_request_template.md lists the Definition of Done: npm run check and CI green; every migration and rule diff read; any rule change has its security.md row and test in the same commit",
+      "npm run check output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-05b-deploy",
+    "description": "The deploy half of the pipeline in decisions.md L3: deploy.sh for prod and for staging (--staging), the systemd units and the staging timer, and the staging seed script, drafted and tested locally against stubs for Kayden to install",
+    "steps": [
       "deploy.sh <tag> follows ops.md §5 in order: refuses while /etc/scoreboard/FREEZE exists unless --force; refuses a tag whose commit isn't on main (GitHub compare API: main...<tag> must be identical or behind); refuses while an event is live if the bundle adds migrations or changes POCKETBASE_VERSION; downloads with the read-only token from a root-only env file; verifies the sha256; backs up by stopping PocketBase and archiving pb_data to /var/backups/scoreboard/pre-deploy-<tag>-<time>.tar.zst; unpacks to releases/<tag>; verifies the PocketBase binary; switches the current symlink; starts; smoke-tests through Cloudflare with the service token (health endpoint and build.json sha); appends a deploy-log line; switches back if the smoke test fails",
       "deploy.sh --staging follows ops.md §5: with the staging token, finds the newest successful ci.yml push run on main; exits quietly if that commit is already running; otherwise downloads and verifies the artifact, checks the commit is on main, backs up, unpacks to releases/<sha>, switches, starts, smoke-tests with the staging-probe token, switches back on failure, and pings the Healthchecks staging URL (its /fail URL on failure). It skips the FREEZE and live-event checks, and refuses to run unless /etc/scoreboard/ENVIRONMENT says staging",
-      "Tests show: the release job fails for a tag off main and for a commit with no green main build; deploy.sh refuses an off-main tag against a stubbed compare response; deploy.sh --staging deploys a new commit, does nothing for an unchanged one, and rolls back a failing smoke test, against stubbed GitHub and smoke endpoints",
+      "Tests show deploy.sh refuses an off-main tag against a stubbed compare response, and deploy.sh --staging deploys a new commit, does nothing for an unchanged one, and rolls back a failing smoke test, against stubbed GitHub and smoke endpoints",
       "deploy.sh passes shellcheck and runs against a fake bundle in a temp directory with its network calls stubbed (never against prod or staging)",
       "systemd drafts: the PocketBase unit runs as a non-root user on 127.0.0.1:8090 from the current symlink, with NoNewPrivileges, ProtectSystem=strict and write access only to pb_data; for staging, scoreboard-staging-deploy.service plus a .timer that runs deploy.sh --staging every 5 minutes",
-      "docs/drafts/pre-push (Kayden installs it as .githooks/pre-push and runs git config core.hooksPath .githooks; .githooks/ is guard-protected): runs npm run check and refuses the push if it fails",
       "scripts/seed-staging, run by Kayden on staging only, creates the security.md fixture users (each with a name) and one live event through the staging superuser, and refuses to run unless /etc/scoreboard/ENVIRONMENT says staging",
-      ".github/pull_request_template.md lists the Definition of Done: npm run check and CI green; every migration and rule diff read; any rule change has its security.md row and test in the same commit"
+      "npm run check output shown"
+    ],
+    "passes": false
+  },
+  {
+    "id": "S2a-scoring-module",
+    "description": "The pure scoring module: web/src/lib/scoring.ts computes standings from verified catches only, tested against the scoring.md examples; no UI, API rules or hooks",
+    "steps": [
+      "web/src/lib/scoring.ts is pure, has no dependencies and uses integers only (weight_hoz, length_q); test/scoring.test.ts takes its fixtures straight from scoring.md (invariant 1)",
+      "Best 10, culls and pending: scoring.md examples 1, 2, 3 and 4 pass",
+      "Ties and shared places: scoring.md examples 8, 9, 10 and 11 pass",
+      "Withdrawn entries are left out of the standings, and a self-rejoin brings their verified fish back (scoring.md example 19)",
+      "Rejected and retracted catches never score and aren't counted as pending (scoring.md example 20)",
+      "A judge's correction of a verified catch re-culls: A goes from 28.05 to 27.60 (scoring.md example 21)",
+      "npm run check output shown"
     ],
     "passes": false
   },
@@ -170,15 +194,9 @@
     "passes": false
   },
   {
-    "id": "S2-score",
-    "description": "The pure scoring module computes standings from verified catches only, and the leaderboard shows them live in each member's display units",
+    "id": "S2b-leaderboard",
+    "description": "The leaderboard shows the S2a scoring module's standings live in each member's display units",
     "steps": [
-      "web/src/lib/scoring.ts is pure, has no dependencies and uses integers only (weight_hoz, length_q); test/scoring.test.ts takes its fixtures straight from scoring.md (invariant 1)",
-      "Best 10, culls and pending: scoring.md examples 1, 2, 3 and 4 pass",
-      "Ties and shared places: scoring.md examples 8, 9, 10 and 11 pass",
-      "Withdrawn entries are left out of the standings, and a self-rejoin brings their verified fish back (scoring.md example 19)",
-      "Rejected and retracted catches never score and aren't counted as pending (scoring.md example 20)",
-      "A judge's correction of a verified catch re-culls: A goes from 28.05 to 27.60 (scoring.md example 21)",
       "Leaderboard rows show total, counted fish, biggest fish and pending count; only anglers with at least one pending or verified catch on a non-withdrawn entry appear (R-CAT-L-02, R-CAT-L-07, R-ENT-L-03)",
       "Display units: decimal pounds and pounds-and-ounces views match scoring.md examples 5 and 16, and switching changes no score or ranking (R-USR-U-01)",
       "Name sync: M's name change updates display_name in live and closed events but not in final ones (R-USR-U-06)",
