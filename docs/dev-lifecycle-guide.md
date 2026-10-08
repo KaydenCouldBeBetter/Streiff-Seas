@@ -71,7 +71,7 @@ All of these live in the repo, `KaydenCouldBeBetter/ChromeFishingV2`, which is t
 
 A walking skeleton is a tiny implementation that runs one function end to end through all the real components, deployment and tests included ([Dolfing on Cockburn](https://www.henricodolfing.ch/en/start-your-project-with-a-walking-skeleton/)). Here it means: a bare live list of catches, served through the real tunnel and Access, built and deployed by the real pipeline, with both spikes done.
 
-The backlog is the nine M0 items at the top of `features.json`. Claude Code does five; four are marked `"human": true` and are yours, and Claude Code stops at them.
+The backlog is the M0 items at the top of `features.json`, in the order that file gives (since 2026-10-07: the photo spike runs before the live skeleton, M0-05 is split in two, and the pure scoring module S2a runs before your items). Claude Code does six M0 items plus S2a; four are marked `"human": true` and are yours, and Claude Code stops at them.
 
 | Item | Who | What |
 |---|---|---|
@@ -79,7 +79,8 @@ The backlog is the nine M0 items at the top of `features.json`. Claude Code does
 | M0-02 | Claude Code | All six collections by migration, every rule locked |
 | M0-03 | Claude Code | Heartbeat hook, bare sign-in, bare live list with the badge |
 | M0-04 | Claude Code | Photo spike; result drafted as a `decisions.md` row |
-| M0-05 | Claude Code | `ci.yml`, release job, `deploy.sh` (prod and `--staging`), systemd units, `pre-push` hook, staging seed script, all as drafts with tests |
+| M0-05a | Claude Code | `ci.yml` with the bundle artifact, release job, `pre-push` hook, pull request template, all as drafts with tests |
+| M0-05b | Claude Code | `deploy.sh` (prod and `--staging`), systemd units and staging timer, staging seed script, all as drafts with tests |
 | M0-06 | You | Prod and staging containers, firewall, tunnels, Access, SMTP, sign-in settings, pipeline install, first deploys |
 | M0-07 | You | 15-minute soak through the real tunnel |
 | M0-08 | You | restic to B2 with a real restore; Healthchecks for prod and staging, proven by deliberate failures |
