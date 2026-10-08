@@ -1,6 +1,6 @@
 # SPEC: Fishing Scoreboard
 
-**Status:** Draft v0.2, 1 Oct 2026; `scoring.md` v0.4 agreed by the group the same day, and v0.5 on 3 Oct 2026 (Must do 1 updated for the two required photos); v0.6 in force from 5 Oct 2026 without a group vote (`decisions.md` 2026-10-05). Q1–Q4 closed by `decisions.md` entries of 2026-10-01; slices and roles updated to match. Q8 closed 6 Oct 2026 (`claude/ops.md` v0.6). Sources of truth: `scoring.md` (rules), `decisions.md` (choices), `security.md` (who may do what). Where this page and `dev-lifecycle-guide.md` disagree, this page wins.
+**Status:** Draft v0.3, 7 Oct 2026: Q7 closed, Q6 tracked in `decisions.md` Open items (one list for the whole project), risk R9 added for the release pipeline, and paths updated now that the repo is the source of truth (`decisions.md` 2026-10-07). v0.2, 1 Oct 2026; `scoring.md` v0.4 agreed by the group the same day, and v0.5 on 3 Oct 2026 (Must do 1 updated for the two required photos); v0.6 in force from 5 Oct 2026 without a group vote (`decisions.md` 2026-10-05). Q1–Q4 closed by `decisions.md` entries of 2026-10-01; slices and roles updated to match. Q8 closed 6 Oct 2026 (`ops.md` v0.6). Sources of truth: `scoring.md` (rules), `decisions.md` (choices), `security.md` (who may do what). Where this page and `dev-lifecycle-guide.md` disagree, this page wins; `decisions.md` wins over both.
 
 ## Goal
 A members-only web app where ~10–15 club anglers submit catches (bass for tournament 1) with proof photos during a ~6-week tournament window, the judge approves or rejects them, and everyone sees a correct, live leaderboard. First tournament: summer 2027.
@@ -53,9 +53,9 @@ A 6-week window with a 24-hour submission rule makes short outages survivable: a
 3. ~~**After submitting.**~~ **Closed 2026-10-01:** edit while pending with a `rev` counter; append-only photos; retract instead of delete; resubmitting after a rejection is a new catch (`decisions.md`, "An angler can edit their own catch while it is pending" and "Photos on a pending catch are append-only").
 4. ~~**Entries.**~~ **Closed 2026-10-01:** members join themselves; removal is a `withdrawn` flag (`decisions.md`, "Members join a tournament themselves" and "Removing someone from a tournament sets a `withdrawn` flag").
 5. ~~**Outage rule.**~~ **Closed 2026-10-01:** agreed by the group with `scoring.md` v0.4 §6; tested by R-EVT-U-12 to 14 and R-CAT-C-17 (`decisions.md`, outage rule and sign-off rows).
-6. **Capture time:** client-side re-encoding drops EXIF, so the browser must read `DateTimeOriginal` before re-encoding (as trustworthy as EXIF itself, i.e. a signal only). Confirm in the photo spike, including iPhone HEIC (`claude/features.json` M0-04).
-7. **DEC permit:** not being pursued for now (`decisions.md` 2026-10-01). If that changes, the report needs per-day counts and dead fish by species, which means a kept/released field on catches.
-8. ~~**Change control** and **offsite backup:** confirmed in `decisions.md` on 1 Oct (proposed hard freeze kept; B2, encrypted, host-pushed). Kept open until `ops.md` is updated to match.~~ **Closed 2026-10-06:** `claude/ops.md` v0.6 §6 (change control) and §7 (encrypted B2 backups pushed by the host) match `decisions.md`.
+6. **Capture time:** client-side re-encoding drops EXIF, so the browser must read `DateTimeOriginal` before re-encoding (as trustworthy as EXIF itself, i.e. a signal only). Confirm in the photo spike, including iPhone HEIC (`features.json` M0-04). Tracked as `decisions.md` Open items #1.
+7. ~~**DEC permit.**~~ **Closed 2026-10-07:** not being pursued (`decisions.md` 2026-10-01, which also says what reopens it). If that changes, the report needs per-day counts and dead fish by species, which means a kept/released field on catches.
+8. ~~**Change control** and **offsite backup:** confirmed in `decisions.md` on 1 Oct (proposed hard freeze kept; B2, encrypted, host-pushed). Kept open until `ops.md` is updated to match.~~ **Closed 2026-10-06:** `ops.md` v0.6 §6 (change control) and §7 (encrypted B2 backups pushed by the host) match `decisions.md`.
 
 ## Top risks
 | # | Risk | L / I | Response | Evidence |
@@ -68,3 +68,4 @@ A 6-week window with a 24-hour submission rule makes short outages survivable: a
 | R6 | Agent disarms guardrails or leaks secrets | Low / High | User-level guard hook, deny rules, sandbox, no prod creds on dev box | Hook blocks a test edit |
 | R7 | Photos fill the disk over 6 weeks | Low / Med | Client resize; size cap; at most 4 photos per catch; disk alert | Upload size test |
 | R8 | Bus factor of one | Med / High | Break-glass sheet, second recovery contact | Sheet handed over |
+| R9 | A change breaks prod | Med / High | CI gate on every pull request; every green `main` build auto-deploys to a seed-data staging container first; prod gets the same bundle only by a manual tag and `deploy.sh`, with rollback (`decisions.md` L3) | Release-job and `deploy.sh --staging` tests (M0-05); a staging deploy and a failed one in `evidence/m0.txt` |

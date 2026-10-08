@@ -1,12 +1,12 @@
 # Architecture: Fishing Scoreboard
 
-**Status:** Draft v0.5, 6 Oct 2026. Brought in line with `security.md` v0.9, `scoring.md` v0.6.1 and `decisions.md` through 2026-10-06 (Node 24, public catch history, two required photos, `photo_captured_at`, fixed flag codes and audit snapshots, `rev` echoed by anglers too, judge must be an organizer with automatic entries, judge step-down, live and closed event edits, Open preconditions, code word history on the event). v0.4 (1 Oct) matched `security.md` v0.3. Regenerate at milestones (M0, M1, off-season), not on every change.
+**Status:** Draft v0.6, 7 Oct 2026. Section 5 redrawn for the 2026-10-07 pipeline (`decisions.md` L3): a bundle built on every push to `main`, a staging container that deploys it automatically, and a tag that promotes the same bundle to prod; restic for the offsite backups. v0.5 (6 Oct) was brought in line with `security.md` v0.9, `scoring.md` v0.6.1 and `decisions.md` through 2026-10-06 (Node 24, public catch history, two required photos, `photo_captured_at`, fixed flag codes and audit snapshots, `rev` echoed by anglers too, judge must be an organizer with automatic entries, judge step-down, live and closed event edits, Open preconditions, code word history on the event). v0.4 (1 Oct) matched `security.md` v0.3. Regenerate at milestones (M0, M1, off-season), not on every change.
 **Sources of truth:** `SPEC.md` (scope, roles, invariants), `scoring.md` (rules), `security.md` (API rules and test IDs), `decisions.md` (choices). This page only draws them; where it disagrees with any of them, they win and this page gets fixed. `pb_migrations/` is the source of truth for the schema once it exists.
 
 ## What changed from the guide's diagrams
 
 - **Frontend is React + Vite + TypeScript**, still served from PocketBase's `pb_public/` on the same origin as the API. Source lives in `web/`; CI runs `vite build`, and prod only ever receives built files. Node 24 LTS in development and CI (`decisions.md` 2026-10-06).
-- **Prod deploys a CI-built release bundle**, not a git checkout: built `pb_public/`, `pb_hooks/`, `pb_migrations/` and `POCKETBASE_VERSION` in one tarball with a sha256, attached to the release tag. What prod runs is byte-for-byte what CI tested. Prod needs no Node, no npm and no git.
+- **Prod deploys a CI-built bundle**, not a git checkout: built `pb_public/`, `pb_hooks/`, `pb_migrations/` and `POCKETBASE_VERSION` in one tarball with a sha256. CI builds it on every push to `main`; a **staging container** deploys each one automatically; a tag attaches that same bundle to a release, and Kayden deploys it to prod by hand. What prod runs is byte-for-byte what CI tested and staging ran. Prod needs no Node, no npm and no git (`decisions.md` L3).
 - **Roles follow `SPEC.md`:** `users.role` is `member | organizer`; judging rights come from `events.judge` and `events.backup_judge` per tournament. The judge must hold the organizer role when the tournament is created and on any organizer edit; the judge and backup judge are entered in the tournament automatically. The organizer (Kayden) is also judge and PocketBase superuser; Sam is backup judge for tournament 1 and approves only the judge's catches.
 - **The judge can step down** mid-tournament as a logged superuser step: the backup judge becomes the judge (the organizer role isn't required then) and a new backup judge is named. The organizer still closes and finalizes (`scoring.md` §7, example 28).
 - **Format follows `scoring.md`:** six-week window, best 10 verified fish, weight (hundredths of an ounce, `weight_hoz`) or length (quarter-inches, `length_q`). No `grace_min`, `dead` or `min_length_q`; `submit_deadline` (= `ends_at` + 24 h + `deadline_ext_min`) replaces the grace window.
@@ -22,7 +22,7 @@
 - **Event edits narrow as the tournament moves on:** anything while draft; once live, only `name`, the code word, `backup_judge` and a later `ends_at` while the window is open; once closed, only `backup_judge`. Open is refused until the draft is complete. A code word change on a live event stores the previous word and when it changed, so every judge sees both.
 - **Finalize ends in an archive:** results and audit CSVs with a SHA-256 posted to the group chat, then a host-side script exports the photos and removes them from the app.
 - **The photo archive lives in three places:** the Proxmox host, the desktop and the laptop.
-- **Offsite backup is Backblaze B2**, pushed by the Proxmox host and encrypted on the host before upload (confirmed 2026-10-01).
+- **Offsite backup is Backblaze B2**, pushed by the Proxmox host and encrypted there by restic before upload (confirmed 2026-10-01; restic chosen 2026-10-07).
 - **Recovery targets come from `SPEC.md`:** restore within 12 h (24 h from offsite), lose at most 24 h of data. The guide's 60-minute target was for one-day events. An outage stretches the 24-hour rule and, in the last 24 hours, the final deadline (`scoring.md` §6).
 
 ---
@@ -301,30 +301,34 @@ Notes on the archive step:
 
 ## 5. Deployment, build and network map
 
-PocketBase listens only on localhost inside an unprivileged container on an isolated VLAN with no inbound ports. Prod pulls one CI-built bundle. Dashed means pushed by the host.
+PocketBase listens only on localhost inside unprivileged containers on isolated VLANs with no inbound ports. Prod and staging both **pull** a CI-built bundle; nothing pushes into either. Dashed means pushed by the host. The pipeline is `decisions.md` L3; the commands are in `ops.md` §5.
 
 ```mermaid
 flowchart LR
   subgraph NET["Internet"]
     P["Members' phones and browsers"]
-    HC["Healthchecks.io"]
+    HC["Healthchecks.io<br/>prod probe, staging deploys"]
     subgraph GH["GitHub, private repo"]
-      CI["ci.yml, one job, Node 24<br/>npm ci --ignore-scripts, fetch pinned PocketBase,<br/>npm test, tsc + vite build, gitleaks"]
-      REL["Release on tag<br/>bundle.tar.gz + sha256:<br/>pb_public built, pb_hooks, pb_migrations, POCKETBASE_VERSION"]
+      CI["ci.yml on GitHub-hosted runners, Node 24<br/>npm ci --ignore-scripts, pinned PocketBase,<br/>npm test, build, gitleaks"]
+      ART["Artifact per green main build<br/>bundle.tar.gz + sha256 + BUILD_INFO, 90 days"]
+      REL["Release on a v* tag<br/>the same bundle, attached, never rebuilt"]
     end
-    B2[("Backblaze B2, encrypted on the host before upload")]
+    B2[("Backblaze B2<br/>restic, encrypted on the host")]
   end
   subgraph CFL["Cloudflare"]
-    ACC["Access: explicit email list, 7-day session, /_/ app for Kayden only, Service Auth for the probe"]
-    EDGE["Named tunnel edge + TLS"]
+    ACC["Access on both hostnames: explicit email list, 7-day session,<br/>/_/ app for Kayden only, a service token per environment"]
+    EDGE["Named tunnels + TLS"]
   end
   subgraph HOME["Homelab, UPS-backed"]
     subgraph PVE["Proxmox VE host"]
-      subgraph VLAN["Isolated prod VLAN: deny to LAN and to Proxmox management"]
-        LXC["Unprivileged Debian LXC<br/>cloudflared + PocketBase on 127.0.0.1:8090<br/>releases/tag, current symlink, pb_data"]
+      subgraph VLAN["Prod VLAN: no route to LAN, Proxmox management or other VLANs"]
+        LXC["Prod LXC<br/>cloudflared + PocketBase on 127.0.0.1:8090<br/>releases/tag, current symlink, pb_data"]
       end
-      subgraph DVLAN["Dev VLAN: no route to the prod VLAN"]
-        DEV["Dev VM<br/>Claude Code in the sandbox, Vite dev server proxying /api to local PocketBase,<br/>seed data, no prod credentials"]
+      subgraph SVLAN["Staging VLAN: same isolation"]
+        STG["Staging LXC, seed data only<br/>cloudflared + PocketBase on 127.0.0.1:8090<br/>timer runs deploy.sh --staging every 5 min"]
+      end
+      subgraph DVLAN["Dev VLAN: no route to prod or staging"]
+        DEV["Dev VM<br/>Claude Code in the sandbox, npm run check,<br/>pre-push hook, seed data, no prod or staging credentials"]
       end
       BK[("vzdump + PocketBase backups")]
       ARC[("Photo archive, copy 1")]
@@ -336,10 +340,14 @@ flowchart LR
   P -->|HTTPS| ACC
   ACC -->|allowed requests| EDGE
   LXC -->|outbound tunnel| EDGE
-  DEV -->|git push of item branches| CI
-  CI -->|tag only, after green| REL
-  LXC -->|deploy.sh downloads bundle, read-only token| REL
-  LXC -->|probe through Access every 5 min, ping on 200| HC
+  STG -->|outbound tunnel| EDGE
+  DEV -->|push item branch, pull request| CI
+  CI -->|green push to main| ART
+  ART -->|tag on main: release job attaches it| REL
+  STG -->|polls newest green main build, staging token| ART
+  LXC -->|deploy.sh tag by hand, read-only token| REL
+  LXC -->|probe through Access every 5 min| HC
+  STG -->|ping on each deploy, fail on rollback| HC
   PVE -->|nightly, and pct exec for backups and archive| LXC
   LXC -->|backups| BK
   PVE -->|archive-event.sh copies photos| ARC
@@ -347,13 +355,16 @@ flowchart LR
   LAP -->|pulls archive, home LAN only| ARC
   BK -.->|host pushes offsite copy| B2
   LXC -.-x|denied| LAN
+  STG -.-x|denied| LAN
 ```
 
-**Build and deploy, in order:**
-1. Claude Code commits on an `item/<id>` branch in the dev VM; Kayden pushes it and opens a pull request, which runs the one CI job. Kayden reads every migration and rule diff, merges a green PR to `main` and tags it by hand.
-2. On a tag, the same job also packages the bundle and uploads it with its sha256 to the GitHub release, but only if the tagged commit is on `main`. That step needs `contents: write` on tag runs only; branch and PR runs stay read-only.
-3. On prod, `deploy.sh <tag>` checks `FREEZE`, refuses a tag whose commit isn't on `main`, refuses migrations or a PocketBase change while a tournament is live, downloads the bundle with a fine-grained, read-only, single-repo token, verifies the sha256, takes a backup, unpacks into `releases/<tag>`, verifies the PocketBase binary's sha256, switches the `current` symlink, restarts and smoke-tests through Cloudflare. Rollback is switching the symlink back.
-4. Vite's dev server proxies `/api` to a local PocketBase, so development is same-origin too. Built files never live in git: `pb_public/` is a build output and is gitignored.
+**Build and deploy, in order** (`decisions.md` L3; commands in `ops.md` §5):
+1. Claude Code commits on an `item/<id>` branch in the dev VM after `npm run check` passes. Kayden pushes (the `pre-push` hook runs `npm run check` again) and opens a pull request, which runs CI on GitHub's runners. Kayden reads every migration and rule diff and merges once it's green.
+2. On the push to `main`, CI runs again and uploads the bundle as a workflow artifact. Every one of these jobs is `contents: read`.
+3. Within 5 minutes the staging timer finds the new green build, verifies it and the commit's ancestry, backs up, switches the symlink, restarts and smoke-tests through Cloudflare; it rolls back on failure and pings Healthchecks either way. Kayden checks the change on his phone.
+4. Kayden tags the commit staging is running. The release job, the only one with `contents: write`, checks the commit is on `main`, takes **that commit's** artifact, verifies it and attaches it to the release. It never rebuilds.
+5. On prod, `deploy.sh <tag>` checks `FREEZE`, refuses a tag whose commit isn't on `main`, refuses migrations or a PocketBase change while a tournament is live, downloads the bundle with a fine-grained, read-only, single-repo token, verifies the sha256, backs up by stopping PocketBase and archiving `pb_data`, unpacks into `releases/<tag>`, verifies the PocketBase binary's sha256, switches the `current` symlink, starts and smoke-tests through Cloudflare. Rollback is switching the symlink back.
+6. Vite's dev server proxies `/api` to a local PocketBase, so development is same-origin too. Built files never live in git: `pb_public/` is a build output and is gitignored.
 
 ---
 
