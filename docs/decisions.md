@@ -138,6 +138,10 @@ The one list of everything still to decide or do, for the whole project. On 2026
 | 8 | **Restore procedure** written and drilled from B2 (`ops.md` §7) | Kayden | First restore in M0-08; timed drill in Phase 4 |
 | 9 | **Date of tournament #1**, so the milestones get real dates | The club | Before M0 ends |
 | 10 | Optional: **link GitHub to Claude**, so chats read the repo directly and the Project mirror can go (2026-10-07 repo row) | Kayden | Any time |
+| 11 | **Hand-installed PocketBase on prod** (`pocketbase.service`, `/opt/pocketbase/releases/v0.40.4`, 127.0.0.1:8090), found 2026-10-08 (`m0.txt` check 14). Replace it with the `deploy.sh` layout and the M0-05b systemd unit at the first deploy, and keep no data from it | Kayden | M0-06 |
+| 12 | **`sshd` (on `*:22`) and Postfix (127.0.0.1:25) run in prod.** Nothing reaches the SSH port today (`m0.txt` checks 10, 13), but neither is in the design: access is `pct exec`, mail is the SMTP provider. Decide whether to remove them, and record the choice here | Kayden | M0-06 |
+| 13 | **Prod's outbound traffic isn't limited to `ops.md` §2's list** (`registry.npmjs.org` reachable, `m0.txt` check 14). Decide: filter prod egress to the list, or change §2 to say outbound is open apart from the LAN and Proxmox denies. Same question for staging | Kayden | M0-06 |
+| 14 | **The network `ops.md` §2 calls the home LAN** is the host's Wi-Fi uplink, 10.34.0.0/18 via 10.34.0.1, and the containers sit on host-routed bridges (`vmbr0` to `vmbr2`), not VLANs. Kayden reaches the dev VM through root SSH on the Proxmox host over Tailscale (`ssh -J root@100.90.129.113`), a path §2 doesn't list. Record both in §1 and §2, and decide whether the jump should use a non-root account | Kayden | Before M0-09 |
 
 ## Long entries
 
