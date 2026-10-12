@@ -2,12 +2,13 @@
 // every collection, field, option, index and rule, the species seed, and that anon and a
 // signed-in member are refused wherever a rule is locked (an early form of R-ALL-ANON-01).
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type PocketBase from "pocketbase";
-import { ClientResponseError, type RecordModel } from "pocketbase";
+import type { RecordModel } from "pocketbase";
 import { beforeAll, describe, expect, it } from "vitest";
 import { usePocketBase } from "./harness/pocketbase";
-import { actAs, actAsAnon, createFixtureUsers, type FixtureUsers } from "./harness/users";
+import { refusedFields, statusOf } from "./harness/requests";
+import { actAs, actAsAnon, createFixtureUsers, newUser, type FixtureUsers } from "./harness/users";
 
 const pocketbase = usePocketBase();
 
@@ -235,39 +236,10 @@ function newEvent(users: FixtureUsers): Record<string, unknown> {
   return { name: "Schema test", status: "draft", metric: "weight", best_n: 10, judge: users.K.id };
 }
 
-function newUser(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  // Nobody signs in with this password; the auth collection just requires one.
-  const password = randomBytes(24).toString("base64url");
-  return { email: `${randomUUID()}@example.test`, password, passwordConfirm: password, name: "New Member", role: "member", ...overrides };
-}
-
 function stored(name: CollectionName): StoredCollection {
   const collection = world.collections.find((candidate) => candidate.name === name);
   if (collection === undefined) throw new Error(`no ${name} collection`);
   return collection;
-}
-
-/** The HTTP status a request was refused with, or "allowed". */
-async function statusOf(request: Promise<unknown>): Promise<number | "allowed"> {
-  const outcome: unknown = await request.then(
-    () => "allowed",
-    (error: unknown) => error,
-  );
-  if (outcome === "allowed") return outcome;
-  if (!(outcome instanceof ClientResponseError)) throw outcome;
-  return outcome.status;
-}
-
-/** The validation code PocketBase gave each refused field, e.g. { name: "validation_not_unique" }. */
-async function refusedFields(request: Promise<unknown>): Promise<Record<string, string>> {
-  const outcome: unknown = await request.then(
-    () => undefined,
-    (error: unknown) => error,
-  );
-  if (!(outcome instanceof ClientResponseError)) throw new Error("the request was not refused");
-  expect(outcome.status).toBe(400);
-  const data = outcome.response.data as Record<string, { code: string }>;
-  return Object.fromEntries(Object.entries(data).map(([field, problem]) => [field, problem.code]));
 }
 
 describe("collections", () => {
@@ -517,11 +489,16 @@ describe("locked rules", () => {
   });
 
   describe.each(Object.entries(CALLERS))("%s", (_caller, signIn) => {
+    // One sign-in per caller, not one per cell.
+    let client: PocketBase;
+
+    beforeAll(async () => {
+      client = await signIn();
+    });
+
     // While a rule is null PocketBase answers 403 before it looks anything up: never an
     // empty list, and never a 404.
     it.each(lockedCells)("may not $action $name", async ({ name, rule }) => {
-      const client = await signIn();
-
       expect(await statusOf(ATTEMPTS[rule](client, name))).toBe(403);
     });
   });

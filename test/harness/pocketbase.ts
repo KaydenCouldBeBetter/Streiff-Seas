@@ -146,10 +146,17 @@ export function superuserPassword(): string {
   return randomBytes(24).toString("hex");
 }
 
+/**
+ * The `superuser upsert` command line: every flag first, then "--", then the email and the
+ * password, so neither of those can be read as a flag whatever it begins with.
+ */
+export function superuserUpsertArgs(email: string, password: string, flags: string[]): string[] {
+  return ["superuser", "upsert", ...flags, "--", email, password];
+}
+
 async function createSuperuser(email: string, password: string, dirFlags: string[], deadline: number): Promise<void> {
   try {
-    // Flags first, then "--", so nothing after it can be read as a flag.
-    await execFileAsync(BINARY, ["superuser", "upsert", ...dirFlags, "--", email, password], {
+    await execFileAsync(BINARY, superuserUpsertArgs(email, password, dirFlags), {
       timeout: Math.max(1, deadline - Date.now()),
     });
   } catch (error) {
