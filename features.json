@@ -32,7 +32,7 @@
       "Migrations are new files only; Kayden reads every migration diff before merge",
       "npm run check output shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-04-spike-photo",

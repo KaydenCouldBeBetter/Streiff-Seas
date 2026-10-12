@@ -1,7 +1,7 @@
 // The security.md "Test fixtures" users, and the ways a test acts as one of them or as nobody.
 // No test signs in by email: each user is impersonated through the superuser endpoint.
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type PocketBase from "pocketbase";
 import type { RecordModel } from "pocketbase";
 import type { Harness } from "./pocketbase";
@@ -25,20 +25,22 @@ export type FixtureUsers = Record<FixtureName, RecordModel>;
 
 const IMPERSONATE_SECONDS = 3600;
 
+/**
+ * A body the users collection accepts for a new member; pass whatever should differ.
+ * Nobody signs in with the password: the auth collection just requires one.
+ */
+export function newUser(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const password = randomBytes(24).toString("base64url");
+  return { email: `${randomUUID()}@example.test`, password, passwordConfirm: password, name: "New Member", role: "member", ...overrides };
+}
+
 /** Creates K, O, S, N, M, W, X and Y through the superuser. Call once per PocketBase. */
 export async function createFixtureUsers(harness: Harness): Promise<FixtureUsers> {
   const users: Partial<FixtureUsers> = {};
   for (const key of FIXTURE_NAMES) {
-    // Nobody signs in with this password; the auth collection just requires one.
-    const password = randomBytes(24).toString("base64url");
-    users[key] = await harness.superuser.collection("users").create({
-      email: `${key.toLowerCase()}@example.test`,
-      emailVisibility: false,
-      verified: true,
-      password,
-      passwordConfirm: password,
-      ...FIXTURE_USERS[key],
-    });
+    users[key] = await harness.superuser
+      .collection("users")
+      .create(newUser({ email: `${key.toLowerCase()}@example.test`, emailVisibility: false, verified: true, ...FIXTURE_USERS[key] }));
   }
   return users as FixtureUsers;
 }

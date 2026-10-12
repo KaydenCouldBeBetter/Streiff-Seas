@@ -11,6 +11,8 @@ import {
   isHealthy,
   pinnedVersion,
   startPocketBase,
+  superuserPassword,
+  superuserUpsertArgs,
   usePocketBase,
   type Harness,
 } from "./harness/pocketbase";
@@ -71,6 +73,30 @@ describe("the pinned binary", () => {
 
   it("is not a missing file", async () => {
     await expect(assertPinnedBinary(path.join(scratch, "no-such-binary"))).rejects.toThrow("Run scripts/fetch-pb.sh");
+  });
+});
+
+describe("the superuser password", () => {
+  it("is 48 lowercase hex characters, so the CLI can never read it as a flag", () => {
+    const passwords = Array.from({ length: 1_000 }, () => superuserPassword());
+
+    for (const password of passwords) expect(password).toMatch(/^[0-9a-f]{48}$/);
+    expect(new Set(passwords).size).toBe(passwords.length);
+  });
+});
+
+describe("the superuser upsert command line", () => {
+  it('has every flag before "--", and the email and password after it', () => {
+    const flags = ["--dir", "/tmp/pb_data", "--migrationsDir", "/tmp/pb_migrations", "--automigrate=false"];
+    // A password PocketBase would read as flags if it could: -h makes it skip --dir.
+    const password = "-hQ9x";
+
+    const args = superuserUpsertArgs("harness@example.test", password, flags);
+
+    const separator = args.indexOf("--");
+    expect(args.slice(0, 2)).toEqual(["superuser", "upsert"]);
+    expect(args.slice(2, separator)).toEqual(flags);
+    expect(args.slice(separator + 1)).toEqual(["harness@example.test", password]);
   });
 });
 
