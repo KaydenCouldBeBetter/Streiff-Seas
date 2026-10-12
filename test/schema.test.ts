@@ -66,7 +66,7 @@ const updatedDate = (): FieldSpec => ({ type: "autodate", onCreate: true, onUpda
 const id = (): FieldSpec => ({ type: "text", system: true, required: true, primaryKey: true });
 
 /** Words with one space between them: no empty name, no leading, trailing or doubled space. */
-const SPECIES_NAME_PATTERN = "^[^\\s\\p{Z}]+( [^\\s\\p{Z}]+)*$";
+const NAME_PATTERN = "^[^\\s\\p{Z}]+( [^\\s\\p{Z}]+)*$";
 
 const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
   users: {
@@ -77,7 +77,7 @@ const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
     emailVisibility: { type: "bool", system: true, required: false },
     verified: { type: "bool", system: true, required: false },
     // Their board name, so never blank (decisions.md 2026-10-05).
-    name: text(255, true),
+    name: text(255, true, NAME_PATTERN),
     role: select(["member", "organizer"], true),
     display_units: select(["lb", "lb_oz"]),
     created: createdDate(),
@@ -85,7 +85,7 @@ const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
   },
   species: {
     id: id(),
-    name: text(60, true, SPECIES_NAME_PATTERN),
+    name: text(60, true, NAME_PATTERN),
   },
   events: {
     id: id(),
@@ -327,6 +327,22 @@ describe("users", () => {
     const member = await users.create(newUser({ name: "Angler Z" }));
     expect(await refusedFields(users.update(member.id, { name: "" }))).toEqual({ name: "validation_required" });
     expect((await users.getOne(member.id)).name).toBe("Angler Z");
+  });
+
+  it("needs a name of words with one space between them, so never one that is only spaces", async () => {
+    const users = pocketbase().superuser.collection("users");
+
+    const spaced = [" ", "   ", " Angler Z", "Angler Z ", "Angler  Z", "Angler\tZ", "Angler\u00a0Z"];
+    for (const name of spaced) {
+      expect(await refusedFields(users.create(newUser({ name }))), JSON.stringify(name)).toEqual({
+        name: "validation_invalid_format",
+      });
+    }
+
+    // Not by a rename either, and a real name with one space still saves.
+    const member = await users.create(newUser({ name: "Mary Ann O'Neil-Smith" }));
+    expect(await refusedFields(users.update(member.id, { name: " " }))).toEqual({ name: "validation_invalid_format" });
+    expect((await users.getOne(member.id)).name).toBe("Mary Ann O'Neil-Smith");
   });
 
   it("takes only lb or lb_oz as display units", async () => {
