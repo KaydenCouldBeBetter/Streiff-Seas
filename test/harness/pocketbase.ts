@@ -137,9 +137,19 @@ function stopProcess(child: ChildProcess): Promise<void> {
   });
 }
 
+/**
+ * A random password for the throwaway superuser: 48 lowercase hex characters. It goes on the
+ * command line, so it must never begin with "-" (base64url can): PocketBase would read it as
+ * flags, fail the boot, and with an "h" in it skip every flag after it, --dir included.
+ */
+export function superuserPassword(): string {
+  return randomBytes(24).toString("hex");
+}
+
 async function createSuperuser(email: string, password: string, dirFlags: string[], deadline: number): Promise<void> {
   try {
-    await execFileAsync(BINARY, ["superuser", "upsert", email, password, ...dirFlags], {
+    // Flags first, then "--", so nothing after it can be read as a flag.
+    await execFileAsync(BINARY, ["superuser", "upsert", ...dirFlags, "--", email, password], {
       timeout: Math.max(1, deadline - Date.now()),
     });
   } catch (error) {
@@ -244,7 +254,7 @@ export async function startPocketBase(options: StartOptions = {}): Promise<Harne
     // directory. Its password is random and is passed on the command line, which is the only
     // way the CLI takes it; it opens nothing but this loopback instance.
     const email = "harness@example.test";
-    const password = randomBytes(24).toString("base64url");
+    const password = superuserPassword();
     await createSuperuser(email, password, dirFlags, deadline);
 
     const server = await serve(dirFlags, workDir, options.pickPort ?? freePort, deadline);

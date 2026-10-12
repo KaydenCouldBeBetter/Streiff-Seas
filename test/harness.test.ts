@@ -11,6 +11,7 @@ import {
   isHealthy,
   pinnedVersion,
   startPocketBase,
+  superuserPassword,
   usePocketBase,
   type Harness,
 } from "./harness/pocketbase";
@@ -71,6 +72,15 @@ describe("the pinned binary", () => {
 
   it("is not a missing file", async () => {
     await expect(assertPinnedBinary(path.join(scratch, "no-such-binary"))).rejects.toThrow("Run scripts/fetch-pb.sh");
+  });
+});
+
+describe("the superuser password", () => {
+  it("is 48 lowercase hex characters, so the CLI can never read it as a flag", () => {
+    const passwords = Array.from({ length: 1_000 }, () => superuserPassword());
+
+    for (const password of passwords) expect(password).toMatch(/^[0-9a-f]{48}$/);
+    expect(new Set(passwords).size).toBe(passwords.length);
   });
 });
 
