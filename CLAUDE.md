@@ -30,7 +30,8 @@ with photos, the judge approves or rejects, standings update live. One developer
 - pb_hooks run in goja, not Node: CommonJS require() only, no async/await, no Node or browser APIs, no fetch.
 - Runtime deps are react, react-dom and pocketbase only. Ask before adding any dependency, dev deps included.
 - Don't change an existing test unless the matching docs/security.md row or docs/scoring.md example changes
-  in the same commit; name that row or example in the commit message.
+  in the same commit; name that row or example in the commit message. Implementing a security.md row counts:
+  change that row's expectation in test/schema.test.ts's RULES table and name the row ID.
 - Files you can't edit (.github/workflows/, .githooks/, POCKETBASE_VERSION, .claude/): write a draft in docs/drafts/
   and tell Kayden to install it.
 
