@@ -167,7 +167,7 @@ restic encrypts each backup on the host before it leaves the house, so Backblaze
 
 **Any time: adding or removing a member** (`decisions.md` L1 §4; 2026-10-05 "No blank names on the board")
 - [ ] Add their email to the whole-hostname Access app's email list.
-- [ ] In the PocketBase admin UI, create their `users` record with that email, **a name (never blank: it's their board name)**, `role = member` and `display_units` (default `lb`). `emailVisibility` stays off. Tell them to sign in with the email code.
+- [ ] In the PocketBase admin UI, create their `users` record with that email, **a name (never blank: it's their board name)**, `role = member` and `display_units` (optional; empty reads as `lb`). `emailVisibility` stays off. Tell them to sign in with the email code.
 - [ ] Removing a member: take their email off the Access list. Their user, entries and catches stay for history; never delete them.
 - [ ] Not tournament-time superuser work, so no section 12 line unless a tournament is live; during a tournament, log it in section 12 and tell the backup judge.
 
@@ -279,18 +279,18 @@ Use this only when the judge can't carry on during a live or closed tournament. 
 
 ## 14. PocketBase auth settings
 
-Decided 2026-10-07 (`decisions.md`, "Sign-in values"). Set them in the `users` collection's auth options and the application settings on prod and staging, then confirm each one on v0.40.4 and record what you set.
+Decided 2026-10-07 (`decisions.md`, "Sign-in values"). The `users` auth options (methods, code length, validity, token lifetime) are set by migration `1791815373_update_users.js` (M0-02, `decisions.md` 2026-10-12) and checked by `test/schema.test.ts`. Set the application settings (rate limits, trusted proxy header) by hand on prod and staging, then confirm each one on v0.40.4 and record what you set.
 
 | Setting | Value | Set and checked |
 |---|---|---|
-| Auth methods | OTP on; password and OAuth2 off | TODO |
-| OTP code length | 8 digits | TODO |
-| OTP validity | 10 minutes | TODO |
+| Auth methods | OTP on; password and OAuth2 off | By migration (M0-02); confirm after the first deploy |
+| OTP code length | 8 digits | By migration (M0-02); confirm after the first deploy |
+| OTP validity | 10 minutes | By migration (M0-02); confirm after the first deploy |
 | "Send a new code" in the app | after 60 seconds | Built in S1 |
 | Rate limit: OTP requests | TODO per client IP per minute (start at 3) | TODO |
 | Rate limit: OTP sign-in attempts | TODO per client IP per minute (start at 5); note whether a code is invalidated after failed tries | TODO |
 | Trusted proxy header | `CF-Connecting-IP`, so limits apply per person, not per Cloudflare edge | TODO |
-| Auth token lifetime | 14 days; the app refreshes a valid token each time it opens | TODO |
+| Auth token lifetime | 14 days; the app refreshes a valid token each time it opens | By migration (M0-02); confirm after the first deploy |
 | Superuser | MFA on; separate superuser on staging | TODO |
 
 **Open items** for the whole project, ops ones included, are in one list at the bottom of `decisions.md`.

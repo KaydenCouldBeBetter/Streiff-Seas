@@ -90,7 +90,7 @@ erDiagram
   USERS {
     string id PK
     string email UK "same address as the Access list"
-    string name "always set at invite; syncs to display_name until final"
+    string name "required, single-spaced words; syncs to display_name until final"
     string role "member or organizer"
     string display_units "lb or lb_oz"
   }
@@ -113,7 +113,7 @@ erDiagram
   }
   SPECIES {
     string id PK
-    string name UK "largemouth, smallmouth seeded; organizer can add more"
+    string name UK "unique ignoring case; largemouth bass, smallmouth bass seeded; organizer can add more"
   }
   ENTRIES {
     string id PK
@@ -145,7 +145,7 @@ erDiagram
   }
   AUDIT_LOG {
     string id PK
-    string actor FK
+    string actor FK "empty for a superuser action"
     string event FK "one filter per tournament export"
     string catch FK "empty for event and entry actions"
     string action "join withdraw rejoin create edit retract approve reject correct open close finalize event_edit"

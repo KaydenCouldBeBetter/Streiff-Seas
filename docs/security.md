@@ -1,6 +1,8 @@
 # Security: Fishing Scoreboard
 
-**Status:** Draft v0.9, 5 Oct 2026. v0.9 applies the `decisions.md` entries of 2026-10-03 and 2026-10-05 and the independent review of 5 Oct 2026:
+**Status:** Draft v0.10, 12 Oct 2026. v0.10 applies the M0-02 schema rows of `decisions.md` 2026-10-12: the seeded species are "largemouth bass" and "smallmouth bass", unique ignoring case; `users.name` and `species.name` refuse empty, all-space and badly spaced values (R-USR-U-07 and R-SPC-C-04 new, R-SPC-C-03 reworded); `audit_log.actor` is empty for a superuser action.
+
+v0.9 (5 Oct 2026) applies the `decisions.md` entries of 2026-10-03 and 2026-10-05 and the independent review of 5 Oct 2026:
 - Judge step-down (decided 2026-10-05): `judge` is locked for organizer edits once live (events update rule; R-EVT-U-18); the events hook lets a superuser step-down set a judge without the organizer role (R-EVT-U-19); the `audit_log` list rule gains a judge branch, so a judge without the organizer role reads every row of the catches they judge (R-AUD-L-08).
 - Live and closed event edits (decided 2026-10-05): `name` and the code word change while live (R-EVT-U-20); once closed, only `backup_judge` changes, and the new backup judge gets no entry (events update rule and hook; R-EVT-U-23, U-24).
 - `ends_at` moves later only, while the fishing window is open (hook; R-EVT-U-04 reworded, U-21, U-22).
@@ -56,15 +58,15 @@ One seeded world, booted from an empty `pb_data` per test file.
 | **Y** | member | Joined E1; has pending, verified, rejected and retracted catches |
 | anon | no auth | — |
 
-Events: **E1** live (largemouth, smallmouth; weight; judge K, backup S), **E2** live (judge K, backup N), **EL** live, length metric, **ED** draft, **EC** closed, **EF** final (each with judge K, backup N, so S's scope stays E1 only). ED is complete enough to open, so each R-EVT-U-25 case removes one thing. E1's code word is on (OAK). Species: largemouth, smallmouth, walleye (walleye not allowed in E1). Each event's entries and catches cover pending, verified and rejected states, including catches by K. E1 also holds one catch by S that K rejected and then re-approved (for R-AUD-L-07). Every seeded catch has the two required photos. Each event's judge and backup judge have entries created with the event (K in every event; S in E1; N in the others).
+Events: **E1** live (largemouth bass, smallmouth bass; weight; judge K, backup S), **E2** live (judge K, backup N), **EL** live, length metric, **ED** draft, **EC** closed, **EF** final (each with judge K, backup N, so S's scope stays E1 only). ED is complete enough to open, so each R-EVT-U-25 case removes one thing. E1's code word is on (OAK). Species: largemouth bass, smallmouth bass, walleye (walleye not allowed in E1). Each event's entries and catches cover pending, verified and rejected states, including catches by K. E1 also holds one catch by S that K rejected and then re-approved (for R-AUD-L-07). Every seeded catch has the two required photos. Each event's judge and backup judge have entries created with the event (K in every event; S in E1; N in the others).
 
 ## Collections (fields that matter to rules)
-- `users` (auth): `email`, `name`, `role` (member | organizer), `display_units` (lb | lb_oz), `verified`. Sign-in is OTP only.
+- `users` (auth): `email`, `name` (required: one or more words with single spaces, since it is the board name), `role` (member | organizer), `display_units` (lb | lb_oz; empty reads as lb), `verified`. Sign-in is OTP only.
 - `events`: `name`, `status` (draft | live | closed | final), `starts_at`, `ends_at`, `deadline_ext_min` (int minutes, default 0: the outage extension. The organizer sets the new total in whole hours, only while live, and it is never lowered; decided 2026-10-01), `submit_deadline` (hook: ends_at + 24 h + `deadline_ext_min`), `metric` (weight | length), `best_n`, `judge` → users, `backup_judge` → users, `species` → species (multi), `code_word_on`, `code_word`, `code_word_prev` (hook: the word before the last change on a live event; empty until then), `code_word_changed_at` (hook: when that change happened; empty until then). Both history fields are readable by every member who can read the event (decided 2026-10-05)
-- `species`: `name` (unique). Seeded with largemouth and smallmouth; the organizer can add more (walleye) for future tournaments.
+- `species`: `name` (unique ignoring case; one or more words with single spaces). Seeded with largemouth bass and smallmouth bass; the organizer can add more (walleye) for future tournaments.
 - `entries`: `event`, `angler` → users, `display_name` (hook), `withdrawn` (bool), `withdraw_reason`, `withdrawn_by` → users (hook), `created`. Unique index on (`event`, `angler`).
 - `catches`: `entry`, `species`, `weight_hoz`, `length_q`, `photo` (protected, **multi-file, 2 to 4, append-only**: photo 1 is the angler holding the fish and photo 2 the fish on the scale or board, both required at create; photos 3 and 4 are optional, at create or added later. An angler may add photos to a pending catch but never remove or replace one, so the first two keep their meaning; `image/jpeg` only, 5 MB per file; the browser resizes to a 2560 px long edge before upload), `captured_at` (client-read from the **first** photo, signal only), `photo_captured_at` (JSON array, client-read: one capture time per photo in `photo` order, `null` when missing; its first entry equals `captured_at`; append-only like `photo`; signal only), `client_uuid` (unique), `rev` (int, hook: 1 on create, +1 on each angler edit; every angler and judge update must echo the current value), and server-checked `status` (pending | verified | rejected | retracted), `judged_by` (hook), `reason`, `flags` (hook: JSON array of codes, see "Flag codes"), `created`, `updated`.
-- `audit_log`: `actor`, `action` (join, withdraw, rejoin, create, edit, retract, approve, reject, correct, open, close, finalize, event_edit), `event` → events, `catch` → catches (empty for event and entry actions), `target_id`, `before`, `after` (fixed snapshots, see "Audit snapshots" under `audit_log`), `created`.
+- `audit_log`: `actor` (empty for a superuser action, such as the judge step-down), `action` (join, withdraw, rejoin, create, edit, retract, approve, reject, correct, open, close, finalize, event_edit), `event` → events, `catch` → catches (empty for event and entry actions), `target_id`, `before`, `after` (fixed snapshots, see "Audit snapshots" under `audit_log`), `created`.
 
 ---
 
@@ -107,6 +109,7 @@ id = @request.auth.id &&
 | R-USR-U-04 | M | Update X's record | Deny | rule |
 | R-USR-U-05 | K | Change M's `role` | Deny (roles change only by superuser) | rule |
 | R-USR-U-06 | M | Change own `name` | Allow; `display_name` updates on M's entries in live and closed events, not in final ones | rule, hook |
+| R-USR-U-07 | M | Change own `name` to empty, only spaces, or a name with leading, trailing or doubled spaces | Deny | schema |
 | R-USR-D-01 | M, K | Delete a user, including self | Deny | rule |
 | R-USR-A-01 | anon | Password sign-in with a real member's email | Refused | settings |
 | R-USR-A-02 | anon | Request an OTP for an unlisted email | No user created | settings |
@@ -217,7 +220,8 @@ status != "final" &&
 | R-SPC-L-03 | K | List species | All | rule |
 | R-SPC-C-01 | K | Add walleye | Allow | rule |
 | R-SPC-C-02 | M | Add a species | Deny | rule |
-| R-SPC-C-03 | K | Add a duplicate name | Fails | index |
+| R-SPC-C-03 | K | Add a duplicate name, including one that differs only in case | Fails | index |
+| R-SPC-C-04 | K | Add a name that is empty, only spaces, or has leading, trailing or doubled spaces | Fails | schema |
 | R-SPC-U-01 | K | Rename a species | Deny | rule |
 | R-SPC-U-02 | M | Rename a species | Deny | rule |
 | R-SPC-D-01 | K | Delete a species | Deny | rule |

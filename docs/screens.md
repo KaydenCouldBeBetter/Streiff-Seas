@@ -1,6 +1,7 @@
 # Screens: Fishing Scoreboard (UI step 1, screen inventory)
 
-**Status:** Draft v0.7, 7 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**Status:** Draft v0.8, 12 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**v0.8:** EVT-02n (Join: name needed first) is dropped: since M0-02, `users.name` is required and refuses blank or badly spaced values (`decisions.md` 2026-10-12), so a member's name can't be empty. Its Figma frame stays for history, like ORG-08c.
 **v0.7:** applies the Figma pass-3b review (`claude/review-figma-pass3.md` §5, in the Claude Project: all 130 rows have frames, §7.3) and Kayden's answers of 7 Oct 2026, recorded in `decisions.md`: Gap 19 values (8-digit code, 10 minutes, a new code after 60 s, 14-day token refreshed on open), Gap 37 (Club rules adds the tournament's values when opened from a tournament page). The open questions moved to `decisions.md` Open items; the status-word rule gained one sentence. Sources now use repo paths (`decisions.md` 2026-10-07: the repo is the source of truth).
 **v0.6:** applies the independent review of 5 Oct 2026 and Kayden's answers, recorded in `decisions.md` 2026-10-05: new rows JDG-00a and JDG-00b (the Judge tab opens a Judging home), RULES-01a (Club rules), and a NOT SENT row for every change screen (MY-03c, MY-05c, JDG-02j, JDG-03b, JDG-04b, JDG-05c, ORG-04c, ORG-05c, ORG-06c, ORG-09c); the status-word rule and the tab rule in §0; JDG-02i reads the code word history stored on the event; JDG-01c wording; LB-01e places; test IDs from `security.md` v0.9 (Gap 33 settled); "Ask the judge" is out (messaging is on SPEC's Not doing list). 117 → 130 rows; the 13 new rows have no Figma frame yet (§7.3).
 **v0.5:** applies Kayden's answers of 5 Oct 2026 (Figma pass 2), recorded in `decisions.md`: Gap 9 (name editable while live; once closed, only the backup judge), Gap 10 (`ends_at` later only, while the window is open), Gap 11 (Open preconditions enforced by the hook), Gap 15 (CSV format; hashed files only when final; unhashed preview while closed), Gap 16 (reload and infer the reason), Gap 17 (server clock offset), Gap 19 (neutral sign-in wording), Gap 20 (names always set; Join asks for one), Gap 21 (same angler and catch pages for everyone), Gap 25 (which screens update live), Gap 28 (members see an extension), Gap 31 (pending or verified). New row: EVT-02n (Join: name needed first). Later the same day (Kayden, `decisions.md`): `scoring.md` v0.6 is in force with no group vote; a backup judge named after close gets no entry; ORG-08c (Entries: empty, unreachable) dropped; exports gain "Share file and hash". Every row in section 2 has a Figma frame (117, scripted check of 5 Oct).
@@ -115,7 +116,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 | SYS-03 | Locked | A change refused because the event is final |
 | SYS-04 | Session ended | PocketBase session no longer valid |
 
-**Count:** 38 screens designed here (AUTH-00 is listed but out of scope), in 130 state rows (section 2).
+**Count:** 38 screens designed here (AUTH-00 is listed but out of scope), in 130 state rows (section 2), of which EVT-02n is dropped.
 
 ---
 
@@ -141,7 +142,7 @@ One row per distinct state. The table is split by area; the columns are the same
 | EVT-01b | Tournaments | K | draft, live, closed, final | Same | Same, drafts included and marked as draft | Open; New tournament (→ ORG-02); Species (→ ORG-10); Profile | — | R-EVT-L-03, R-EVT-C-01, R-SPC-C-01 | SEC events; FEAT S4 step 1 |
 | EVT-01d | Tournaments: two live entries | M, J, S | live (two or more) | Active entries in two or more live tournaments | "Your tournaments": each live tournament with an active entry, with its pending count and the viewer's place; then other live tournaments and past ones | Open a tournament (→ EVT-02); its leaderboard (→ LB-01) | — | R-EVT-L-02, R-ENT-L-02 | DEC 2026-10-03 "Home screen and landing" |
 | EVT-01c | Tournaments: empty | M, J, S (none live/closed/final); K (none at all) | — | — | "No tournaments yet" | K: New tournament. Everyone: Profile | M: nothing else to open | R-EVT-L-02, L-03 | SEC events |
-| EVT-02a | Tournament | M | live:open | none | `name`, `status`, `starts_at`, `ends_at`, `submit_deadline`, `metric`, `best_n`, `species` names; judge and backup judge named from their entries' `display_name` (role alone if that entry is withdrawn: Gap 13) | Join (→ EVT-02n first if the viewer's name is empty); Leaderboard (→ LB-01) | Submit (no own entry: R-CAT-C-02) | R-ENT-C-01; S, N: R-ALL-S-01. The event's judge and backup judge never see this row: they were entered when the event was created and start in the active rows (R-EVT-C-08, R-ENT-C-08) | SPEC roles; SCO §3; DEC "Members join a tournament themselves", "Judge must be an organizer; judge and backup judge are entered automatically" |
+| EVT-02a | Tournament | M | live:open | none | `name`, `status`, `starts_at`, `ends_at`, `submit_deadline`, `metric`, `best_n`, `species` names; judge and backup judge named from their entries' `display_name` (role alone if that entry is withdrawn: Gap 13) | Join; Leaderboard (→ LB-01) | Submit (no own entry: R-CAT-C-02) | R-ENT-C-01; S, N: R-ALL-S-01. The event's judge and backup judge never see this row: they were entered when the event was created and start in the active rows (R-EVT-C-08, R-ENT-C-08) | SPEC roles; SCO §3; DEC "Members join a tournament themselves", "Judge must be an organizer; judge and backup judge are entered automatically" |
 | EVT-02b | Tournament | M | live:over, closed, final | none | Same as EVT-02a | Leaderboard | Join (R-ENT-C-05 after `submit_deadline`; R-ENT-C-04 closed or final) | R-EVT-L-02 | SCO §3 |
 | EVT-02c | Tournament | M | live:pre | active | Same + "Fishing window opens `starts_at`" | My catches (→ MY-01); Leaderboard; Withdraw (→ EVT-03) | Submit (R-CAT-C-06); Join again (R-ENT-C-03) | R-ENT-U-01 | SEC catches create rule |
 | EVT-02d | Tournament | M | live:window | active | Same + own catch counts by `status` | Submit a catch (→ SUB-01); My catches; Leaderboard; Withdraw | Join again (R-ENT-C-03) | R-CAT-C-01, C-18, R-ENT-U-01 | SPEC Must 1 |
@@ -154,7 +155,7 @@ One row per distinct state. The table is split by area; the columns are the same
 | EVT-02k | Tournament | M | final | any | "Final"; standings as published | My catches (read only); Leaderboard | Join, withdraw, rejoin (R-ENT-C-04, R-ENT-U-10); any catch change (R-CAT-U-12) | R-EVT-L-02 | SPEC invariant 7 |
 | EVT-02l | Tournament (judge additions) | J, S, on top of their M row (their entry exists from the event's creation unless they withdrew) | live, closed | any | + count of pending catches the viewer may judge | Judge queue (→ JDG-01) | Judge queue on a final event (R-CAT-U-12) | R-CAT-L-05, L-06 | FEAT S3 step 1 |
 | EVT-02m | Tournament (organizer additions) | K, on top of their M row | draft, live, closed, final | any | + Manage | Manage (→ ORG-01); Entries (→ ORG-08) | Join a draft (R-ENT-C-04) | R-EVT-L-03, R-ENT-L-05 | FEAT S4 step 1 |
-| EVT-02n | Join: name needed first | M | live:open | none; the viewer's `users.name` is empty | A sheet: "Add your name first"; a name field; "Your name shows on the leaderboard and on your catches" | Save and join (saves `name` to the profile, then joins); Cancel | Joining with an empty name | R-USR-U-01, R-ENT-C-01 | DEC 2026-10-05 "No blank names on the board" (Gap 20) |
+| EVT-02n | ~~Join: name needed first~~ Dropped 2026-10-12: a name can't be empty | M | live:open | none; the viewer's `users.name` is empty | A sheet: "Add your name first"; a name field; "Your name shows on the leaderboard and on your catches" | Save and join (saves `name` to the profile, then joins); Cancel | Joining with an empty name | R-USR-U-01, R-ENT-C-01 | DEC 2026-10-05 "No blank names on the board" (Gap 20) |
 | EVT-03a | Withdraw (self) | M | live:open | active | What withdrawing does: off the leaderboard; entry and catches kept; pending catches still judged but can't be edited; you can rejoin until `submit_deadline` | Confirm withdraw; Cancel | Reason field (an angler can't set `withdraw_reason`: entries update rule) | R-ENT-U-01, U-03 | SCO §3 |
 | EVT-03b | Withdraw (self) | M | live:over, closed | active | Same, but "You won't be able to rejoin" | Confirm withdraw; Cancel | — | R-ENT-U-01, U-02, U-05 | SCO §3 |
 
@@ -308,7 +309,7 @@ Indented items lead from the item above them. Conditions in brackets.
 **Member (M)**
 - EVT-01 Tournaments
   - EVT-02 Tournament
-    - Join [live:open, not joined] → stays on EVT-02 (now active); EVT-02n first if the member's name is empty
+    - Join [live:open, not joined] → stays on EVT-02 (now active)
     - EVT-03 Withdraw [active, not final] → EVT-02 (withdrawn)
     - Rejoin [withdrawn-self, live:open] → EVT-02 (active)
     - SUB-01 Submit [active, live:window or live:late] → SUB-02 Submission status → MY-02
@@ -372,7 +373,7 @@ Indented items lead from the item above them. Conditions in brackets.
 |---|---|
 | Sign-in by OTP | AUTH-01a, AUTH-02a |
 | Wrong or expired code | AUTH-02b, AUTH-02c |
-| Joining | EVT-02a (allowed), EVT-02n (name needed first), EVT-02b (refused after deadline or not live) |
+| Joining | EVT-02a (allowed), EVT-02b (refused after deadline or not live) |
 | Withdrawing | EVT-02c to g, EVT-03a, EVT-03b |
 | Rejoining | EVT-02h (allowed), EVT-02i (closed), EVT-02j (withdrawn by organizer) |
 | A withdrawn member's view | EVT-02h to j, MY-02d, LB-01e |
@@ -500,7 +501,8 @@ Screens: SUB-02c, SUB-02d, MY-03a, MY-04a, MY-04b, MY-05a.
 Screens: AUTH-01b, AUTH-02b, AUTH-02c, SYS-04a, LB-01b.
 
 **20. Settled 2026-10-05: no blank names on the board** (`decisions.md` "No blank names on the board", both options). Inviting a member always sets their name (an `ops.md` step), which covers the automatically entered judge and backup judge; and Join asks for a name first if it's empty (new row EVT-02n). Two members with the same name are still told apart only by the superuser choosing distinct names.
-Screens: EVT-02a, EVT-02n, PRF-01a, LB-01a.
+**Update 2026-10-12:** `users.name` is required and refuses blank or badly spaced values in the schema (`decisions.md` 2026-10-12), so EVT-02n can't occur and is dropped.
+Screens: EVT-02a, EVT-02n (dropped), PRF-01a, LB-01a.
 
 **21. Settled 2026-10-05: the same angler and catch pages for everyone** (`decisions.md` "Judges and the organizer see the same angler and catch pages as everyone", option a). LB-02 and LB-03 show pending and verified catches only, for every viewer; judges use the queue's Rejected filter.
 Screens: LB-02c, LB-03a.
@@ -612,7 +614,7 @@ Highest impact first.
 | SPEC row | Screens |
 |---|---|
 | See leaderboard | LB-01a to g, LB-02a to c, LB-03a, LB-03b (anonymous: none; AUTH only) |
-| Join a tournament | EVT-02a, EVT-02n, EVT-02b (the judge and backup judge are entered automatically: ORG-02a) |
+| Join a tournament | EVT-02a, EVT-02b (the judge and backup judge are entered automatically: ORG-02a) |
 | Withdraw (own); organizer withdraws anyone with a reason, reinstates; backup judge own only | EVT-02c to j, EVT-03a, EVT-03b; ORG-08a, ORG-08b, ORG-09a, ORG-09b; S has no ORG-08 (R-ENT-U-12) |
 | Submit; edit, add photos, retract while pending | SUB-01a to e, SUB-02a to e; MY-02a to d, MY-03a, MY-03b, MY-04a to c, MY-05a, MY-05b |
 | Approve / reject / correct / re-judge; backup judge only the judge's | JDG-01a to g, JDG-02a to i, JDG-03a, JDG-04a, JDG-05a, JDG-05b |
@@ -627,7 +629,7 @@ Highest impact first.
 | Must do item | Screens |
 |---|---|
 | 1. Sign-in (Access + OTP) | AUTH-00 (noted), AUTH-01, AUTH-02, SYS-04 |
-| 1. Join on the tournament page | EVT-02a, EVT-02n |
+| 1. Join on the tournament page | EVT-02a |
 | 1. One fish per submission, two required photos, species from the list, weight or length per metric | SUB-01a to d |
 | 1. Capture time read, then metadata stripped | SUB-01a (read silently; no visible UI) |
 | 1. Unique `client_uuid`; Sending / Received / NOT SENT + Retry | SUB-02a to e |
