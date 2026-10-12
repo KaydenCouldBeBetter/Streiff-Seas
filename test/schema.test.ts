@@ -44,7 +44,7 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
 /** A field as the collections API returns it, less what the specs below don't state. */
 type FieldSpec = { type: string; to?: CollectionName } & Record<string, unknown>;
 
-const text = (max: number, required = false): FieldSpec => ({ type: "text", required, max, min: 0, pattern: "" });
+const text = (max: number, required = false, pattern = ""): FieldSpec => ({ type: "text", required, max, min: 0, pattern });
 const select = (values: string[], required = false): FieldSpec => ({ type: "select", required, maxSelect: 1, values });
 const date = (): FieldSpec => ({ type: "date", required: false, min: "", max: "" });
 const bool = (): FieldSpec => ({ type: "bool", required: false });
@@ -64,6 +64,9 @@ const updatedDate = (): FieldSpec => ({ type: "autodate", onCreate: true, onUpda
 /** PocketBase's own primary key, on every collection. */
 const id = (): FieldSpec => ({ type: "text", system: true, required: true, primaryKey: true });
 
+/** Words with one space between them: no empty name, no leading, trailing or doubled space. */
+const SPECIES_NAME_PATTERN = "^[^\\s\\p{Z}]+( [^\\s\\p{Z}]+)*$";
+
 const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
   users: {
     id: id(),
@@ -72,7 +75,8 @@ const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
     email: { type: "email", system: true, required: true },
     emailVisibility: { type: "bool", system: true, required: false },
     verified: { type: "bool", system: true, required: false },
-    name: text(255),
+    // Their board name, so never blank (decisions.md 2026-10-05).
+    name: text(255, true),
     role: select(["member", "organizer"], true),
     display_units: select(["lb", "lb_oz"]),
     created: createdDate(),
@@ -80,7 +84,7 @@ const FIELDS: Record<CollectionName, Record<string, FieldSpec>> = {
   },
   species: {
     id: id(),
-    name: text(60, true),
+    name: text(60, true, SPECIES_NAME_PATTERN),
   },
   events: {
     id: id(),
@@ -234,7 +238,7 @@ function newEvent(users: FixtureUsers): Record<string, unknown> {
 function newUser(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   // Nobody signs in with this password; the auth collection just requires one.
   const password = randomBytes(24).toString("base64url");
-  return { email: `${randomUUID()}@example.test`, password, passwordConfirm: password, role: "member", ...overrides };
+  return { email: `${randomUUID()}@example.test`, password, passwordConfirm: password, name: "New Member", role: "member", ...overrides };
 }
 
 function stored(name: CollectionName): StoredCollection {
@@ -342,6 +346,17 @@ describe("users", () => {
     expect(await refusedFields(users.create(newUser({ role: "judge" })))).toEqual({ role: "validation_invalid_value" });
   });
 
+  it("needs a name: not left out at invite, and not cleared afterwards", async () => {
+    const users = pocketbase().superuser.collection("users");
+
+    expect(await refusedFields(users.create(newUser({ name: undefined })))).toEqual({ name: "validation_required" });
+    expect(await refusedFields(users.create(newUser({ name: "" })))).toEqual({ name: "validation_required" });
+
+    const member = await users.create(newUser({ name: "Angler Z" }));
+    expect(await refusedFields(users.update(member.id, { name: "" }))).toEqual({ name: "validation_required" });
+    expect((await users.getOne(member.id)).name).toBe("Angler Z");
+  });
+
   it("takes only lb or lb_oz as display units", async () => {
     const users = pocketbase().superuser.collection("users");
 
@@ -375,6 +390,21 @@ describe("species", () => {
     const species = await pocketbase().superuser.collection("species").getFullList({ sort: "name" });
 
     expect(species.map((record) => record.name)).toEqual(SEEDED_SPECIES);
+  });
+
+  it("needs a name of words with one space between them", async () => {
+    const species = pocketbase().superuser.collection("species");
+
+    expect(await refusedFields(species.create({ name: "" }))).toEqual({ name: "validation_required" });
+    // The first three would otherwise pass the unique index as new species (R-SPC-C-03).
+    const spaced = ["largemouth bass ", " largemouth bass", "largemouth  bass", " ", "white\tbass", "white\u00a0bass"];
+    for (const name of spaced) {
+      expect(await refusedFields(species.create({ name })), JSON.stringify(name)).toEqual({ name: "validation_invalid_format" });
+    }
+
+    // One space between words is a name. Removed again: the tests below count the species.
+    const made = await species.create({ name: "white bass" });
+    await species.delete(made.id);
   });
 });
 
