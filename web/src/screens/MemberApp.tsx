@@ -9,14 +9,18 @@ import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
+import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
 import type { MemberTab } from "./memberTabs";
 import { Tournament } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
 import { Profile } from "./Profile";
+import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "leaderboard" | "profile";
+type Screen = "tournament" | "leaderboard" | "profile" | "submit";
+/** The top-level screens Profile opens from, and goes back to. */
+type TopScreen = "tournament" | "leaderboard";
 
-const TITLES: Record<Screen, string> = {
+const TITLES: Record<Exclude<Screen, "submit">, string> = {
   tournament: SAMPLE_TOURNAMENT.name,
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   profile: "Profile",
@@ -30,9 +34,13 @@ interface Props {
 export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
   // Profile's back button returns to the screen it was opened from.
-  const [profileFrom, setProfileFrom] = useState<Exclude<Screen, "profile">>("tournament");
+  const [profileFrom, setProfileFrom] = useState<TopScreen>("tournament");
+  // TODO(S1): the real sender (catchSender.ts) replaces the sample.
+  const [sender] = useState(createSampleSender);
 
   useEffect(() => {
+    // SubmitFlow titles its own steps.
+    if (screen === "submit") return;
     document.title = `${TITLES[screen]} · Chromie Fishing`;
   }, [screen]);
 
@@ -40,7 +48,7 @@ export function MemberApp({ user, onSignOut }: Props) {
     // My catches (MY-01) isn't built yet: its tab stays put.
     if (tab === "home") setScreen("tournament");
     if (tab === "leaderboard") setScreen("leaderboard");
-    if (tab === "profile" && screen !== "profile") {
+    if (tab === "profile" && (screen === "tournament" || screen === "leaderboard")) {
       setProfileFrom(screen);
       setScreen("profile");
     }
@@ -48,9 +56,19 @@ export function MemberApp({ user, onSignOut }: Props) {
 
   switch (screen) {
     case "tournament":
-      return <Tournament tournament={SAMPLE_TOURNAMENT} onTab={openTab} onLeaderboard={() => setScreen("leaderboard")} />;
+      return (
+        <Tournament
+          tournament={SAMPLE_TOURNAMENT}
+          onTab={openTab}
+          onLeaderboard={() => setScreen("leaderboard")}
+          onSubmit={() => setScreen("submit")}
+        />
+      );
     case "leaderboard":
-      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} />;
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} />;
+    case "submit":
+      // Every submit screen's Back reads "Tournament" (Figma), so it goes there whichever screen opened it.
+      return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;
     case "profile":
       return (
         <Profile
