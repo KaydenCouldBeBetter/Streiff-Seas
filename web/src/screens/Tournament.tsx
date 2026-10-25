@@ -4,25 +4,16 @@
 
 import type { TournamentView } from "../lib/sampleTournament";
 import { formatClubTime, placeLabel } from "../lib/format";
-import { AccessoryBar, Button, LargeNavBar, ListLink, TabBar, type Tab } from "../components/ui";
-
-export type MemberTab = "home" | "leaderboard" | "catches" | "profile";
-
-// Member tabs (Figma Tab bar): Home · Leaderboard · My catches · Profile. The Judge tab
-// (JDG-00a) joins them only for a judge or backup judge of a live or closed tournament.
-export const MEMBER_TABS: readonly Tab<MemberTab>[] = [
-  { id: "home", label: "Home", icon: "/icons/home-selected.svg" },
-  { id: "leaderboard", label: "Leaderboard", icon: "/icons/leaderboard.svg", todo: "LB-01" },
-  { id: "catches", label: "My catches", icon: "/icons/list-tab.svg", todo: "MY-01" },
-  { id: "profile", label: "Profile", icon: "/icons/person-tab.svg", todo: "PRF-01" },
-];
+import { AccessoryBar, Button, LargeNavBar, ListLink, TabBar } from "../components/ui";
+import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 interface Props {
   tournament: TournamentView;
   onTab: (tab: MemberTab) => void;
+  onMyCatches: () => void;
 }
 
-export function Tournament({ tournament, onTab }: Props) {
+export function Tournament({ tournament, onTab, onMyCatches }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
@@ -61,7 +52,7 @@ export function Tournament({ tournament, onTab }: Props) {
             icon="/icons/list.svg"
             title="My catches"
             detail={`${catches.submitted} submitted · ${catches.pending} pending`}
-            todo="MY-01"
+            onClick={onMyCatches}
           />
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
           <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} todo="LB-01" />

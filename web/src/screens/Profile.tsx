@@ -6,14 +6,16 @@ import { ActionBar, Button, NavBar, TodoTag } from "../components/ui";
 
 interface Props {
   user: RecordModel;
+  /** The screen Profile was opened from: the back button's label. */
+  backTo: string;
   onBack: () => void;
   onSignOut: () => void;
 }
 
-export function Profile({ user, onBack, onSignOut }: Props) {
+export function Profile({ user, backTo, onBack, onSignOut }: Props) {
   return (
     <div className="screen">
-      <NavBar title="Profile" backLabel="Back" backName="Back to Tournament" onBack={onBack} />
+      <NavBar title="Profile" backLabel="Back" backName={`Back to ${backTo}`} onBack={onBack} />
       <div className="screen-content">
         <p className="t-body">
           {String(user.name)} · <span className="t-secondary">{String(user.email)}</span>

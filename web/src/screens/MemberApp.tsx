@@ -7,11 +7,28 @@
 
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
+import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
-import { Tournament, type MemberTab } from "./Tournament";
+import type { MemberTab } from "./memberTabs";
+import { MyCatch } from "./MyCatch";
+import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
+import { Tournament } from "./Tournament";
 
-type Screen = "tournament" | "profile";
+type Screen = "tournament" | "catches" | "catch" | "profile";
+
+const TITLES: Record<Screen, string> = {
+  tournament: SAMPLE_TOURNAMENT.name,
+  catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
+  catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
+  profile: "Profile",
+};
+
+const BACK_LABELS: Record<Exclude<Screen, "profile">, string> = {
+  tournament: "Tournament",
+  catches: "My catches",
+  catch: "Catch",
+};
 
 interface Props {
   user: RecordModel;
@@ -20,21 +37,43 @@ interface Props {
 
 export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
+  const [catchId, setCatchId] = useState<string | null>(null);
+  // Profile's back button returns to the screen it was opened from.
+  const [profileFrom, setProfileFrom] = useState<Exclude<Screen, "profile">>("tournament");
 
   useEffect(() => {
-    document.title = screen === "profile" ? "Profile · Chromie Fishing" : `${SAMPLE_TOURNAMENT.name} · Chromie Fishing`;
+    document.title = `${TITLES[screen]} · Chromie Fishing`;
+    window.scrollTo(0, 0);
   }, [screen]);
 
   function openTab(tab: MemberTab) {
-    // Leaderboard (LB-01) and My catches (MY-01) aren't built yet: their tabs stay put.
-    if (tab === "profile") setScreen("profile");
+    // Leaderboard (LB-01) isn't built yet: its tab stays put.
     if (tab === "home") setScreen("tournament");
+    if (tab === "catches") setScreen("catches");
+    if (tab === "profile" && screen !== "profile") {
+      setProfileFrom(screen);
+      setScreen("profile");
+    }
   }
+
+  function openCatch(id: string) {
+    setCatchId(id);
+    setScreen("catch");
+  }
+
+  const openedCatch = SAMPLE_MY_CATCHES.find((c) => c.id === catchId);
 
   switch (screen) {
     case "tournament":
-      return <Tournament tournament={SAMPLE_TOURNAMENT} onTab={openTab} />;
+      return <Tournament tournament={SAMPLE_TOURNAMENT} onTab={openTab} onMyCatches={() => setScreen("catches")} />;
+    case "catch":
+      if (openedCatch) {
+        return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onTab={openTab} />;
+      }
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+    case "catches":
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
     case "profile":
-      return <Profile user={user} onBack={() => setScreen("tournament")} onSignOut={onSignOut} />;
+      return <Profile user={user} backTo={BACK_LABELS[profileFrom]} onBack={() => setScreen(profileFrom)} onSignOut={onSignOut} />;
   }
 }

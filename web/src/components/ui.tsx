@@ -1,6 +1,6 @@
 // The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
-// Text field, Button (Large, Medium and Text), Action bar (Single and Accessory), List link
-// and Tab bar. Their usage notes in Figma are followed here.
+// Text field, Button (Large, Medium and Text), Action bar (Single and Accessory), List link,
+// Tab bar, Banner and Empty state. Their usage notes in Figma are followed here.
 
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 
@@ -20,10 +20,12 @@ interface NavBarProps {
   /** Always "Back to <screen>". */
   backName: string;
   onBack: () => void;
+  /** The optional trailing text action ("History" on MY-02). */
+  trailing?: { label: string; todo?: string; onClick?: () => void };
 }
 
 /** Push type: back names where it goes; the title is the screen's h1. */
-export function NavBar({ title, backLabel, backName, onBack }: NavBarProps) {
+export function NavBar({ title, backLabel, backName, onBack, trailing }: NavBarProps) {
   return (
     <div className="nav-bar">
       <button type="button" className="nav-bar-back t-body" aria-label={backName} onClick={onBack}>
@@ -31,7 +33,16 @@ export function NavBar({ title, backLabel, backName, onBack }: NavBarProps) {
         <span>{backLabel}</span>
       </button>
       <h1 className="nav-bar-title t-headline">{title}</h1>
-      <span className="nav-bar-trailing" aria-hidden="true" />
+      {trailing ? (
+        <span className="nav-bar-trailing">
+          <button type="button" className="nav-bar-action t-body" onClick={trailing.onClick}>
+            {trailing.label}
+            {trailing.todo && <TodoTag row={trailing.todo} />}
+          </button>
+        </span>
+      ) : (
+        <span className="nav-bar-trailing" aria-hidden="true" />
+      )}
     </div>
   );
 }
@@ -198,8 +209,10 @@ export function ListLink({ icon, title, detail, todo, onClick }: ListLinkProps) 
 export interface Tab<Id extends string = string> {
   id: Id;
   label: string;
-  /** The icon as drawn in this tab's state: Figma has a selected and an unselected color. */
+  /** The icon as drawn unselected. */
   icon: string;
+  /** The icon as drawn selected, where Figma draws it in another color. */
+  selectedIcon?: string;
   todo?: string;
 }
 
@@ -216,12 +229,60 @@ export function TabBar<Id extends string>({ tabs, selected, onSelect }: TabBarPr
       <div role="tablist" className="tab-bar-tabs">
         {tabs.map((tab) => (
           <button key={tab.id} type="button" role="tab" className="tab" aria-selected={tab.id === selected} onClick={() => onSelect(tab.id)}>
-            <img src={tab.icon} width={24} height={24} alt="" aria-hidden="true" />
+            <img src={tab.id === selected ? (tab.selectedIcon ?? tab.icon) : tab.icon} width={24} height={24} alt="" aria-hidden="true" />
             <span>{tab.label}</span>
             {tab.todo && <TodoTag row={tab.todo} />}
           </button>
         ))}
       </div>
     </nav>
+  );
+}
+
+export type BannerTone = "info" | "neutral";
+
+interface BannerProps {
+  tone: BannerTone;
+  /** A 24 px icon drawn in the tone's color. */
+  icon: string;
+  title: string;
+  children: ReactNode;
+  /** "status" for a change the screen announces (Received); none for a state shown on open. */
+  role?: "status" | "alert";
+}
+
+/** Page-level status: always icon + title + message. Never blames the angler. */
+export function Banner({ tone, icon, title, children, role }: BannerProps) {
+  return (
+    <div className={`banner banner-${tone}`} role={role}>
+      <img src={icon} width={24} height={24} alt="" aria-hidden="true" />
+      <div className="banner-body">
+        <p className="banner-title t-headline">{title}</p>
+        <p className="t-callout">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+interface EmptyStateProps {
+  /** A 28 px icon in the badge. */
+  icon: string;
+  title: string;
+  message: string;
+  /** The next step, only when it's allowed (e.g. Submit only while submitting is open). */
+  action?: ReactNode;
+}
+
+/** An empty list: says what will appear here. The icon is decorative. */
+export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
+  return (
+    <div className="empty-state">
+      <span className="empty-state-badge">
+        <img src={icon} width={28} height={28} alt="" aria-hidden="true" />
+      </span>
+      <h2 className="t-title-section">{title}</h2>
+      <p className="t-callout t-secondary">{message}</p>
+      {action}
+    </div>
   );
 }
