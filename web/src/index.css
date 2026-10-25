@@ -15,11 +15,14 @@
   --cf-color-text-on-primary: #ffffff;
   --cf-color-text-danger: #871b14;
   --cf-color-text-disabled: #33434f;
+  --cf-color-text-success: #0b5530;
   --cf-color-bg-default: #ffffff;
   --cf-color-bg-primary: #0a4a6b;
   --cf-color-bg-primary-pressed: #083f5c;
   --cf-color-bg-selected: #dcebf3;
   --cf-color-bg-disabled: #e6eaed;
+  --cf-color-bg-sunken: #eef3f6;
+  --cf-color-bg-success: #ddf0e3;
   --cf-color-border-default: #5e6f7c;
   --cf-color-border-selected: #0a4a6b;
   --cf-color-border-focus: #0a4a6b;
@@ -35,6 +38,7 @@
   --cf-spacing-xl: 20px;
   --cf-spacing-2xl: 24px;
   --cf-spacing-3xl: 32px;
+  --cf-radius-sm: 6px;
   --cf-radius-lg: 14px;
   --cf-stroke-field: 1.5px;
   --cf-stroke-selected: 2px;
@@ -117,13 +121,26 @@ footer {
   line-height: 1.125rem;
   font-weight: 400;
 }
+.t-footnote-strong {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+.t-number-large {
+  font-size: 2rem;
+  line-height: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
 .t-secondary {
   color: var(--cf-color-text-secondary);
 }
 
 h1,
 h2,
-p {
+p,
+dl,
+dd {
   margin: 0;
 }
 
@@ -362,4 +379,217 @@ p {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Medium buttons (48 px): primary and secondary outside the action bar. */
+.button-medium {
+  height: var(--cf-size-control-md);
+  padding: 0 var(--cf-spacing-xl);
+  font-size: 1rem;
+  line-height: 1.375rem;
+}
+.button-medium.button-full {
+  width: 100%;
+}
+
+/* Nav bar, Large title type: top-level screens, with the event status and a subtitle. */
+.nav-bar-large {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-md);
+  background: var(--cf-color-bg-default);
+}
+.nav-bar-large-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+}
+.nav-bar-large-title h1 {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Event status: a filled square-cornered tag, never the realtime badge's outlined pill. */
+.event-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-2xs) var(--cf-spacing-sm);
+  border-radius: var(--cf-radius-sm);
+}
+.event-status-live {
+  background: var(--cf-color-bg-success);
+  color: var(--cf-color-text-success);
+}
+
+/* Cards on the tournament page. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  border-radius: var(--cf-radius-lg);
+}
+.card-selected {
+  padding: var(--cf-spacing-lg);
+  background: var(--cf-color-bg-selected);
+}
+.card-sunken {
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.standing-numbers {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cf-spacing-md);
+  white-space: nowrap;
+}
+.standing-total {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-spacing-xs);
+}
+.fact {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cf-spacing-md);
+}
+.fact dt {
+  flex: none;
+}
+.fact dd {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+/* List link: the whole row is one 56 px button. */
+.list-links {
+  display: flex;
+  flex-direction: column;
+}
+.list-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  width: 100%;
+  min-height: var(--cf-size-control-lg);
+  padding: var(--cf-spacing-md) 0;
+  border: none;
+  border-bottom: 1px solid var(--cf-color-border-divider);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.list-link:active {
+  background: var(--cf-color-bg-sunken);
+}
+.list-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.list-link img {
+  flex: none;
+}
+.list-link-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+
+/* Top-level screens: content scrolls; the accessory action bar and tab bar stay at the bottom. */
+.tab-screen .screen-content {
+  gap: var(--cf-spacing-lg);
+}
+.tab-screen-bottom {
+  position: sticky;
+  bottom: 0;
+  background: var(--cf-color-bg-default);
+}
+.action-bar-accessory {
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg);
+}
+@media (min-width: 600px) {
+  .tab-screen {
+    flex: 1;
+    padding-top: 0;
+  }
+  .tab-screen .screen-content {
+    flex: 1;
+  }
+}
+
+/* Tab bar: icon + label; the selected tab is primary color AND bold (not color alone). */
+.tab-bar {
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--cf-color-border-divider);
+  background: var(--cf-color-bg-default);
+}
+.tab-bar-tabs {
+  display: flex;
+  padding-top: var(--cf-spacing-xs);
+}
+.tab {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-spacing-2xs);
+  min-height: 50px;
+  padding: 0;
+  border: none;
+  border-radius: var(--cf-radius-lg);
+  background: none;
+  color: var(--cf-color-text-secondary);
+  font: inherit;
+  font-size: 0.6875rem;
+  line-height: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab[aria-selected="true"] {
+  color: var(--cf-color-text-link);
+  font-weight: 700;
+}
+.tab:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+
+/* Development only (TodoTag): marks a control whose screen isn't built yet. Not a Figma token. */
+.button,
+.list-link,
+.tab,
+.todo-host {
+  position: relative;
+}
+.todo-tag {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  z-index: 1;
+  padding: 0 4px;
+  border: 1px dashed #8a4b00;
+  border-radius: 4px;
+  background: #fff4d6;
+  color: #5c3200;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  pointer-events: none;
 }

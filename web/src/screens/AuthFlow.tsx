@@ -1,5 +1,5 @@
 // The signed-out screens and the step between them (screens.md §3): AUTH-01 Sign in or
-// AUTH-03 Create an account → AUTH-02 code → signed in.
+// AUTH-03 Create an account → AUTH-02 code → signed in (MemberApp).
 
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
@@ -8,7 +8,7 @@ import { resumeSession } from "../lib/auth";
 import { SignInEmail } from "./SignInEmail";
 import { CreateAccount } from "./CreateAccount";
 import { SignInCode } from "./SignInCode";
-import { SignedIn } from "./SignedIn";
+import { MemberApp } from "./MemberApp";
 
 interface PendingCode {
   email: string;
@@ -46,12 +46,12 @@ function savePending(pending: PendingCode | null): void {
   }
 }
 
-const TITLES: Record<Step["kind"], string> = {
+// Signed in, MemberApp titles each screen.
+const TITLES: Record<Exclude<Step["kind"], "signedIn">, string> = {
   starting: "Chromie Fishing",
   signin: "Sign in · Chromie Fishing",
   signup: "Create an account · Chromie Fishing",
   code: "Enter code · Chromie Fishing",
-  signedIn: "Chromie Fishing",
 };
 
 export function AuthFlow() {
@@ -72,7 +72,7 @@ export function AuthFlow() {
   }, []);
 
   useEffect(() => {
-    document.title = TITLES[step.kind];
+    if (step.kind !== "signedIn") document.title = TITLES[step.kind];
   }, [step.kind]);
 
   function toCode(pending: PendingCode) {
@@ -125,7 +125,7 @@ export function AuthFlow() {
     }
     case "signedIn":
       return (
-        <SignedIn
+        <MemberApp
           user={step.user}
           onSignOut={() => {
             pb.authStore.clear();

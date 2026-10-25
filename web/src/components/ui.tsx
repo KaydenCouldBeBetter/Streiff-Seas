@@ -1,5 +1,6 @@
-// The Figma components the sign-in screens use: Brand, Nav bar (Push), Text field,
-// Button (Large and Text) and Action bar. Their usage notes in Figma are followed here.
+// The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
+// Text field, Button (Large, Medium and Text), Action bar (Single and Accessory), List link
+// and Tab bar. Their usage notes in Figma are followed here.
 
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 
@@ -73,21 +74,28 @@ export function TextField({ id, label, help, error, value, onValueChange, ...inp
 interface ButtonProps {
   children: ReactNode;
   variant: "primary" | "secondary" | "text";
-  /** Large is the 56 px action-bar size; text buttons are 48 px. */
+  /** Large is the 56 px action-bar size; the others are 48 px. */
   large?: boolean;
+  /** A 48 px primary or secondary as wide as its container (the Accessory action bar). */
+  full?: boolean;
+  /** A 24 px decorative icon before the label. */
+  icon?: string;
   type?: "button" | "submit";
   /** Request in flight: the label changes, aria-busy is set and taps are ignored. */
   loading?: boolean;
   loadingLabel?: string;
+  /** The screens.md row this button should open once it's built (see TodoTag). */
+  todo?: string;
   onClick?: () => void;
 }
 
-export function Button({ children, variant, large = false, type = "button", loading = false, loadingLabel = "Sending…", onClick }: ButtonProps) {
+export function Button({ children, variant, large = false, full = false, icon, type = "button", loading = false, loadingLabel = "Sending…", todo, onClick }: ButtonProps) {
   const spinner = variant === "primary" ? "/icons/refresh-on-primary.svg" : "/icons/refresh-link.svg";
+  const size = large ? " button-large" : variant === "text" ? "" : ` button-medium${full ? " button-full" : ""}`;
   return (
     <button
       type={type}
-      className={`button button-${variant}${large ? " button-large" : ""}`}
+      className={`button button-${variant}${size}`}
       aria-busy={loading || undefined}
       onClick={(event) => {
         if (loading) event.preventDefault();
@@ -95,7 +103,9 @@ export function Button({ children, variant, large = false, type = "button", load
       }}
     >
       {loading && <img className="spin" src={spinner} width={24} height={24} alt="" aria-hidden="true" />}
+      {!loading && icon && <img src={icon} width={24} height={24} alt="" aria-hidden="true" />}
       {loading ? loadingLabel : children}
+      {todo && <TodoTag row={todo} />}
     </button>
   );
 }
@@ -103,4 +113,115 @@ export function Button({ children, variant, large = false, type = "button", load
 /** Sticky bottom actions; includes the home-indicator safe area. */
 export function ActionBar({ children }: { children: ReactNode }) {
   return <div className="action-bar">{children}</div>;
+}
+
+/** Accessory type: one compact primary pinned above the tab bar while submitting is open. */
+export function AccessoryBar({ children }: { children: ReactNode }) {
+  return <div className="action-bar-accessory">{children}</div>;
+}
+
+/**
+ * Development only: a dashed tag naming the screens.md row a control should open, on
+ * controls whose screen isn't built yet. Hidden from assistive tech and absent from
+ * production builds, so the accessible names stay as designed.
+ */
+export function TodoTag({ row }: { row: string }) {
+  if (!import.meta.env.DEV) return null;
+  return (
+    <span className="todo-tag" aria-hidden="true">
+      TODO {row}
+    </span>
+  );
+}
+
+export type EventStatusValue = "live";
+
+const EVENT_STATUS: Record<EventStatusValue, { label: string; icon: string }> = {
+  // Draft, Closed and Final join this map with their Figma icons when EVT-02 shows them.
+  live: { label: "Live", icon: "/icons/clock-success.svg" },
+};
+
+/** events.status in the large title's badge slot. Not a control. */
+export function EventStatus({ status }: { status: EventStatusValue }) {
+  const { label, icon } = EVENT_STATUS[status];
+  return (
+    <span className={`event-status event-status-${status} t-footnote-strong`}>
+      <img src={icon} width={16} height={16} alt="" aria-hidden="true" />
+      <span className="visually-hidden">Status: </span>
+      {label}
+    </span>
+  );
+}
+
+interface LargeNavBarProps {
+  title: string;
+  status?: EventStatusValue;
+  subtitle?: string;
+}
+
+/** Large title type: top-level screens. The title is the screen's h1. */
+export function LargeNavBar({ title, status, subtitle }: LargeNavBarProps) {
+  return (
+    <header className="nav-bar-large">
+      <div className="nav-bar-large-title">
+        <h1 className="t-title-large">{title}</h1>
+        {status && <EventStatus status={status} />}
+      </div>
+      {subtitle && <p className="t-footnote t-secondary">{subtitle}</p>}
+    </header>
+  );
+}
+
+interface ListLinkProps {
+  icon: string;
+  title: string;
+  detail: string;
+  todo?: string;
+  onClick?: () => void;
+}
+
+/** A navigation row inside a screen; the whole row is one button. */
+export function ListLink({ icon, title, detail, todo, onClick }: ListLinkProps) {
+  return (
+    <button type="button" className="list-link" onClick={onClick}>
+      <img src={icon} width={24} height={24} alt="" aria-hidden="true" />
+      <span className="list-link-text">
+        <span className="t-headline">{title}</span>
+        <span className="t-footnote t-secondary">{detail}</span>
+      </span>
+      <img src="/icons/chevron-right.svg" width={24} height={24} alt="" aria-hidden="true" />
+      {todo && <TodoTag row={todo} />}
+    </button>
+  );
+}
+
+export interface Tab<Id extends string = string> {
+  id: Id;
+  label: string;
+  /** The icon as drawn in this tab's state: Figma has a selected and an unselected color. */
+  icon: string;
+  todo?: string;
+}
+
+interface TabBarProps<Id extends string> {
+  tabs: readonly Tab<Id>[];
+  selected: Id;
+  onSelect: (id: Id) => void;
+}
+
+/** Top-level navigation between sections; tabs never perform actions. */
+export function TabBar<Id extends string>({ tabs, selected, onSelect }: TabBarProps<Id>) {
+  return (
+    <nav className="tab-bar" aria-label="Sections">
+      <div role="tablist" className="tab-bar-tabs">
+        {tabs.map((tab) => (
+          <button key={tab.id} type="button" role="tab" className="tab" aria-selected={tab.id === selected} onClick={() => onSelect(tab.id)}>
+            <img src={tab.icon} width={24} height={24} alt="" aria-hidden="true" />
+            <span>{tab.label}</span>
+            {tab.todo && <TodoTag row={tab.todo} />}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
 }
