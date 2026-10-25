@@ -593,3 +593,451 @@ dd {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* ---- Submit a catch (SUB-01, SUB-02) ---- */
+
+/* More tokens from the Figma file's variables, for the submit screens. */
+:root {
+  --cf-color-text-warning: #6b4100;
+  --cf-color-bg-neutral: #e6eaed;
+  --cf-color-bg-warning: #fbebcb;
+  --cf-color-bg-danger: #f9dedb;
+  --cf-color-border-warning: #6b4100;
+  --cf-color-border-success: #0b5530;
+  --cf-radius-md: 10px;
+  --cf-radius-full: 999px;
+  --cf-stroke-hairline: 1px;
+}
+
+.t-caption-caps {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.t-number-row {
+  font-size: 1.375rem;
+  line-height: 1.625rem;
+  font-weight: 800;
+}
+
+.submit-content {
+  gap: var(--cf-spacing-lg);
+}
+.section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+
+/* Code word: shown on the submit screen whenever the tournament has one. */
+.code-word {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-spacing-sm) var(--cf-spacing-lg);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-warning);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-warning);
+}
+.code-word-word {
+  display: flex;
+  flex-direction: column;
+}
+.code-word-label {
+  color: var(--cf-color-text-warning);
+}
+.code-word-help {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Status chip: icon + word in a pill. */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-xs) var(--cf-spacing-md) var(--cf-spacing-xs) var(--cf-spacing-sm);
+  border: var(--cf-stroke-hairline) solid;
+  border-radius: var(--cf-radius-full);
+  white-space: nowrap;
+}
+.status-chip-success {
+  border-color: var(--cf-color-border-success);
+  background: var(--cf-color-bg-success);
+  color: var(--cf-color-text-success);
+}
+.status-chip-warning {
+  border-color: var(--cf-color-border-warning);
+  background: var(--cf-color-bg-warning);
+  color: var(--cf-color-text-warning);
+}
+.status-chip-danger {
+  border-color: var(--cf-color-border-danger);
+  background: var(--cf-color-bg-danger);
+  color: var(--cf-color-text-danger);
+}
+
+/* Photo slots: two per row at phone width; extras wrap below. */
+.photo-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: var(--cf-spacing-md);
+}
+.photo-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+}
+.photo-slot-image {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 124px;
+  overflow: hidden;
+  border-radius: var(--cf-radius-lg);
+}
+.photo-slot-empty {
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-spacing-xs);
+  width: 100%;
+  padding: 0;
+  border: var(--cf-stroke-field) dashed var(--cf-color-border-default);
+  background: var(--cf-color-bg-sunken);
+  color: var(--cf-color-text-link);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.photo-slot-empty:active {
+  background: var(--cf-color-bg-selected);
+}
+.photo-slot-empty:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.photo-slot-filled {
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--cf-spacing-sm);
+  background: var(--cf-color-bg-neutral);
+}
+.photo-slot-filled.is-failed {
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-danger);
+}
+.photo-slot-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Chips and progress sit on the photo. */
+.photo-slot-filled > :not(.photo-slot-preview) {
+  position: relative;
+}
+.photo-slot-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+  width: 100%;
+  margin-top: auto;
+  padding: var(--cf-spacing-xs) var(--cf-spacing-sm) var(--cf-spacing-sm);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-color-bg-default);
+}
+.photo-slot-note-danger {
+  color: var(--cf-color-text-danger);
+}
+
+/* Progress bars. */
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--cf-color-bg-default);
+}
+.progress-track-small {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cf-color-bg-sunken);
+}
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cf-color-bg-primary);
+  transition: width 0.15s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    transition: none;
+  }
+}
+
+/* Species picker: native radios, drawn as full-width options. */
+.species-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.species-picker legend {
+  margin-bottom: var(--cf-spacing-lg);
+  padding: 0;
+}
+.species-option {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  min-height: var(--cf-size-control-lg);
+  padding: 0 var(--cf-spacing-lg);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.species-option.is-selected {
+  padding: 0 calc(var(--cf-spacing-lg) - 0.5px);
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-selected);
+  background: var(--cf-color-bg-selected);
+}
+.species-option:has(input:focus-visible) {
+  box-shadow: var(--cf-focus-ring);
+}
+.species-option img {
+  flex: none;
+}
+
+/* Weight input: segmented format toggle, then one or two unit fields. */
+.weight-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.segmented {
+  display: flex;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-xs);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.segmented-option {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: var(--cf-stroke-hairline) solid transparent;
+  border-radius: var(--cf-radius-md);
+  background: none;
+  color: var(--cf-color-text-secondary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.segmented-option[aria-checked="true"] {
+  border-color: var(--cf-color-border-default);
+  background: var(--cf-color-bg-default);
+  color: var(--cf-color-text-default);
+}
+.segmented-option:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.unit-fields {
+  display: flex;
+  gap: var(--cf-spacing-md);
+}
+.unit-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  height: var(--cf-size-control-lg);
+  padding: 0 var(--cf-spacing-lg);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+}
+.unit-field:focus-within,
+.unit-field.is-invalid {
+  padding: 0 calc(var(--cf-spacing-lg) - 0.5px);
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-selected);
+}
+.unit-field:focus-within {
+  box-shadow: var(--cf-focus-ring);
+}
+.unit-field.is-invalid {
+  border-color: var(--cf-color-border-danger);
+}
+.unit-field-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--cf-color-text-default);
+  font-family: inherit;
+  outline: none;
+}
+
+/* SUB-01d: what's missing, pinned above the disabled Send. */
+.submit-bottom {
+  position: sticky;
+  bottom: 0;
+}
+.submit-bottom .action-bar {
+  position: static;
+}
+.still-needed {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg);
+  background: var(--cf-color-bg-warning);
+}
+.still-needed img {
+  flex: none;
+}
+@media (min-width: 600px) {
+  .submit-bottom {
+    position: static;
+  }
+}
+/* A text button under the action bar's primary is centered (Figma Action bar, Stacked). */
+.action-bar .button-text {
+  align-self: center;
+}
+
+/* SUB-02a status card and the locked "Catch as entered" card. */
+.send-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-selected);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-selected);
+}
+.send-status-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  color: var(--cf-color-text-link);
+}
+.entered-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+}
+.entered-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+}
+.entered-heading h2 {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Banner: page-level status. */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-md) var(--cf-spacing-md);
+  border-radius: var(--cf-radius-lg);
+}
+.banner img {
+  flex: none;
+}
+.banner-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+.banner-danger {
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-danger);
+  background: var(--cf-color-bg-danger);
+}
+.banner-danger .t-headline {
+  color: var(--cf-color-text-danger);
+}
+.banner-success {
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-success);
+  background: var(--cf-color-bg-success);
+}
+.banner-success .t-headline {
+  color: var(--cf-color-text-success);
+}
+
+/* Catch card: one catch; the whole card is one button. */
+.catch-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+  width: 100%;
+  padding: var(--cf-spacing-md);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.catch-card:active {
+  background: var(--cf-color-bg-sunken);
+}
+.catch-card:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.catch-card > img {
+  flex: none;
+}
+.catch-card-thumb {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: var(--cf-radius-md);
+  background: var(--cf-color-bg-neutral);
+}
+.catch-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+.catch-card-measurement {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-spacing-2xs);
+}
+.catch-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-spacing-xs);
+  padding-top: var(--cf-spacing-xs);
+}

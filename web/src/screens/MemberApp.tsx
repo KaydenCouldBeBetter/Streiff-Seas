@@ -8,10 +8,12 @@
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
+import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
 import { Tournament, type MemberTab } from "./Tournament";
 import { Profile } from "./Profile";
+import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "profile";
+type Screen = "tournament" | "profile" | "submit";
 
 interface Props {
   user: RecordModel;
@@ -20,8 +22,12 @@ interface Props {
 
 export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
+  // TODO(S1): the real sender (catchSender.ts) replaces the sample.
+  const [sender] = useState(createSampleSender);
 
   useEffect(() => {
+    // SubmitFlow titles its own steps.
+    if (screen === "submit") return;
     document.title = screen === "profile" ? "Profile · Chromie Fishing" : `${SAMPLE_TOURNAMENT.name} · Chromie Fishing`;
   }, [screen]);
 
@@ -33,7 +39,9 @@ export function MemberApp({ user, onSignOut }: Props) {
 
   switch (screen) {
     case "tournament":
-      return <Tournament tournament={SAMPLE_TOURNAMENT} onTab={openTab} />;
+      return <Tournament tournament={SAMPLE_TOURNAMENT} onTab={openTab} onSubmit={() => setScreen("submit")} />;
+    case "submit":
+      return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;
     case "profile":
       return <Profile user={user} onBack={() => setScreen("tournament")} onSignOut={onSignOut} />;
   }
