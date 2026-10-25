@@ -16,6 +16,8 @@
   --cf-color-text-danger: #871b14;
   --cf-color-text-disabled: #33434f;
   --cf-color-text-success: #0b5530;
+  --cf-color-text-warning: #6b4100;
+  --cf-color-text-neutral: #3d4850;
   --cf-color-bg-default: #ffffff;
   --cf-color-bg-primary: #0a4a6b;
   --cf-color-bg-primary-pressed: #083f5c;
@@ -23,10 +25,13 @@
   --cf-color-bg-disabled: #e6eaed;
   --cf-color-bg-sunken: #eef3f6;
   --cf-color-bg-success: #ddf0e3;
+  --cf-color-bg-warning: #fbebcb;
   --cf-color-border-default: #5e6f7c;
   --cf-color-border-selected: #0a4a6b;
   --cf-color-border-focus: #0a4a6b;
   --cf-color-border-danger: #871b14;
+  --cf-color-border-success: #0b5530;
+  --cf-color-border-warning: #6b4100;
   --cf-color-border-neutral: #3d4850;
   --cf-color-border-divider: #eef3f6;
 
@@ -40,6 +45,8 @@
   --cf-spacing-3xl: 32px;
   --cf-radius-sm: 6px;
   --cf-radius-lg: 14px;
+  --cf-radius-full: 999px;
+  --cf-stroke-hairline: 1px;
   --cf-stroke-field: 1.5px;
   --cf-stroke-selected: 2px;
   --cf-size-control-md: 48px;
@@ -131,6 +138,18 @@ footer {
   line-height: 2.25rem;
   font-weight: 800;
   letter-spacing: -0.3px;
+}
+.t-number-row {
+  font-size: 1.375rem;
+  line-height: 1.625rem;
+  font-weight: 800;
+}
+.t-caption-caps {
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 .t-secondary {
   color: var(--cf-color-text-secondary);
@@ -513,6 +532,8 @@ dd {
 .tab-screen-bottom {
   position: sticky;
   bottom: 0;
+  /* Above anything that scrolls under it, the dev-only TodoTags included. */
+  z-index: 2;
   background: var(--cf-color-bg-default);
 }
 .action-bar-accessory {
@@ -569,10 +590,166 @@ dd {
   box-shadow: var(--cf-focus-ring);
 }
 
+/* Live badge: realtime freshness on the leaderboard; an outlined pill, unlike Event status. */
+.live-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-xs) var(--cf-spacing-md) var(--cf-spacing-xs) var(--cf-spacing-sm);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-success);
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-default);
+  color: var(--cf-color-text-success);
+}
+
+/* Leaderboard (LB-01): rows run edge to edge, so the content has no side padding. */
+.tab-screen .leaderboard-content {
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-xs) 0 var(--cf-spacing-lg);
+}
+.your-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  row-gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-selected);
+  white-space: nowrap;
+}
+.your-place-place,
+.your-place-total {
+  display: flex;
+  flex-direction: column;
+}
+.your-place-total {
+  align-items: flex-end;
+}
+.leaderboard-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+  padding: 0 var(--cf-spacing-lg);
+}
+.leaderboard-columns-place {
+  min-width: 44px;
+}
+.leaderboard-columns-angler {
+  flex: 1;
+  min-width: 0;
+}
+.leaderboard-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Leaderboard row: the whole row is one button (→ LB-02). */
+.leaderboard-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  width: 100%;
+  min-height: var(--cf-size-control-lg);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border: none;
+  border-bottom: 1px solid var(--cf-color-border-divider);
+  background: var(--cf-color-bg-default);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.leaderboard-row:active {
+  background: var(--cf-color-bg-sunken);
+}
+/* Edge to edge, so the focus ring (3 px ring + 2 px white gap) is drawn inside the row. */
+.leaderboard-row:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 3px var(--cf-color-border-focus),
+    inset 0 0 0 5px var(--cf-color-bg-default);
+}
+/* The viewer's row: tint + 4 px left bar + "(you)" in the name, never color alone. */
+.leaderboard-row.is-you {
+  border-left: 4px solid var(--cf-color-border-selected);
+  border-bottom-color: var(--cf-color-border-selected);
+  background: var(--cf-color-bg-selected);
+}
+.leaderboard-row-place {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-spacing-2xs);
+  width: 44px;
+  text-align: center;
+}
+.leaderboard-row-angler {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cf-spacing-2xs);
+}
+.leaderboard-row-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cf-spacing-2xs) var(--cf-spacing-xs);
+}
+.leaderboard-row-pending {
+  display: flex;
+  padding-top: var(--cf-spacing-2xs);
+}
+/* The total never truncates; the detail wraps instead. */
+.leaderboard-row-total {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-spacing-2xs);
+  white-space: nowrap;
+}
+
+/* Role tag: "Judge" or "Backup judge"; neutral, never color alone. */
+.role-tag {
+  padding: var(--cf-spacing-2xs) var(--cf-spacing-xs);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-neutral);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-color-bg-sunken);
+  color: var(--cf-color-text-neutral);
+  white-space: nowrap;
+}
+
+/* Status chip: catch status, always icon + word. */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-xs) var(--cf-spacing-md) var(--cf-spacing-xs) var(--cf-spacing-sm);
+  border: var(--cf-stroke-hairline) solid;
+  border-radius: var(--cf-radius-full);
+  white-space: nowrap;
+}
+.status-chip-pending {
+  border-color: var(--cf-color-border-warning);
+  background: var(--cf-color-bg-warning);
+  color: var(--cf-color-text-warning);
+}
+
 /* Development only (TodoTag): marks a control whose screen isn't built yet. Not a Figma token. */
 .button,
 .list-link,
 .tab,
+.leaderboard-row,
 .todo-host {
   position: relative;
 }
@@ -592,4 +769,9 @@ dd {
   letter-spacing: 0.2px;
   white-space: nowrap;
   pointer-events: none;
+}
+/* Rows run edge to edge: keep the tag inside them so it never scrolls the page sideways. */
+.leaderboard-row .todo-tag {
+  top: 2px;
+  right: 2px;
 }

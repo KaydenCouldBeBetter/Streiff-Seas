@@ -4,30 +4,21 @@
 
 import type { TournamentView } from "../lib/sampleTournament";
 import { formatClubTime, placeLabel } from "../lib/format";
-import { AccessoryBar, Button, LargeNavBar, ListLink, TabBar, type Tab } from "../components/ui";
-
-export type MemberTab = "home" | "leaderboard" | "catches" | "profile";
-
-// Member tabs (Figma Tab bar): Home · Leaderboard · My catches · Profile. The Judge tab
-// (JDG-00a) joins them only for a judge or backup judge of a live or closed tournament.
-export const MEMBER_TABS: readonly Tab<MemberTab>[] = [
-  { id: "home", label: "Home", icon: "/icons/home-selected.svg" },
-  { id: "leaderboard", label: "Leaderboard", icon: "/icons/leaderboard.svg", todo: "LB-01" },
-  { id: "catches", label: "My catches", icon: "/icons/list-tab.svg", todo: "MY-01" },
-  { id: "profile", label: "Profile", icon: "/icons/person-tab.svg", todo: "PRF-01" },
-];
+import { AccessoryBar, Button, EventStatus, LargeNavBar, ListLink, TabBar } from "../components/ui";
+import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 interface Props {
   tournament: TournamentView;
   onTab: (tab: MemberTab) => void;
+  onLeaderboard: () => void;
 }
 
-export function Tournament({ tournament, onTab }: Props) {
+export function Tournament({ tournament, onTab, onLeaderboard }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
     <div className="screen tab-screen">
-      <LargeNavBar title={tournament.name} status={tournament.status} subtitle={tournament.rulesLine} />
+      <LargeNavBar title={tournament.name} badge={<EventStatus status={tournament.status} />} subtitle={tournament.rulesLine} />
       <div className="screen-content">
         <section className="card card-selected" aria-labelledby="standing-heading">
           <h2 id="standing-heading" className="t-footnote-strong t-secondary">
@@ -64,7 +55,7 @@ export function Tournament({ tournament, onTab }: Props) {
             todo="MY-01"
           />
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
-          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} todo="LB-01" />
+          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} onClick={onLeaderboard} />
         </div>
 
         <div>

@@ -1,6 +1,6 @@
 // The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
-// Text field, Button (Large, Medium and Text), Action bar (Single and Accessory), List link
-// and Tab bar. Their usage notes in Figma are followed here.
+// Live badge, Text field, Button (Large, Medium and Text), Action bar (Single and Accessory),
+// List link and Tab bar. Their usage notes in Figma are followed here.
 
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 
@@ -153,19 +153,41 @@ export function EventStatus({ status }: { status: EventStatusValue }) {
   );
 }
 
+export type LiveBadgeState = "live";
+
+const LIVE_BADGE: Record<LiveBadgeState, string> = {
+  // Reconnecting (LB-01b) and "Updated h:mm" (LB-01c) join this map when realtime lands (S2b).
+  live: "Live",
+};
+
+/**
+ * Leaderboard freshness, not events.status: an outlined pill, never the Event status tag.
+ * A polite live region, so a change is announced ("Leaderboard reconnecting").
+ */
+export function LiveBadge({ state }: { state: LiveBadgeState }) {
+  return (
+    <span className={`live-badge live-badge-${state} t-footnote-strong`} role="status">
+      <img src="/icons/live-dot.svg" width={10} height={10} alt="" aria-hidden="true" />
+      <span className="visually-hidden">Leaderboard </span>
+      {LIVE_BADGE[state]}
+    </span>
+  );
+}
+
 interface LargeNavBarProps {
   title: string;
-  status?: EventStatusValue;
+  /** The title row's trailing badge: an EventStatus, or a LiveBadge on the leaderboard. */
+  badge?: ReactNode;
   subtitle?: string;
 }
 
 /** Large title type: top-level screens. The title is the screen's h1. */
-export function LargeNavBar({ title, status, subtitle }: LargeNavBarProps) {
+export function LargeNavBar({ title, badge, subtitle }: LargeNavBarProps) {
   return (
     <header className="nav-bar-large">
       <div className="nav-bar-large-title">
         <h1 className="t-title-large">{title}</h1>
-        {status && <EventStatus status={status} />}
+        {badge}
       </div>
       {subtitle && <p className="t-footnote t-secondary">{subtitle}</p>}
     </header>
@@ -198,8 +220,10 @@ export function ListLink({ icon, title, detail, todo, onClick }: ListLinkProps) 
 export interface Tab<Id extends string = string> {
   id: Id;
   label: string;
-  /** The icon as drawn in this tab's state: Figma has a selected and an unselected color. */
+  /** The icon as drawn unselected. */
   icon: string;
+  /** The icon as drawn selected, where Figma draws it in another color. */
+  selectedIcon?: string;
   todo?: string;
 }
 
@@ -216,7 +240,7 @@ export function TabBar<Id extends string>({ tabs, selected, onSelect }: TabBarPr
       <div role="tablist" className="tab-bar-tabs">
         {tabs.map((tab) => (
           <button key={tab.id} type="button" role="tab" className="tab" aria-selected={tab.id === selected} onClick={() => onSelect(tab.id)}>
-            <img src={tab.icon} width={24} height={24} alt="" aria-hidden="true" />
+            <img src={tab.id === selected ? (tab.selectedIcon ?? tab.icon) : tab.icon} width={24} height={24} alt="" aria-hidden="true" />
             <span>{tab.label}</span>
             {tab.todo && <TodoTag row={tab.todo} />}
           </button>

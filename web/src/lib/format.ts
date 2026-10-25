@@ -28,3 +28,15 @@ export function placeLabel(place: number, tied: boolean): string {
   const suffix = lastTwo >= 11 && lastTwo <= 13 ? "th" : (["th", "st", "nd", "rd"][place % 10] ?? "th");
   return `${place}${suffix}`;
 }
+
+/** A leaderboard row's place column: "1", "4"; a shared place is "T-2" (Figma Leaderboard row). */
+export function rowPlace(place: number, tied: boolean): string {
+  const label = placeLabel(place, tied);
+  return tied ? label : String(place);
+}
+
+/** A place as read aloud: "4th", or "Tied for 2nd" (Figma Leaderboard row VoiceOver note). */
+export function spokenPlace(place: number, tied: boolean): string {
+  const ordinal = placeLabel(place, false);
+  return tied ? `Tied for ${ordinal}` : ordinal;
+}
