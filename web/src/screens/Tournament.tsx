@@ -1,6 +1,6 @@
 // EVT-02d Tournament: live, fishing window open, the viewer's entry active (Figma 66:5726).
 // A UI skeleton on sample data: controls whose screens aren't built yet carry a TodoTag
-// with the screens.md row they open.
+// with the screens.md row they open. Submit a catch opens SUB-01 (SubmitFlow).
 
 import type { TournamentView } from "../lib/sampleTournament";
 import { formatClubTime, placeLabel } from "../lib/format";
@@ -20,9 +20,10 @@ export const MEMBER_TABS: readonly Tab<MemberTab>[] = [
 interface Props {
   tournament: TournamentView;
   onTab: (tab: MemberTab) => void;
+  onSubmit: () => void;
 }
 
-export function Tournament({ tournament, onTab }: Props) {
+export function Tournament({ tournament, onTab, onSubmit }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
@@ -80,7 +81,7 @@ export function Tournament({ tournament, onTab }: Props) {
 
       <div className="tab-screen-bottom">
         <AccessoryBar>
-          <Button variant="primary" full icon="/icons/plus-on-primary.svg" todo="SUB-01">
+          <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={onSubmit}>
             Submit a catch
           </Button>
         </AccessoryBar>
