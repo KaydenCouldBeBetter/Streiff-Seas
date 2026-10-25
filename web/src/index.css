@@ -1,8 +1,59 @@
+/* Inter, self-hosted (OFL: /fonts/Inter-LICENSE.txt), so no third party sees members' IPs. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable.woff2") format("woff2");
+}
+
+/* Tokens from the Figma file's variables (the --cf-* names match). */
 :root {
+  --cf-color-text-default: #0b1a26;
+  --cf-color-text-secondary: #33434f;
+  --cf-color-text-link: #0a4a6b;
+  --cf-color-text-on-primary: #ffffff;
+  --cf-color-text-danger: #871b14;
+  --cf-color-text-disabled: #33434f;
+  --cf-color-bg-default: #ffffff;
+  --cf-color-bg-primary: #0a4a6b;
+  --cf-color-bg-primary-pressed: #083f5c;
+  --cf-color-bg-selected: #dcebf3;
+  --cf-color-bg-disabled: #e6eaed;
+  --cf-color-border-default: #5e6f7c;
+  --cf-color-border-selected: #0a4a6b;
+  --cf-color-border-focus: #0a4a6b;
+  --cf-color-border-danger: #871b14;
+  --cf-color-border-neutral: #3d4850;
+  --cf-color-border-divider: #eef3f6;
+
+  --cf-spacing-2xs: 2px;
+  --cf-spacing-xs: 4px;
+  --cf-spacing-sm: 8px;
+  --cf-spacing-md: 12px;
+  --cf-spacing-lg: 16px;
+  --cf-spacing-xl: 20px;
+  --cf-spacing-2xl: 24px;
+  --cf-spacing-3xl: 32px;
+  --cf-radius-lg: 14px;
+  --cf-stroke-field: 1.5px;
+  --cf-stroke-selected: 2px;
+  --cf-size-control-md: 48px;
+  --cf-size-control-lg: 56px;
+  /* Focus = 2 px white gap + 3 px ring (Figma Button and Text field notes). */
+  --cf-focus-ring: 0 0 0 2px var(--cf-color-bg-default), 0 0 0 5px var(--cf-color-border-focus);
+
   color-scheme: light;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #0b1f2a;
-  background: #ffffff;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--cf-color-text-default);
+  background: var(--cf-color-bg-default);
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
@@ -17,11 +68,298 @@ body {
 
 main {
   flex: 1;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 footer {
-  padding: 8px 16px;
+  padding: var(--cf-spacing-xs) var(--cf-spacing-lg) max(var(--cf-spacing-xs), env(safe-area-inset-bottom));
   font-size: 0.75rem;
-  color: #33475b;
+  line-height: 1rem;
+  text-align: center;
+  color: var(--cf-color-text-secondary);
+}
+
+/* Type styles (Figma text styles). rem, so the page grows with the phone's text size. */
+.t-title-large {
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.t-title-section {
+  font-size: 1.25rem;
+  line-height: 1.625rem;
+  font-weight: 700;
+}
+.t-headline {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+.t-body {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+}
+.t-callout {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 400;
+}
+.t-callout-strong {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+}
+.t-footnote {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 400;
+}
+.t-secondary {
+  color: var(--cf-color-text-secondary);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* One screen: a column, 440 px at most, centered on wide windows. */
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  padding-top: env(safe-area-inset-top);
+  /* The sticky action bar never covers the field that has focus (WCAG 2.4.11). */
+  scroll-padding-bottom: 120px;
+}
+
+.screen-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cf-spacing-xl);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-lg);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-3xl) 0 var(--cf-spacing-lg);
+}
+
+/* Action bar: sticky in the thumb zone on a phone; under the form on a wide window. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg) max(var(--cf-spacing-lg), calc(env(safe-area-inset-bottom) + var(--cf-spacing-xs)));
+  background: var(--cf-color-bg-default);
+  border-top: 1px solid var(--cf-color-border-divider);
+}
+
+@media (min-width: 600px) {
+  .screen {
+    flex: none;
+    padding-top: 6vh;
+  }
+  .screen-content {
+    flex: none;
+  }
+  .action-bar {
+    position: static;
+    border-top: none;
+    padding-top: var(--cf-spacing-xs);
+  }
+}
+
+/* Nav bar, Push type. */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--cf-spacing-sm) 0 var(--cf-spacing-xs);
+  background: var(--cf-color-bg-default);
+}
+.nav-bar-back,
+.nav-bar-trailing {
+  flex: none;
+  width: 112px;
+}
+.nav-bar-back {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-2xs);
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--cf-radius-lg);
+  background: none;
+  color: var(--cf-color-text-link);
+  font: inherit;
+  cursor: pointer;
+}
+.nav-bar-back img {
+  flex: none;
+}
+.nav-bar-back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-bar-back:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.nav-bar-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+/* Text field. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.field-input {
+  width: 100%;
+  min-height: var(--cf-size-control-md);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  color: var(--cf-color-text-default);
+  font: inherit;
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  appearance: none;
+}
+.field-input::placeholder {
+  color: var(--cf-color-text-secondary);
+  opacity: 1;
+}
+/* The thicker border takes its extra half pixel from the padding, so nothing moves. */
+.field-input:focus {
+  outline: none;
+  padding: calc(var(--cf-spacing-sm) - 0.5px) calc(var(--cf-spacing-lg) - 0.5px);
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-selected);
+  box-shadow: var(--cf-focus-ring);
+}
+.field-input[aria-invalid="true"] {
+  padding: calc(var(--cf-spacing-sm) - 0.5px) calc(var(--cf-spacing-lg) - 0.5px);
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-danger);
+}
+.field-input:disabled {
+  background: var(--cf-color-bg-disabled);
+  color: var(--cf-color-text-disabled);
+}
+.field-help {
+  display: flex;
+  gap: var(--cf-spacing-xs);
+  align-items: flex-start;
+  color: var(--cf-color-text-secondary);
+}
+.field-help.is-error {
+  color: var(--cf-color-text-danger);
+}
+.field-help img {
+  flex: none;
+}
+
+/* Buttons: Large (56 px, action bar) and the 48 px Text style. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cf-spacing-sm);
+  min-width: 44px;
+  border: none;
+  border-radius: var(--cf-radius-lg);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.button[aria-busy="true"] {
+  cursor: progress;
+}
+.button-large {
+  width: 100%;
+  height: var(--cf-size-control-lg);
+  padding: 0 var(--cf-spacing-2xl);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+.button-primary {
+  background: var(--cf-color-bg-primary);
+  color: var(--cf-color-text-on-primary);
+}
+.button-primary:active:not([aria-busy="true"]) {
+  background: var(--cf-color-bg-primary-pressed);
+}
+.button-secondary {
+  background: var(--cf-color-bg-default);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-selected);
+  color: var(--cf-color-text-link);
+}
+.button-secondary:active:not([aria-busy="true"]) {
+  background: var(--cf-color-bg-selected);
+}
+.button-text {
+  align-self: flex-start;
+  height: var(--cf-size-control-md);
+  padding: 0 var(--cf-spacing-md);
+  background: none;
+  color: var(--cf-color-text-link);
+  font-size: 1rem;
+  line-height: 1.375rem;
+}
+.button-text:active:not([aria-busy="true"]) {
+  background: var(--cf-color-bg-selected);
+}
+.button:disabled {
+  background: var(--cf-color-bg-disabled);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-neutral);
+  color: var(--cf-color-text-disabled);
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

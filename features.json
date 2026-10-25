@@ -35,6 +35,19 @@
     "passes": true
   },
   {
+    "id": "S1a-auth-signin",
+    "description": "Sign-in, create-account and code screens from the Figma prototype (AUTH-01a, AUTH-02a/b/c, AUTH-03a/b), open self sign-up, and real OTP email",
+    "steps": [
+      "Open self sign-up (decisions.md 2026-10-25): a new migration sets the users create rule (anon only, role = member, no verified or emailVisibility in the body); security.md R-USR-C-01 changed, C-04 to C-09 and A-03 new, with tests in test/rules.test.ts and test/auth.test.ts; the RULES table in test/schema.test.ts updated",
+      "A fake SMTP server (node:net, no new dependency) proves the emailed 8-digit code signs a new member in, and that an unlisted email gets no mail and no user",
+      "AUTH-01a, AUTH-02a/b/c and the approved AUTH-03a (Figma row 1b) built from the Figma components and tokens; Inter self-hosted; a taken email on sign-up gets a sign-in code without saying so (AUTH-03b)",
+      "Checked at 390 x 844 and 1280 x 800 against the Figma frames: no horizontal scroll, sticky action bar on a phone, centered column on desktop",
+      "A real sign-up and sign-in by emailed code done locally through Gmail SMTP (Kayden, 2026-10-25)",
+      "npm run check output shown"
+    ],
+    "passes": true
+  },
+  {
     "id": "M0-04-spike-photo",
     "description": "Spike: prove the photo pipeline and three rule mechanics on the pinned binary before S1 builds submit (decisions.md L2; security.md open item 7)",
     "steps": [

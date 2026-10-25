@@ -167,7 +167,7 @@ restic encrypts each backup on the host before it leaves the house, so Backblaze
 
 **Any time: adding or removing a member** (`decisions.md` L1 §4; 2026-10-05 "No blank names on the board")
 - [ ] Add their email to the whole-hostname Access app's email list.
-- [ ] In the PocketBase admin UI, create their `users` record with that email, **a name (never blank: it's their board name)**, `role = member` and `display_units` (optional; empty reads as `lb`). `emailVisibility` stays off. Tell them to sign in with the email code.
+- [ ] Tell them to open the app and choose **Create an account** (name and email; open self sign-up, `decisions.md` 2026-10-25). Or, as before, create their `users` record in the PocketBase admin UI with that email, **a name (never blank: it's their board name)**, `role = member` and `display_units` (optional; empty reads as `lb`); `emailVisibility` stays off.
 - [ ] Removing a member: take their email off the Access list. Their user, entries and catches stay for history; never delete them.
 - [ ] Not tournament-time superuser work, so no section 12 line unless a tournament is live; during a tournament, log it in section 12 and tell the backup judge.
 
@@ -288,6 +288,7 @@ Decided 2026-10-07 (`decisions.md`, "Sign-in values"). The `users` auth options 
 | OTP validity | 10 minutes | By migration (M0-02); confirm after the first deploy |
 | "Send a new code" in the app | after 60 seconds | Built in S1 |
 | Rate limit: OTP requests | TODO per client IP per minute (start at 3) | TODO |
+| Rate limit: sign-up (`users` create) | TODO per client IP per minute (start at 3) | TODO |
 | Rate limit: OTP sign-in attempts | TODO per client IP per minute (start at 5); note whether a code is invalidated after failed tries | TODO |
 | Trusted proxy header | `CF-Connecting-IP`, so limits apply per person, not per Cloudflare edge | TODO |
 | Auth token lifetime | 14 days; the app refreshes a valid token each time it opens | By migration (M0-02); confirm after the first deploy |
