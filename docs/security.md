@@ -1,6 +1,8 @@
 # Security: Fishing Scoreboard
 
-**Status:** Draft v0.10, 12 Oct 2026. v0.10 applies the M0-02 schema rows of `decisions.md` 2026-10-12: the seeded species are "largemouth bass" and "smallmouth bass", unique ignoring case; `users.name` and `species.name` refuse empty, all-space and badly spaced values (R-USR-U-07 and R-SPC-C-04 new, R-SPC-C-03 reworded); `audit_log.actor` is empty for a superuser action.
+**Status:** Draft v0.11, 25 Oct 2026. v0.11 applies `decisions.md` 2026-10-25 "Open self sign-up": the `users` create rule opens for anon, as a member only (R-USR-C-01 changed to Allow; R-USR-C-04 to C-09 and R-USR-A-03 new; tests in `test/rules.test.ts` and `test/auth.test.ts`).
+
+v0.10 (12 Oct 2026). v0.10 applies the M0-02 schema rows of `decisions.md` 2026-10-12: the seeded species are "largemouth bass" and "smallmouth bass", unique ignoring case; `users.name` and `species.name` refuse empty, all-space and badly spaced values (R-USR-U-07 and R-SPC-C-04 new, R-SPC-C-03 reworded); `audit_log.actor` is empty for a superuser action.
 
 v0.9 (5 Oct 2026) applies the `decisions.md` entries of 2026-10-03 and 2026-10-05 and the independent review of 5 Oct 2026:
 - Judge step-down (decided 2026-10-05): `judge` is locked for organizer edits once live (events update rule; R-EVT-U-18); the events hook lets a superuser step-down set a judge without the organizer role (R-EVT-U-19); the `audit_log` list rule gains a judge branch, so a judge without the organizer role reads every row of the catches they judge (R-AUD-L-08).
@@ -79,7 +81,13 @@ Events: **E1** live (largemouth bass, smallmouth bass; weight; judge K, backup S
 @request.auth.id != "" &&
 (id = @request.auth.id || @request.auth.role = "organizer")
 ```
-**Create:** `null` (members are invited by the superuser before the season). **Update:**
+**Create** (open self sign-up, `decisions.md` 2026-10-25; Access's email list still gates the hostname):
+```
+@request.auth.id = "" &&
+@request.body.role = "member" &&
+@request.body.verified:isset = false &&
+@request.body.emailVisibility:isset = false
+``` **Update:**
 ```
 @request.auth.id != "" &&
 id = @request.auth.id &&
@@ -100,9 +108,15 @@ id = @request.auth.id &&
 | R-USR-L-03 | K | List users | All users (needed to pick judges) | rule |
 | R-USR-V-01 | M | View X's record | Deny | rule |
 | R-USR-V-02 | M | View own record | Allow | rule |
-| R-USR-C-01 | anon | Sign up | Deny | rule |
+| R-USR-C-01 | anon | Sign up with a name, an email and `role = member` | Allow; stored unverified, email hidden | rule |
 | R-USR-C-02 | M | Create a user | Deny | rule |
 | R-USR-C-03 | K | Create a user (the organizer role is not the superuser) | Deny | rule |
+| R-USR-C-04 | anon | Sign up with `role = organizer` | Deny | rule |
+| R-USR-C-05 | anon | Sign up with `verified` in the body | Deny | rule |
+| R-USR-C-06 | anon | Sign up with `emailVisibility` in the body (true or false) | Deny | rule |
+| R-USR-C-07 | anon | Sign up with no `role` | Deny | rule |
+| R-USR-C-08 | anon | Sign up with a member's email | Refused (`email` not unique); the member's record unchanged | schema |
+| R-USR-C-09 | anon | Sign up with an empty, all-space or badly spaced name | Refused | schema |
 | R-USR-U-01 | M | Change own `name`, `display_units` | Allow | rule |
 | R-USR-U-02 | M | Set own `role = organizer` | Deny | rule |
 | R-USR-U-03 | M | Change own `email` or `verified` | Deny | rule |
@@ -112,7 +126,8 @@ id = @request.auth.id &&
 | R-USR-U-07 | M | Change own `name` to empty, only spaces, or a name with leading, trailing or doubled spaces | Deny | schema |
 | R-USR-D-01 | M, K | Delete a user, including self | Deny | rule |
 | R-USR-A-01 | anon | Password sign-in with a real member's email | Refused | settings |
-| R-USR-A-02 | anon | Request an OTP for an unlisted email | No user created | settings |
+| R-USR-A-02 | anon | Request an OTP for an unlisted email | Answered like any other (an otpId); no email sent, no user created | settings |
+| R-USR-A-03 | anon | Sign up, request an OTP, sign in with the emailed code | One email with an 8-digit code; signed in; record now verified | settings |
 
 ### events
 
@@ -613,7 +628,7 @@ Cloudflare Access decides **who reaches the server at all**; PocketBase's rules 
 |---|---|---|---|
 | T1 | A judge approves their own fish, or the backup judge acts outside their scope | `catches` update rule: not own entry; backup judge only on the judge's catches, only in that event; `judge` locked for the organizer once live | R-CAT-U-06 to 09, U-46; R-EVT-U-18 |
 | T2 | An angler forges `status`, `judged_by`, `flags` or `rev` | Create and update rules reject those fields; hooks force server values | R-CAT-C-03 to 05, C-15, U-20 |
-| T3 | Role escalation | `users` update rule: `role:changed = false`; no organizer path to change roles | R-USR-U-02, U-05 |
+| T3 | Role escalation | `users` create rule: `role = member` only; update rule: `role:changed = false`; no organizer path to change roles | R-USR-C-04, U-02, U-05 |
 | T4 | Location leaks through a photo, including an added one | Strip before upload; server strip or fail closed on every create and append; archive check | R-CAT-C-16, U-21, photo fixtures, `archive-event.sh` check |
 | T5 | Results changed after they're published (superuser, hook bug, shell access) | Final lock in rules and hooks; audit log has no update or delete; results and audit hashes posted to the group chat | R-CAT-U-12, R-AUD-U-01, D-01; hashes in the chat |
 | T6 | Outsiders read the API or photos | Access on the whole hostname; every read requires sign-in; protected photos with short-lived tokens | X-ACC-01, 02; every `L-01`; R-CAT-F-01 |

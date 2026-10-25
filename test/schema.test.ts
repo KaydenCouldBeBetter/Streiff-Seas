@@ -34,7 +34,13 @@ const LOCKED: Record<RuleName, null> = {
  * has to change for it: the sweep at the bottom only tries the rules that are null here.
  */
 const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
-  users: { ...LOCKED },
+  users: {
+    ...LOCKED,
+    // R-USR-C-01 (security.md v0.11): anon may sign up, as a member only.
+    createRule:
+      '@request.auth.id = "" && @request.body.role = "member" && ' +
+      "@request.body.verified:isset = false && @request.body.emailVisibility:isset = false",
+  },
   species: { ...LOCKED },
   events: { ...LOCKED },
   entries: { ...LOCKED },

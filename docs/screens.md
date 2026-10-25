@@ -1,6 +1,7 @@
 # Screens: Fishing Scoreboard (UI step 1, screen inventory)
 
-**Status:** Draft v0.8, 12 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**Status:** Draft v0.9, 25 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**v0.9:** open self sign-up (`decisions.md` 2026-10-25): new screen AUTH-03 Create an account (rows AUTH-03a, AUTH-03b; Figma row "1b"); AUTH-01a offers it and no longer lists sign-up as not shown.
 **v0.8:** EVT-02n (Join: name needed first) is dropped: since M0-02, `users.name` is required and refuses blank or badly spaced values (`decisions.md` 2026-10-12), so a member's name can't be empty. Its Figma frame stays for history, like ORG-08c.
 **v0.7:** applies the Figma pass-3b review (`claude/review-figma-pass3.md` §5, in the Claude Project: all 130 rows have frames, §7.3) and Kayden's answers of 7 Oct 2026, recorded in `decisions.md`: Gap 19 values (8-digit code, 10 minutes, a new code after 60 s, 14-day token refreshed on open), Gap 37 (Club rules adds the tournament's values when opened from a tournament page). The open questions moved to `decisions.md` Open items; the status-word rule gained one sentence. Sources now use repo paths (`decisions.md` 2026-10-07: the repo is the source of truth).
 **v0.6:** applies the independent review of 5 Oct 2026 and Kayden's answers, recorded in `decisions.md` 2026-10-05: new rows JDG-00a and JDG-00b (the Judge tab opens a Judging home), RULES-01a (Club rules), and a NOT SENT row for every change screen (MY-03c, MY-05c, JDG-02j, JDG-03b, JDG-04b, JDG-05c, ORG-04c, ORG-05c, ORG-06c, ORG-09c); the status-word rule and the tab rule in §0; JDG-02i reads the code word history stored on the event; JDG-01c wording; LB-01e places; test IDs from `security.md` v0.9 (Gap 33 settled); "Ask the judge" is out (messaging is on SPEC's Not doing list). 117 → 130 rows; the 13 new rows have no Figma frame yet (§7.3).
@@ -79,6 +80,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 | AUTH-00 | Cloudflare Access login | Not designed here. The step before AUTH-01 (Access PIN by email) |
 | AUTH-01 | Sign in: email | Request a PocketBase OTP code |
 | AUTH-02 | Sign in: code | Enter the OTP code; wrong and expired code |
+| AUTH-03 | Create an account | Name and email, then the same OTP code as sign-in (DEC 2026-10-25) |
 | EVT-01 | Home / Tournaments | Landing screen for anyone without exactly one active entry in a live tournament; a list of the tournaments the viewer can see, their active ones first (option A, DEC 2026-10-03) |
 | EVT-02 | Tournament | One tournament: status, deadlines, the viewer's entry, and links to submit, catches, leaderboard, queue, manage |
 | EVT-03 | Withdraw (self) | Confirm withdrawing your own entry |
@@ -116,7 +118,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 | SYS-03 | Locked | A change refused because the event is final |
 | SYS-04 | Session ended | PocketBase session no longer valid |
 
-**Count:** 38 screens designed here (AUTH-00 is listed but out of scope), in 130 state rows (section 2), of which EVT-02n is dropped.
+**Count:** 39 screens designed here (AUTH-00 is listed but out of scope), in 132 state rows (section 2), of which EVT-02n is dropped.
 
 ---
 
@@ -128,10 +130,12 @@ One row per distinct state. The table is split by area; the columns are the same
 
 | ID | Screen | Who sees it | Event status | Entry/catch state | Data shown | Actions available | Actions NOT shown and why | Rule / test IDs | Source |
 |---|---|---|---|---|---|---|---|---|---|
-| AUTH-01a | Sign in: email | anon | n/a | — | Email field | Request a sign-in code | Password sign-in, sign-up, OAuth2: OTP is the only method (R-USR-A-01, R-USR-C-01) | `users` auth settings (OTP on); R-USR-A-01 | SEC users "Auth settings"; DEC L1 §2; SPEC Must 1 |
-| AUTH-01b | Sign in: email, no such user | anon | n/a | Email has no PocketBase user | The same as AUTH-02a: "If that email is registered, a code is on its way" (Gap 19, settled 2026-10-05); any code entered then fails as AUTH-02b | Change email; enter a code | Create an account (R-USR-C-01); anything that reveals whether the email is a member | R-USR-A-02 | SEC users; DEC 2026-10-05 sign-in wording |
+| AUTH-01a | Sign in: email | anon | n/a | — | Email field | Request a sign-in code; New here? Create an account (→ AUTH-03a) | Password sign-in, OAuth2: OTP is the only method (R-USR-A-01) | `users` auth settings (OTP on); R-USR-A-01 | SEC users "Auth settings"; DEC L1 §2; SPEC Must 1 |
+| AUTH-01b | Sign in: email, no such user | anon | n/a | Email has no PocketBase user | The same as AUTH-02a: "If that email is registered, a code is on its way" (Gap 19, settled 2026-10-05); any code entered then fails as AUTH-02b | Change email; enter a code | Anything that reveals whether the email is a member | R-USR-A-02 | SEC users; DEC 2026-10-05 sign-in wording |
 | AUTH-02a | Sign in: code | anon | n/a | Code requested | Email the code went to; code field | Submit code; Send a new code (offered after 60 s); use a different email (→ AUTH-01) | — | `users` auth settings (OTP on) | SEC users; DEC L1; DEC 2026-10-07 sign-in values |
 | AUTH-02b | Sign in: wrong code | anon | n/a | Code not accepted | Error: code not accepted; field kept for another try (tries are rate-limited: OPS §14, Gap 19) | Try again; request a new code (→ AUTH-01) | — | `users` auth settings | SEC users; FEAT S1 step 2 |
+| AUTH-03a | Create an account | anon | n/a | — | Name field ("Shown on the leaderboard. You can change it later in Profile."); email field | Send code (creates the user, then requests a code → AUTH-02a); Already a member? Sign in (→ AUTH-01a) | Choosing a role; anything that reveals whether the email is a member | R-USR-C-01, C-04 to C-07, C-09; R-USR-A-03 | DEC 2026-10-25 open self sign-up |
+| AUTH-03b | Create an account: email already registered | anon | n/a | Email already has a user | The same as AUTH-02a: a sign-in code is sent to the existing account and the name typed is not used | Enter the code; use a different email | "Already registered" or any wording that reveals the email is a member | R-USR-C-08 | DEC 2026-10-25; DEC 2026-10-05 sign-in wording |
 | AUTH-02c | Sign in: expired code | anon | n/a | Code expired | Error: code expired (a code lasts 10 minutes: Gap 19) | Request a new code (→ AUTH-01) | Submitting the same code again | `users` auth settings | SEC users; FEAT S1 step 2 |
 
 ### 2.2 Tournaments and the tournament page
@@ -302,7 +306,7 @@ Indented items lead from the item above them. Conditions in brackets.
 
 **Everyone**
 - Cloudflare Access login (AUTH-00, out of scope)
-  - AUTH-01 Sign in: email → AUTH-02 Sign in: code → LB-01 Leaderboard of the live tournament the member has an active entry in; with two or more, EVT-01d; otherwise EVT-01 Home. Sign-out on PRF-01
+  - AUTH-01 Sign in: email (or AUTH-03 Create an account) → AUTH-02 Sign in: code → LB-01 Leaderboard of the live tournament the member has an active entry in; with two or more, EVT-01d; otherwise EVT-01 Home. Sign-out on PRF-01
 - From any signed-in screen: PRF-01 Profile; SYS-01 to SYS-04 as states
 - From EVT-01 and EVT-02: RULES-01a Club rules
 
