@@ -150,6 +150,7 @@ export function Received({ stored, thumbnailUrl, alreadyReceived, onSubmitAnothe
           unit={stored.measurement.unit}
           title={`${stored.species} · ${photos}`}
           time={`Submitted ${formatClubTime(stored.created)}`}
+          status="pending"
           todo="MY-02"
         />
         <p className="t-callout t-secondary">You can still edit it, add photos or retract it until the judge decides or the deadline passes.</p>

@@ -10,11 +10,12 @@ import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 interface Props {
   tournament: TournamentView;
   onTab: (tab: MemberTab) => void;
+  onMyCatches: () => void;
   onLeaderboard: () => void;
   onSubmit: () => void;
 }
 
-export function Tournament({ tournament, onTab, onLeaderboard, onSubmit }: Props) {
+export function Tournament({ tournament, onTab, onMyCatches, onLeaderboard, onSubmit }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
@@ -53,7 +54,7 @@ export function Tournament({ tournament, onTab, onLeaderboard, onSubmit }: Props
             icon="/icons/list.svg"
             title="My catches"
             detail={`${catches.submitted} submitted · ${catches.pending} pending`}
-            todo="MY-01"
+            onClick={onMyCatches}
           />
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
           <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} onClick={onLeaderboard} />

@@ -1,9 +1,12 @@
-// The Figma components for one catch: Photo slot, Species option (as a picker), Weight input
-// and Catch card. Their usage notes in Figma are followed here.
+// The Figma components for one catch: Photo slot, Species option (as a picker), Weight input,
+// Status chip, Marker / In best 10, Catch card and the photo viewer. Their usage notes in Figma
+// are followed here. LB-02, LB-03 and JDG-02 are meant to reuse the catch ones (an angler's
+// catches as other members see them, never Rejected or Retracted there).
 
 import { useRef, useState, type ReactElement } from "react";
-import { SegmentedToggle, StatusChip, TodoTag } from "./ui";
+import { SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
 import type { SpeciesChoice } from "../lib/catchSender";
+import { photoLabels, type CatchPhoto, type CatchStatus } from "../lib/myCatches";
 import { parseWeight, switchWeightFormat, weightProblemCopy, type WeightEntry, type WeightFormat } from "../lib/weightEntry";
 
 /**
@@ -188,46 +191,117 @@ export function WeightInput({ id, value, onChange }: WeightInputProps) {
   );
 }
 
+const STATUS: Record<CatchStatus, { tone: Tone; label: string; icon: string }> = {
+  pending: { tone: "warning", label: "Pending", icon: "/icons/clock-warning.svg" },
+  verified: { tone: "success", label: "Verified", icon: "/icons/check-success.svg" },
+  rejected: { tone: "danger", label: "Rejected", icon: "/icons/close-danger.svg" },
+  retracted: { tone: "neutral", label: "Retracted", icon: "/icons/undo-neutral-small.svg" },
+};
+
+/** A catch's status: icon + word, never color alone. Read as "Status: Pending". */
+export function CatchStatusChip({ status }: { status: CatchStatus }) {
+  const { tone, label, icon } = STATUS[status];
+  return <StatusChip tone={tone} icon={icon} label={label} spoken={`Status: ${label}`} />;
+}
+
+/** A verified catch counted in the angler's best n. Read as "Counted in best 10". */
+export function InBestMarker({ bestN }: { bestN: number }) {
+  return (
+    <StatusChip tone="selected" icon="/icons/star-link.svg" label={`In best ${bestN}`} spoken={`Counted in best ${bestN}`} />
+  );
+}
+
 interface CatchCardProps {
   /** Photo 1's preview, or null for the photo icon. */
   thumbnailUrl: string | null;
+  /** Final: the archive icon in place of the photo, and no file is requested. */
+  archived?: boolean;
   value: string;
   unit: string;
   /** "Largemouth bass · 2 photos" */
   title: string;
   /** "Submitted Sat, Jul 10, 7:42 AM" */
   time: string;
+  status: CatchStatus;
+  /** Set when a verified catch counts in the angler's best n: the "In best 10" marker. */
+  inBestN?: number;
+  /** A rejected catch's reason, shown inline on the angler's own list. */
+  reason?: string;
   /** The screens.md row the card opens while it isn't built (MY-02). */
   todo?: string;
   onClick?: () => void;
 }
 
 /** One catch; the whole card is one button. Members never see flag codes. */
-export function CatchCard({ thumbnailUrl, value, unit, title, time, todo, onClick }: CatchCardProps) {
-  // Only the Pending chip for now: SUB-02b shows a catch the moment it lands. MY-01 and LB-02
-  // add Verified, Rejected (with its reason), Retracted, Archived and the "In best 10" marker.
+export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, time, status, inBestN, reason, todo, onClick }: CatchCardProps) {
   return (
     <button type="button" className="catch-card" onClick={onClick}>
       <span className="catch-card-thumb">
-        {thumbnailUrl ? (
+        {thumbnailUrl && !archived ? (
           <img className="photo-slot-preview" src={thumbnailUrl} alt="" />
         ) : (
-          <img src="/icons/photo.svg" width={24} height={24} alt="" aria-hidden="true" />
+          <img src={archived ? "/icons/archive.svg" : "/icons/photo.svg"} width={24} height={24} alt="" aria-hidden="true" />
         )}
       </span>
       <span className="catch-card-body">
-        <span className="catch-card-measurement">
+        <span className="measurement">
           <span className="t-number-row">{value}</span>
           <span className="t-footnote-strong t-secondary">{unit}</span>
         </span>
         <span className="t-callout-strong">{title}</span>
         <span className="t-footnote t-secondary">{time}</span>
-        <span className="catch-card-chips">
-          <StatusChip tone="warning" icon="/icons/clock-warning.svg" label="Pending" />
+        <span className="chips">
+          <CatchStatusChip status={status} />
+          {inBestN !== undefined && <InBestMarker bestN={inBestN} />}
         </span>
+        {reason && <span className="t-footnote catch-card-reason">Reason: “{reason}”</span>}
       </span>
       <img src="/icons/chevron-right.svg" width={24} height={24} alt="" aria-hidden="true" />
       {todo && <TodoTag row={todo} />}
     </button>
+  );
+}
+
+interface PhotoViewerProps {
+  photos: readonly CatchPhoto[];
+  /** Final: "Photo archived" in place of each photo, and no file is requested. */
+  archived: boolean;
+}
+
+/** The large photo with its label, and a row of thumbnails that switch it. */
+export function PhotoViewer({ photos, archived }: PhotoViewerProps) {
+  const [shown, setShown] = useState(0);
+  const labels = photoLabels(photos.length);
+  const current = labels[shown];
+  if (current === undefined) return null;
+  const url = archived ? undefined : photos[shown]?.url;
+  const caption = `${shown + 1} of ${photos.length} · ${current.long}${archived ? " · Photo archived" : ""}`;
+  return (
+    <div className="photo-viewer">
+      <figure className="photo-viewer-photo">
+        {url && <img src={url} alt="" />}
+        {archived && (
+          <span className="photo-viewer-archived t-callout-strong">
+            <img src="/icons/archive.svg" width={24} height={24} alt="" aria-hidden="true" />
+            Photo archived
+          </span>
+        )}
+        <figcaption className="photo-viewer-label t-footnote-strong">{caption}</figcaption>
+      </figure>
+      <div className="photo-viewer-thumbs">
+        {labels.map((label, i) => {
+          const thumb = archived ? undefined : photos[i]?.url;
+          return (
+            <button key={i} type="button" className="photo-viewer-thumb t-footnote" aria-pressed={i === shown} onClick={() => setShown(i)}>
+              <span className="photo-viewer-thumb-image">{thumb && <img src={thumb} alt="" />}</span>
+              <span>
+                <span className="visually-hidden">Show photo {i + 1}: </span>
+                {label.short}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

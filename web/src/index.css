@@ -16,6 +16,8 @@
   --cf-color-text-danger: #871b14;
   --cf-color-text-disabled: #33434f;
   --cf-color-text-success: #0b5530;
+  --cf-color-text-warning: #6b4100;
+  --cf-color-text-neutral: #3d4850;
   --cf-color-bg-default: #ffffff;
   --cf-color-bg-primary: #0a4a6b;
   --cf-color-bg-primary-pressed: #083f5c;
@@ -23,10 +25,15 @@
   --cf-color-bg-disabled: #e6eaed;
   --cf-color-bg-sunken: #eef3f6;
   --cf-color-bg-success: #ddf0e3;
+  --cf-color-bg-warning: #fbebcb;
+  --cf-color-bg-danger: #f9dedb;
+  --cf-color-bg-neutral: #e6eaed;
   --cf-color-border-default: #5e6f7c;
   --cf-color-border-selected: #0a4a6b;
   --cf-color-border-focus: #0a4a6b;
   --cf-color-border-danger: #871b14;
+  --cf-color-border-success: #0b5530;
+  --cf-color-border-warning: #6b4100;
   --cf-color-border-neutral: #3d4850;
   --cf-color-border-divider: #eef3f6;
 
@@ -39,7 +46,10 @@
   --cf-spacing-2xl: 24px;
   --cf-spacing-3xl: 32px;
   --cf-radius-sm: 6px;
+  --cf-radius-md: 10px;
   --cf-radius-lg: 14px;
+  --cf-radius-full: 999px;
+  --cf-stroke-hairline: 1px;
   --cf-stroke-field: 1.5px;
   --cf-stroke-selected: 2px;
   --cf-size-control-md: 48px;
@@ -131,6 +141,17 @@ footer {
   line-height: 2.25rem;
   font-weight: 800;
   letter-spacing: -0.3px;
+}
+.t-number-display {
+  font-size: 2.75rem;
+  line-height: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.t-number-row {
+  font-size: 1.375rem;
+  line-height: 1.625rem;
+  font-weight: 800;
 }
 .t-secondary {
   color: var(--cf-color-text-secondary);
@@ -714,6 +735,7 @@ dd {
 .button,
 .list-link,
 .tab,
+.nav-bar-action,
 .leaderboard-row,
 .todo-host {
   position: relative;
@@ -735,6 +757,31 @@ dd {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Nav bar, Push type: the trailing text action ("History"). */
+.nav-bar-trailing {
+  display: flex;
+  justify-content: flex-end;
+}
+.nav-bar-action {
+  height: 44px;
+  padding: 0 var(--cf-spacing-xs);
+  border: none;
+  border-radius: var(--cf-radius-lg);
+  background: none;
+  color: var(--cf-color-text-link);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.nav-bar-action .todo-tag {
+  top: 0;
+}
+.nav-bar-action:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+
 /* Rows run edge to edge: keep the tag inside them so it never scrolls the page sideways. */
 .leaderboard-row .todo-tag {
   top: 2px;
@@ -743,31 +790,12 @@ dd {
 
 /* ---- Submit a catch (SUB-01, SUB-02) ---- */
 
-/* More tokens from the Figma file's variables, for the submit screens. */
-:root {
-  --cf-color-text-warning: #6b4100;
-  --cf-color-text-neutral: #3d4850;
-  --cf-color-bg-neutral: #e6eaed;
-  --cf-color-bg-warning: #fbebcb;
-  --cf-color-bg-danger: #f9dedb;
-  --cf-color-border-warning: #6b4100;
-  --cf-color-border-success: #0b5530;
-  --cf-radius-md: 10px;
-  --cf-radius-full: 999px;
-  --cf-stroke-hairline: 1px;
-}
-
 .t-caption-caps {
   font-size: 0.6875rem;
   line-height: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-}
-.t-number-row {
-  font-size: 1.375rem;
-  line-height: 1.625rem;
-  font-weight: 800;
 }
 
 .submit-content {
@@ -802,7 +830,13 @@ dd {
   min-width: 180px;
 }
 
-/* Status chip: icon + word in a pill. */
+/* Status chip and the In best marker: icon + word in a pill. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-spacing-xs);
+  padding-top: var(--cf-spacing-xs);
+}
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -811,6 +845,9 @@ dd {
   border: var(--cf-stroke-hairline) solid;
   border-radius: var(--cf-radius-full);
   white-space: nowrap;
+}
+.status-chip img {
+  flex: none;
 }
 .status-chip-success {
   border-color: var(--cf-color-border-success);
@@ -826,6 +863,36 @@ dd {
   border-color: var(--cf-color-border-danger);
   background: var(--cf-color-bg-danger);
   color: var(--cf-color-text-danger);
+}
+.status-chip-neutral {
+  border-color: var(--cf-color-border-neutral);
+  background: var(--cf-color-bg-neutral);
+  color: var(--cf-color-text-neutral);
+}
+.status-chip-selected {
+  border-color: var(--cf-color-border-selected);
+  background: var(--cf-color-bg-selected);
+  color: var(--cf-color-text-link);
+}
+
+.measurement {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-spacing-2xs);
+  white-space: nowrap;
+}
+
+/* MY-01: the list of catch cards. */
+.tab-screen .catch-list {
+  gap: var(--cf-spacing-md);
+}
+.catch-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* Photo slots: two per row at phone width; extras wrap below. */
@@ -1099,7 +1166,7 @@ dd {
   min-width: 0;
 }
 
-/* Banner: page-level status. */
+/* Banner: page-level status, icon + title + message. */
 .banner {
   display: flex;
   align-items: flex-start;
@@ -1107,7 +1174,7 @@ dd {
   padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-md) var(--cf-spacing-md);
   border-radius: var(--cf-radius-lg);
 }
-.banner img {
+.banner > img {
   flex: none;
 }
 .banner-body {
@@ -1117,19 +1184,33 @@ dd {
   flex-direction: column;
   gap: var(--cf-spacing-2xs);
 }
-.banner-danger {
-  border: var(--cf-stroke-selected) solid var(--cf-color-border-danger);
-  background: var(--cf-color-bg-danger);
-}
-.banner-danger .t-headline {
-  color: var(--cf-color-text-danger);
-}
 .banner-success {
   border: var(--cf-stroke-hairline) solid var(--cf-color-border-success);
   background: var(--cf-color-bg-success);
 }
-.banner-success .t-headline {
+.banner-success .banner-title {
   color: var(--cf-color-text-success);
+}
+.banner-danger {
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-danger);
+  background: var(--cf-color-bg-danger);
+}
+.banner-danger .banner-title {
+  color: var(--cf-color-text-danger);
+}
+.banner-info {
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-selected);
+  background: var(--cf-color-bg-selected);
+}
+.banner-info .banner-title {
+  color: var(--cf-color-text-link);
+}
+.banner-neutral {
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-neutral);
+  background: var(--cf-color-bg-neutral);
+}
+.banner-neutral .banner-title {
+  color: var(--cf-color-text-neutral);
 }
 
 /* Catch card: one catch; the whole card is one button. */
@@ -1178,14 +1259,157 @@ dd {
   flex-direction: column;
   gap: var(--cf-spacing-2xs);
 }
-.catch-card-measurement {
-  display: flex;
-  align-items: baseline;
-  gap: var(--cf-spacing-2xs);
+.catch-card-reason {
+  color: var(--cf-color-text-danger);
 }
-.catch-card-chips {
+
+/* Empty state: centered; offers the next step only when it is allowed. */
+.empty-state {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-3xl) var(--cf-spacing-2xl);
+  text-align: center;
+}
+.empty-state-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-sunken);
+}
+.empty-state .button-text {
+  align-self: center;
+}
+
+/* MY-02: one catch. */
+.tab-screen .catch-detail {
+  gap: var(--cf-spacing-lg);
+}
+.photo-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.photo-viewer-photo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-neutral);
+}
+.photo-viewer-photo > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.photo-viewer-archived {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--cf-spacing-xs);
-  padding-top: var(--cf-spacing-xs);
+  color: var(--cf-color-text-neutral);
+}
+.photo-viewer-label {
+  position: absolute;
+  left: var(--cf-spacing-sm);
+  bottom: var(--cf-spacing-sm);
+  max-width: calc(100% - 2 * var(--cf-spacing-sm));
+  padding: var(--cf-spacing-xs) var(--cf-spacing-md);
+  overflow: hidden;
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-default);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.photo-viewer-thumbs {
+  display: flex;
+  gap: var(--cf-spacing-sm);
+}
+.photo-viewer-thumb {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--cf-color-text-secondary);
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.photo-viewer-thumb[aria-pressed="true"] {
+  color: var(--cf-color-text-link);
+}
+.photo-viewer-thumb:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.photo-viewer-thumb-image {
+  width: 100%;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--cf-color-bg-neutral);
+}
+.photo-viewer-thumb[aria-pressed="true"] .photo-viewer-thumb-image {
+  border: 3px solid var(--cf-color-border-selected);
+}
+.photo-viewer-thumb-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.catch-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.catch-summary .measurement {
+  gap: var(--cf-spacing-xs);
+}
+.reason-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-danger);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-danger);
+}
+.reason-box h2 {
+  color: var(--cf-color-text-danger);
+}
+.catch-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.catch-detail .fact {
+  flex-wrap: wrap;
+  row-gap: var(--cf-spacing-2xs);
+}
+.catch-detail .fact dd {
+  min-width: 170px;
+}
+
+/* Action bar, Single type, above the tab bar (MY-02g "Submit a new catch"). */
+.action-bar-above-tabs {
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-xs);
+  border-top: 1px solid var(--cf-color-border-divider);
 }

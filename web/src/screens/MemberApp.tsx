@@ -8,22 +8,34 @@
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
+import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
 import type { MemberTab } from "./memberTabs";
 import { Tournament } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
+import { MyCatch } from "./MyCatch";
+import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "leaderboard" | "profile" | "submit";
-/** The top-level screens Profile opens from, and goes back to. */
-type TopScreen = "tournament" | "leaderboard";
+type Screen = "tournament" | "leaderboard" | "catches" | "catch" | "profile" | "submit";
+/** The screens Profile opens from, and goes back to. */
+type FromScreen = Exclude<Screen, "profile" | "submit">;
 
 const TITLES: Record<Exclude<Screen, "submit">, string> = {
   tournament: SAMPLE_TOURNAMENT.name,
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
+  catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
+  catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   profile: "Profile",
+};
+
+const BACK_LABELS: Record<FromScreen, string> = {
+  tournament: "Tournament",
+  leaderboard: "Leaderboard",
+  catches: "My catches",
+  catch: "Catch",
 };
 
 interface Props {
@@ -33,8 +45,9 @@ interface Props {
 
 export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
+  const [catchId, setCatchId] = useState<string | null>(null);
   // Profile's back button returns to the screen it was opened from.
-  const [profileFrom, setProfileFrom] = useState<TopScreen>("tournament");
+  const [profileFrom, setProfileFrom] = useState<FromScreen>("tournament");
   // TODO(S1): the real sender (catchSender.ts) replaces the sample.
   const [sender] = useState(createSampleSender);
 
@@ -42,17 +55,25 @@ export function MemberApp({ user, onSignOut }: Props) {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
     document.title = `${TITLES[screen]} · Chromie Fishing`;
+    window.scrollTo(0, 0);
   }, [screen]);
 
   function openTab(tab: MemberTab) {
-    // My catches (MY-01) isn't built yet: its tab stays put.
     if (tab === "home") setScreen("tournament");
     if (tab === "leaderboard") setScreen("leaderboard");
-    if (tab === "profile" && (screen === "tournament" || screen === "leaderboard")) {
+    if (tab === "catches") setScreen("catches");
+    if (tab === "profile" && screen !== "profile" && screen !== "submit") {
       setProfileFrom(screen);
       setScreen("profile");
     }
   }
+
+  function openCatch(id: string) {
+    setCatchId(id);
+    setScreen("catch");
+  }
+
+  const openedCatch = SAMPLE_MY_CATCHES.find((c) => c.id === catchId);
 
   switch (screen) {
     case "tournament":
@@ -60,6 +81,7 @@ export function MemberApp({ user, onSignOut }: Props) {
         <Tournament
           tournament={SAMPLE_TOURNAMENT}
           onTab={openTab}
+          onMyCatches={() => setScreen("catches")}
           onLeaderboard={() => setScreen("leaderboard")}
           onSubmit={() => setScreen("submit")}
         />
@@ -69,11 +91,18 @@ export function MemberApp({ user, onSignOut }: Props) {
     case "submit":
       // Every submit screen's Back reads "Tournament" (Figma), so it goes there whichever screen opened it.
       return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;
+    case "catch":
+      if (openedCatch) {
+        return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onTab={openTab} />;
+      }
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+    case "catches":
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
     case "profile":
       return (
         <Profile
           user={user}
-          backTo={profileFrom === "leaderboard" ? "Leaderboard" : "Tournament"}
+          backTo={BACK_LABELS[profileFrom]}
           onBack={() => setScreen(profileFrom)}
           onSignOut={onSignOut}
         />
