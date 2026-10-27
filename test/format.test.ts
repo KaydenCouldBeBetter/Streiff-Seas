@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClubTime, placeLabel, rowPlace, spokenPlace } from "../web/src/lib/format";
+import { formatClubClock, formatClubTime, placeLabel, rowPlace, sameClubDay, spokenPlace } from "../web/src/lib/format";
 
 describe("formatClubTime", () => {
   it("shows club time (America/New_York), 12-hour, whatever the machine's zone", () => {
@@ -60,5 +60,22 @@ describe("spokenPlace", () => {
     expect(spokenPlace(4, false)).toBe("4th");
     expect(spokenPlace(2, true)).toBe("Tied for 2nd");
     expect(spokenPlace(1, true)).toBe("Tied for 1st");
+  });
+});
+
+describe("formatClubClock", () => {
+  it("shows the club clock time alone, 12-hour", () => {
+    expect(formatClubClock(new Date("2027-07-10T10:58:00Z"))).toBe("6:58 AM");
+    expect(formatClubClock(new Date("2027-08-17T00:00:00Z"))).toBe("8:00 PM");
+    expect(formatClubClock(new Date("2027-08-15T04:00:00Z"))).toBe("12:00 AM");
+  });
+});
+
+describe("sameClubDay", () => {
+  it("compares calendar days in club time, not UTC", () => {
+    // 11:30 PM and 8:00 PM EDT on Aug 15: the same club day, though both are Aug 16 in UTC.
+    expect(sameClubDay(new Date("2027-08-16T03:30:00Z"), new Date("2027-08-16T00:00:00Z"))).toBe(true);
+    // 11:30 PM EDT Aug 15 and 12:30 AM EDT Aug 16.
+    expect(sameClubDay(new Date("2027-08-16T03:30:00Z"), new Date("2027-08-16T04:30:00Z"))).toBe(false);
   });
 });

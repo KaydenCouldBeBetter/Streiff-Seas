@@ -7,10 +7,12 @@
 
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
+import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
 import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
+import { AnglerCatches } from "./AnglerCatches";
 import type { MemberTab } from "./memberTabs";
 import { Tournament } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
@@ -19,11 +21,11 @@ import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "leaderboard" | "catches" | "catch" | "profile" | "submit";
+type Screen = "tournament" | "leaderboard" | "angler" | "catches" | "catch" | "profile" | "submit";
 /** The screens Profile opens from, and goes back to. */
 type FromScreen = Exclude<Screen, "profile" | "submit">;
 
-const TITLES: Record<Exclude<Screen, "submit">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler">, string> = {
   tournament: SAMPLE_TOURNAMENT.name,
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
@@ -34,6 +36,7 @@ const TITLES: Record<Exclude<Screen, "submit">, string> = {
 const BACK_LABELS: Record<FromScreen, string> = {
   tournament: "Tournament",
   leaderboard: "Leaderboard",
+  angler: "Angler's catches",
   catches: "My catches",
   catch: "Catch",
 };
@@ -46,17 +49,21 @@ interface Props {
 export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
   const [catchId, setCatchId] = useState<string | null>(null);
+  const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
   // Profile's back button returns to the screen it was opened from.
   const [profileFrom, setProfileFrom] = useState<FromScreen>("tournament");
   // TODO(S1): the real sender (catchSender.ts) replaces the sample.
   const [sender] = useState(createSampleSender);
 
+  const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
+
   useEffect(() => {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
-    document.title = `${TITLES[screen]} · Chromie Fishing`;
+    const title = screen === "angler" ? `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}` : TITLES[screen];
+    document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
-  }, [screen]);
+  }, [screen, anglerRow]);
 
   function openTab(tab: MemberTab) {
     if (tab === "home") setScreen("tournament");
@@ -66,6 +73,11 @@ export function MemberApp({ user, onSignOut }: Props) {
       setProfileFrom(screen);
       setScreen("profile");
     }
+  }
+
+  function openAngler(entryId: string) {
+    setAnglerEntryId(entryId);
+    setScreen("angler");
   }
 
   function openCatch(id: string) {
@@ -87,7 +99,22 @@ export function MemberApp({ user, onSignOut }: Props) {
         />
       );
     case "leaderboard":
-      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} />;
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
+    case "angler":
+      if (anglerRow) {
+        return (
+          <AnglerCatches
+            key={anglerRow.entryId}
+            row={anglerRow}
+            unit={SAMPLE_LEADERBOARD.unit}
+            bestN={SAMPLE_LEADERBOARD.bestN}
+            catches={SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []}
+            onBack={() => setScreen("leaderboard")}
+            onTab={openTab}
+          />
+        );
+      }
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
     case "submit":
       // Every submit screen's Back reads "Tournament" (Figma), so it goes there whichever screen opened it.
       return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;

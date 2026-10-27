@@ -1,10 +1,11 @@
 // LB-01a Leaderboard: live, at least one angler qualifies (Figma 66:5754).
 // A UI skeleton on sample data: controls whose screens aren't built yet carry a TodoTag
-// with the screens.md row they open. Submit a catch opens SUB-01 (SubmitFlow).
+// with the screens.md row they open. Submit a catch opens SUB-01 (SubmitFlow); a row opens
+// that angler's catches (LB-02).
 
 import type { LeaderboardRow, LeaderboardView } from "../lib/sampleLeaderboard";
 import { placeLabel, rowPlace, spokenPlace } from "../lib/format";
-import { AccessoryBar, Button, LargeNavBar, LiveBadge, StatusChip, TabBar, TodoTag } from "../components/ui";
+import { AccessoryBar, Button, LargeNavBar, LiveBadge, StatusChip, TabBar } from "../components/ui";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", in: "inches" };
@@ -13,9 +14,11 @@ interface Props {
   leaderboard: LeaderboardView;
   onTab: (tab: MemberTab) => void;
   onSubmit: () => void;
+  /** Opens the row's angler's catches (LB-02), by entry id. */
+  onOpenRow: (entryId: string) => void;
 }
 
-export function Leaderboard({ leaderboard, onTab, onSubmit }: Props) {
+export function Leaderboard({ leaderboard, onTab, onSubmit, onOpenRow }: Props) {
   const { you, rows, unit, bestN } = leaderboard;
   // The crown marks 1st place once the leader has a verified fish (screens.md LB-01a).
   const leaderHasFish = rows.some((row) => row.place === 1 && row.counted > 0);
@@ -50,7 +53,7 @@ export function Leaderboard({ leaderboard, onTab, onSubmit }: Props) {
         <ol className="leaderboard-rows" aria-label="Standings">
           {rows.map((row) => (
             <li key={row.entryId}>
-              <LeaderboardRowButton row={row} unit={unit} bestN={bestN} crown={leaderHasFish && row.place === 1} />
+              <LeaderboardRowButton row={row} unit={unit} bestN={bestN} crown={leaderHasFish && row.place === 1} onClick={() => onOpenRow(row.entryId)} />
             </li>
           ))}
         </ol>
@@ -73,10 +76,11 @@ interface RowProps {
   unit: string;
   bestN: number;
   crown: boolean;
+  onClick: () => void;
 }
 
 /** Figma Leaderboard row: the whole row is one button that opens the angler's catches. */
-function LeaderboardRowButton({ row, unit, bestN, crown }: RowProps) {
+function LeaderboardRowButton({ row, unit, bestN, crown, onClick }: RowProps) {
   const detail = `${row.counted} of ${bestN} counted${row.biggest ? ` · Biggest ${row.biggest.size} ${unit} ${row.biggest.species}` : ""}`;
   const spokenUnit = SPOKEN_UNIT[unit] ?? unit;
   // Figma's VoiceOver note: "Tied for 2nd, Marcus L., 21.30 pounds, 9 of 10 counted,
@@ -94,7 +98,7 @@ function LeaderboardRowButton({ row, unit, bestN, crown }: RowProps) {
     .join(", ");
 
   return (
-    <button type="button" className={`leaderboard-row${row.isViewer ? " is-you" : ""}`} aria-label={name}>
+    <button type="button" className={`leaderboard-row${row.isViewer ? " is-you" : ""}`} aria-label={name} onClick={onClick}>
       <span className="leaderboard-row-place">
         {crown && <img src="/icons/crown.svg" width={20} height={20} alt="" aria-hidden="true" />}
         <span className="t-number-row">{rowPlace(row.place, row.tied)}</span>
@@ -118,7 +122,6 @@ function LeaderboardRowButton({ row, unit, bestN, crown }: RowProps) {
         <span className="t-number-row">{row.total}</span>
         <span className="t-footnote-strong t-secondary">{unit}</span>
       </span>
-      <TodoTag row="LB-02" />
     </button>
   );
 }

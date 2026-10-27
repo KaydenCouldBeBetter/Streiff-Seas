@@ -70,7 +70,7 @@ export function myCatchesRow(context: MyCatchesContext, catchCount: number): MyC
 }
 
 /** Newest first (Figma MY-01b note); the list request sorts by -created the same way. */
-export function newestFirst(catches: readonly MyCatchView[]): MyCatchView[] {
+export function newestFirst<T extends Pick<MyCatchView, "created">>(catches: readonly T[]): T[] {
   return [...catches].sort((a, b) => b.created.getTime() - a.created.getTime());
 }
 

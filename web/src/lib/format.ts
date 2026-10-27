@@ -40,3 +40,24 @@ export function spokenPlace(place: number, tied: boolean): string {
   const ordinal = placeLabel(place, false);
   return tied ? `Tied for ${ordinal}` : ordinal;
 }
+
+const CLUB_CLOCK = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+const CLUB_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" });
+
+/** The clock time alone, in club time: "6:58 AM" (Figma LB-02a "· photo 6:58 AM"). */
+export function formatClubClock(at: Date): string {
+  const part: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const { type, value } of CLUB_CLOCK.formatToParts(at)) part[type] = value;
+  return `${part.hour}:${part.minute} ${part.dayPeriod}`;
+}
+
+/** Whether two moments fall on the same club (America/New_York) calendar day. */
+export function sameClubDay(a: Date, b: Date): boolean {
+  return CLUB_DAY.format(a) === CLUB_DAY.format(b);
+}

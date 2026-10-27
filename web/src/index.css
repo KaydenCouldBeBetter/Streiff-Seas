@@ -886,6 +886,17 @@ dd {
 .tab-screen .catch-list {
   gap: var(--cf-spacing-md);
 }
+/* LB-02: the facts card, then the angler's catch cards. */
+.tab-screen .angler-catches {
+  gap: var(--cf-spacing-md);
+}
+.angler-catches .fact {
+  flex-wrap: wrap;
+  row-gap: var(--cf-spacing-2xs);
+}
+.angler-catches .fact dd {
+  min-width: 170px;
+}
 .catch-list-items {
   display: flex;
   flex-direction: column;
