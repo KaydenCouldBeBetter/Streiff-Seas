@@ -1,6 +1,7 @@
 // The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
-// Text field, Button (Large, Medium and Text), Action bar (Single and Accessory), List link,
-// Tab bar, Banner and Empty state. Their usage notes in Figma are followed here.
+// Live badge, Text field, Button (Large, Medium and Text), Action bar (Single and Accessory),
+// List link, Tab bar, Banner, Empty state, Status chip and Segmented toggle. Their usage notes
+// in Figma are followed here.
 
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
 
@@ -95,12 +96,14 @@ interface ButtonProps {
   /** Request in flight: the label changes, aria-busy is set and taps are ignored. */
   loading?: boolean;
   loadingLabel?: string;
+  /** Pair it with a line saying what's missing (Figma Button notes; SUB-01d). */
+  disabled?: boolean;
   /** The screens.md row this button should open once it's built (see TodoTag). */
   todo?: string;
   onClick?: () => void;
 }
 
-export function Button({ children, variant, large = false, full = false, icon, type = "button", loading = false, loadingLabel = "Sending…", todo, onClick }: ButtonProps) {
+export function Button({ children, variant, large = false, full = false, icon, type = "button", loading = false, loadingLabel = "Sending…", disabled = false, todo, onClick }: ButtonProps) {
   const spinner = variant === "primary" ? "/icons/refresh-on-primary.svg" : "/icons/refresh-link.svg";
   const size = large ? " button-large" : variant === "text" ? "" : ` button-medium${full ? " button-full" : ""}`;
   return (
@@ -108,6 +111,7 @@ export function Button({ children, variant, large = false, full = false, icon, t
       type={type}
       className={`button button-${variant}${size}`}
       aria-busy={loading || undefined}
+      disabled={disabled}
       onClick={(event) => {
         if (loading) event.preventDefault();
         else onClick?.();
@@ -133,7 +137,7 @@ export function AccessoryBar({ children }: { children: ReactNode }) {
 
 /**
  * Development only: a dashed tag naming the screens.md row a control should open, on
- * controls whose screen isn't built yet. Hidden from assistive tech and absent from
+ * controls whose screen isn't built yet, or the features.json item that wires it up. Hidden from assistive tech and absent from
  * production builds, so the accessible names stay as designed.
  */
 export function TodoTag({ row }: { row: string }) {
@@ -164,19 +168,41 @@ export function EventStatus({ status }: { status: EventStatusValue }) {
   );
 }
 
+export type LiveBadgeState = "live";
+
+const LIVE_BADGE: Record<LiveBadgeState, string> = {
+  // Reconnecting (LB-01b) and "Updated h:mm" (LB-01c) join this map when realtime lands (S2b).
+  live: "Live",
+};
+
+/**
+ * Leaderboard freshness, not events.status: an outlined pill, never the Event status tag.
+ * A polite live region, so a change is announced ("Leaderboard reconnecting").
+ */
+export function LiveBadge({ state }: { state: LiveBadgeState }) {
+  return (
+    <span className={`live-badge live-badge-${state} t-footnote-strong`} role="status">
+      <img src="/icons/live-dot.svg" width={10} height={10} alt="" aria-hidden="true" />
+      <span className="visually-hidden">Leaderboard </span>
+      {LIVE_BADGE[state]}
+    </span>
+  );
+}
+
 interface LargeNavBarProps {
   title: string;
-  status?: EventStatusValue;
+  /** The title row's trailing badge: an EventStatus, or a LiveBadge on the leaderboard. */
+  badge?: ReactNode;
   subtitle?: string;
 }
 
 /** Large title type: top-level screens. The title is the screen's h1. */
-export function LargeNavBar({ title, status, subtitle }: LargeNavBarProps) {
+export function LargeNavBar({ title, badge, subtitle }: LargeNavBarProps) {
   return (
     <header className="nav-bar-large">
       <div className="nav-bar-large-title">
         <h1 className="t-title-large">{title}</h1>
-        {status && <EventStatus status={status} />}
+        {badge}
       </div>
       {subtitle && <p className="t-footnote t-secondary">{subtitle}</p>}
     </header>
@@ -239,23 +265,58 @@ export function TabBar<Id extends string>({ tabs, selected, onSelect }: TabBarPr
   );
 }
 
-export type BannerTone = "info" | "neutral";
+export type Tone = "success" | "warning" | "danger" | "neutral" | "selected";
+
+interface StatusChipProps {
+  tone: Tone;
+  icon: string;
+  label: string;
+  /** What a screen reader says in place of the label, when the label alone is unclear. */
+  spoken?: string;
+}
+
+/** Status chip: always icon + word, never color alone. The icon is decorative. */
+export function StatusChip({ tone, icon, label, spoken }: StatusChipProps) {
+  return (
+    <span className={`status-chip status-chip-${tone} t-footnote-strong`}>
+      <img src={icon} width={16} height={16} alt="" aria-hidden="true" />
+      {spoken === undefined ? (
+        label
+      ) : (
+        <>
+          <span aria-hidden="true">{label}</span>
+          <span className="visually-hidden">{spoken}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+export type BannerTone = "success" | "danger" | "info" | "neutral";
+
+const BANNER_ICON: Partial<Record<BannerTone, string>> = {
+  success: "/icons/check-success-24.svg",
+  danger: "/icons/alert-danger-24.svg",
+};
 
 interface BannerProps {
   tone: BannerTone;
-  /** A 24 px icon drawn in the tone's color. */
-  icon: string;
+  /** A 24 px icon drawn in the tone's color; success and danger have their own. */
+  icon?: string;
   title: string;
   children: ReactNode;
-  /** "status" for a change the screen announces (Received); none for a state shown on open. */
-  role?: "status" | "alert";
 }
 
-/** Page-level status: always icon + title + message. Never blames the angler. */
-export function Banner({ tone, icon, title, children, role }: BannerProps) {
+/**
+ * Page-level status: always icon + title + message. Never blames the angler. Danger (NOT SENT)
+ * is role=alert, announced at once; success (Received) is role=status; info and neutral are
+ * states shown on open, so they announce nothing.
+ */
+export function Banner({ tone, icon, title, children }: BannerProps) {
+  const role = tone === "danger" ? "alert" : tone === "success" ? "status" : undefined;
   return (
     <div className={`banner banner-${tone}`} role={role}>
-      <img src={icon} width={24} height={24} alt="" aria-hidden="true" />
+      <img src={icon ?? BANNER_ICON[tone]} width={24} height={24} alt="" aria-hidden="true" />
       <div className="banner-body">
         <p className="banner-title t-headline">{title}</p>
         <p className="t-callout">{children}</p>
@@ -283,6 +344,34 @@ export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
       <h2 className="t-title-section">{title}</h2>
       <p className="t-callout t-secondary">{message}</p>
       {action}
+    </div>
+  );
+}
+
+interface SegmentedToggleProps<Id extends string> {
+  /** The id of the visible label that names the group. */
+  labelledBy: string;
+  options: readonly { id: Id; label: string }[];
+  selected: Id;
+  onSelect: (id: Id) => void;
+}
+
+/** Two-option switch: a radio group, 44 px segments, tap only (no drag). */
+export function SegmentedToggle<Id extends string>({ labelledBy, options, selected, onSelect }: SegmentedToggleProps<Id>) {
+  return (
+    <div role="radiogroup" aria-labelledby={labelledBy} className="segmented">
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={option.id === selected}
+          className="segmented-option t-callout-strong"
+          onClick={() => onSelect(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -5,7 +5,7 @@
 // Never shown here: delete, remove or replace a photo, change the photo time, approve own
 // (R-CAT-D-01, U-26, U-28, U-06), or flag codes.
 
-import { InBestMarker, PhotoViewer, StatusChip } from "../components/catch";
+import { CatchStatusChip, InBestMarker, PhotoViewer } from "../components/catch";
 import { Banner, Button, NavBar, TabBar } from "../components/ui";
 import { formatClubTime } from "../lib/format";
 import { MAX_PHOTOS, myCatchState, type MyCatchesContext, type MyCatchState, type MyCatchView } from "../lib/myCatches";
@@ -34,7 +34,7 @@ export function MyCatch({ context, item, onBack, onTab }: Props) {
           </p>
           <p className="t-headline">{item.species}</p>
           <p className="chips">
-            <StatusChip status={item.status} />
+            <CatchStatusChip status={item.status} />
             {item.status === "verified" && item.inBest && <InBestMarker bestN={context.bestN} />}
           </p>
         </div>

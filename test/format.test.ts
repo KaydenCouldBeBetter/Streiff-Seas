@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClubTime, placeLabel } from "../web/src/lib/format";
+import { formatClubTime, placeLabel, rowPlace, spokenPlace } from "../web/src/lib/format";
 
 describe("formatClubTime", () => {
   it("shows club time (America/New_York), 12-hour, whatever the machine's zone", () => {
@@ -40,5 +40,25 @@ describe("placeLabel", () => {
   it("refuses a place that isn't a positive integer", () => {
     expect(() => placeLabel(0, false)).toThrow(RangeError);
     expect(() => placeLabel(1.5, false)).toThrow(RangeError);
+  });
+});
+
+describe("rowPlace", () => {
+  it("shows the bare number, or T-n for a shared place", () => {
+    expect(rowPlace(1, false)).toBe("1");
+    expect(rowPlace(11, false)).toBe("11");
+    expect(rowPlace(2, true)).toBe("T-2");
+  });
+
+  it("refuses a place that isn't a positive integer", () => {
+    expect(() => rowPlace(0, false)).toThrow(RangeError);
+  });
+});
+
+describe("spokenPlace", () => {
+  it("reads the ordinal, and a shared place as Tied for", () => {
+    expect(spokenPlace(4, false)).toBe("4th");
+    expect(spokenPlace(2, true)).toBe("Tied for 2nd");
+    expect(spokenPlace(1, true)).toBe("Tied for 1st");
   });
 });

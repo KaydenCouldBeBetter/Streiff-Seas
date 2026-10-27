@@ -1,24 +1,26 @@
 // EVT-02d Tournament: live, fishing window open, the viewer's entry active (Figma 66:5726).
 // A UI skeleton on sample data: controls whose screens aren't built yet carry a TodoTag
-// with the screens.md row they open.
+// with the screens.md row they open. Submit a catch opens SUB-01 (SubmitFlow).
 
 import type { TournamentView } from "../lib/sampleTournament";
 import { formatClubTime, placeLabel } from "../lib/format";
-import { AccessoryBar, Button, LargeNavBar, ListLink, TabBar } from "../components/ui";
+import { AccessoryBar, Button, EventStatus, LargeNavBar, ListLink, TabBar } from "../components/ui";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 interface Props {
   tournament: TournamentView;
   onTab: (tab: MemberTab) => void;
   onMyCatches: () => void;
+  onLeaderboard: () => void;
+  onSubmit: () => void;
 }
 
-export function Tournament({ tournament, onTab, onMyCatches }: Props) {
+export function Tournament({ tournament, onTab, onMyCatches, onLeaderboard, onSubmit }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
     <div className="screen tab-screen">
-      <LargeNavBar title={tournament.name} status={tournament.status} subtitle={tournament.rulesLine} />
+      <LargeNavBar title={tournament.name} badge={<EventStatus status={tournament.status} />} subtitle={tournament.rulesLine} />
       <div className="screen-content">
         <section className="card card-selected" aria-labelledby="standing-heading">
           <h2 id="standing-heading" className="t-footnote-strong t-secondary">
@@ -55,7 +57,7 @@ export function Tournament({ tournament, onTab, onMyCatches }: Props) {
             onClick={onMyCatches}
           />
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
-          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} todo="LB-01" />
+          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} onClick={onLeaderboard} />
         </div>
 
         <div>
@@ -71,7 +73,7 @@ export function Tournament({ tournament, onTab, onMyCatches }: Props) {
 
       <div className="tab-screen-bottom">
         <AccessoryBar>
-          <Button variant="primary" full icon="/icons/plus-on-primary.svg" todo="SUB-01">
+          <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={onSubmit}>
             Submit a catch
           </Button>
         </AccessoryBar>

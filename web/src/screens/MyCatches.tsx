@@ -6,6 +6,7 @@
 
 import { CatchCard } from "../components/catch";
 import { AccessoryBar, Banner, Button, EmptyState, LargeNavBar, TabBar } from "../components/ui";
+import { formatClubTime } from "../lib/format";
 import { myCatchesRow, myCatchesSubtitle, newestFirst, submittingOpen, type MyCatchesContext, type MyCatchView } from "../lib/myCatches";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
@@ -46,7 +47,18 @@ export function MyCatches({ context, catches, onOpen, onTab }: Props) {
             <ul className="catch-list-items">
               {newestFirst(catches).map((item) => (
                 <li key={item.id}>
-                  <CatchCard item={item} bestN={context.bestN} archived={row === "MY-01c"} onOpen={() => onOpen(item.id)} />
+                  <CatchCard
+                    thumbnailUrl={item.photos[0]?.url ?? null}
+                    archived={row === "MY-01c"}
+                    value={item.measurement.value}
+                    unit={item.measurement.unit}
+                    title={item.species}
+                    time={`Submitted ${formatClubTime(item.created)}`}
+                    status={item.status}
+                    inBestN={item.status === "verified" && item.inBest ? context.bestN : undefined}
+                    reason={item.status === "rejected" ? item.reason : undefined}
+                    onClick={() => onOpen(item.id)}
+                  />
                 </li>
               ))}
             </ul>

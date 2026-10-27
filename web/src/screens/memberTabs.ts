@@ -8,7 +8,8 @@ export type MemberTab = "home" | "leaderboard" | "catches" | "profile";
 // them only for a judge or backup judge of a live or closed tournament.
 export const MEMBER_TABS: readonly Tab<MemberTab>[] = [
   { id: "home", label: "Home", icon: "/icons/home.svg", selectedIcon: "/icons/home-selected.svg" },
-  { id: "leaderboard", label: "Leaderboard", icon: "/icons/leaderboard.svg", todo: "LB-01" },
+  // Figma draws the leaderboard icon the same in both states.
+  { id: "leaderboard", label: "Leaderboard", icon: "/icons/leaderboard.svg" },
   { id: "catches", label: "My catches", icon: "/icons/list-tab.svg", selectedIcon: "/icons/list.svg" },
   { id: "profile", label: "Profile", icon: "/icons/person-tab.svg", todo: "PRF-01" },
 ];

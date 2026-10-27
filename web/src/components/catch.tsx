@@ -1,78 +1,263 @@
-// The Figma components for one catch: Status chip, Marker / In best 10, Catch card and the
-// photo viewer. MY-01 and MY-02 use them now; LB-02, LB-03 and JDG-02 are meant to reuse
-// them (an angler's catches as other members see them, never Rejected or Retracted there).
+// The Figma components for one catch: Photo slot, Species option (as a picker), Weight input,
+// Status chip, Marker / In best 10, Catch card and the photo viewer. Their usage notes in Figma
+// are followed here. LB-02, LB-03 and JDG-02 are meant to reuse the catch ones (an angler's
+// catches as other members see them, never Rejected or Retracted there).
 
-import { useState } from "react";
-import { formatClubTime } from "../lib/format";
-import { photoLabels, type CatchPhoto, type CatchStatus, type MyCatchView } from "../lib/myCatches";
+import { useRef, useState, type ReactElement } from "react";
+import { SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
+import type { SpeciesChoice } from "../lib/catchSender";
+import { photoLabels, type CatchPhoto, type CatchStatus } from "../lib/myCatches";
+import { parseWeight, switchWeightFormat, weightProblemCopy, type WeightEntry, type WeightFormat } from "../lib/weightEntry";
 
-const STATUS: Record<CatchStatus, { label: string; icon: string }> = {
-  pending: { label: "Pending", icon: "/icons/clock-warning.svg" },
-  verified: { label: "Verified", icon: "/icons/check-success.svg" },
-  rejected: { label: "Rejected", icon: "/icons/close-danger.svg" },
-  retracted: { label: "Retracted", icon: "/icons/undo-neutral-small.svg" },
+/**
+ * A hidden file input and a function that opens it. The picker offers camera or library;
+ * capture isn't forced (Figma Photo slot notes).
+ */
+export function usePhotoPicker(onPick: (file: File) => void): { open: () => void; input: ReactElement } {
+  const ref = useRef<HTMLInputElement>(null);
+  const input = (
+    <input
+      ref={ref}
+      type="file"
+      accept="image/*"
+      hidden
+      tabIndex={-1}
+      onChange={(event) => {
+        const file = event.currentTarget.files?.[0];
+        // Cleared so the same file can be picked again into another slot.
+        event.currentTarget.value = "";
+        if (file) onPick(file);
+      }}
+    />
+  );
+  return { open: () => ref.current?.click(), input };
+}
+
+export type PhotoSlotState =
+  | { kind: "empty"; onPick: (file: File) => void }
+  | { kind: "filled"; previewUrl: string }
+  | { kind: "uploading"; previewUrl: string; fraction: number | null }
+  | { kind: "failed"; previewUrl: string };
+
+interface PhotoSlotProps {
+  /** "1 · Holding the fish" (catchForm.photoSlotLabel). */
+  label: string;
+  /** The spoken name: "Photo 1, holding the fish, required" (catchForm.photoSlotName). */
+  name: string;
+  /** "Required", "Optional", "Sent"… Failed always says the photo is still in the camera roll. */
+  note: string;
+  state: PhotoSlotState;
+}
+
+/** One proof-photo slot. Append-only: no remove, replace or reorder control in any state (R-CAT-U-26). */
+export function PhotoSlot({ label, name, note, state }: PhotoSlotProps) {
+  return (
+    <div className="photo-slot">
+      {state.kind === "empty" ? <EmptyImage name={name} onPick={state.onPick} /> : <FilledImage name={name} state={state} />}
+      <p className="t-callout-strong">{label}</p>
+      {state.kind === "failed" ? (
+        <p className="t-footnote photo-slot-note-danger">Didn't send. Your photo is still in your camera roll.</p>
+      ) : (
+        <p className="t-footnote t-secondary">{note}</p>
+      )}
+    </div>
+  );
+}
+
+function EmptyImage({ name, onPick }: { name: string; onPick: (file: File) => void }) {
+  const picker = usePhotoPicker(onPick);
+  return (
+    <>
+      <button type="button" className="photo-slot-image photo-slot-empty" aria-label={`${name}, empty. Add photo`} onClick={picker.open}>
+        <img src="/icons/camera-link.svg" width={28} height={28} alt="" aria-hidden="true" />
+        <span className="t-callout-strong">Add photo</span>
+      </button>
+      {picker.input}
+    </>
+  );
+}
+
+function FilledImage({ name, state }: { name: string; state: Exclude<PhotoSlotState, { kind: "empty" }> }) {
+  return (
+    <div className={`photo-slot-image photo-slot-filled${state.kind === "failed" ? " is-failed" : ""}`}>
+      <img className="photo-slot-preview" src={state.previewUrl} alt={`${name}, added`} />
+      {state.kind === "filled" && <StatusChip tone="success" icon="/icons/check-success.svg" label="Added" />}
+      {state.kind === "failed" && <StatusChip tone="danger" icon="/icons/close-danger.svg" label="Not sent" />}
+      {state.kind === "uploading" && (
+        <div className="photo-slot-progress">
+          <p className="t-footnote-strong">{state.fraction === null ? "Uploading…" : `Uploading… ${Math.round(state.fraction * 100)}%`}</p>
+          <div className="progress-track progress-track-small" aria-hidden="true">
+            <div className="progress-fill" style={{ width: `${Math.round((state.fraction ?? 0) * 100)}%` }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SpeciesPickerProps {
+  /** This tournament's species only (R-CAT-C-09). */
+  species: readonly SpeciesChoice[];
+  selectedId: string | null;
+  onSelect: (species: SpeciesChoice) => void;
+}
+
+/** Species options stacked full width; nothing is pre-selected. Native radios, so "1 of 2" is announced. */
+export function SpeciesPicker({ species, selectedId, onSelect }: SpeciesPickerProps) {
+  // TODO(S1): more than 4 species open the same list in a sheet (Figma Species option notes).
+  return (
+    <fieldset className="species-picker">
+      <legend className="t-title-section">Species</legend>
+      {species.map((option) => {
+        const selected = option.id === selectedId;
+        return (
+          <label key={option.id} className={`species-option${selected ? " is-selected" : ""}`}>
+            <input type="radio" name="species" className="visually-hidden" checked={selected} onChange={() => onSelect(option)} />
+            <img src={selected ? "/icons/radio-selected.svg" : "/icons/radio.svg"} width={22} height={22} alt="" aria-hidden="true" />
+            <span className="t-headline">{option.name}</span>
+          </label>
+        );
+      })}
+    </fieldset>
+  );
+}
+
+const WEIGHT_FORMATS: readonly { id: WeightFormat; label: string }[] = [
+  { id: "lb", label: "Decimal lb" },
+  { id: "lb_oz", label: "lb + oz" },
+];
+
+interface WeightInputProps {
+  id: string;
+  value: WeightEntry;
+  onChange: (value: WeightEntry) => void;
+}
+
+/**
+ * Both entry formats whatever the member's display units (scoring.md §4). The unit is part of
+ * each field's accessible name. A field's error shows once it has been left.
+ */
+export function WeightInput({ id, value, onChange }: WeightInputProps) {
+  const [left, setLeft] = useState(false);
+  const result = parseWeight(value);
+  const error = left && !result.ok ? weightProblemCopy(result.problem, value.format) : null;
+  const helpId = `${id}-help`;
+  const field = (key: "pounds" | "wholePounds" | "ounces", unit: string, spoken: string, inputMode: "decimal" | "numeric") => (
+    <div className={`unit-field${error ? " is-invalid" : ""}`}>
+      <input
+        id={`${id}-${key}`}
+        className="unit-field-input t-number-row"
+        inputMode={inputMode}
+        autoComplete="off"
+        aria-label={`Weight, ${spoken}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={helpId}
+        value={value[key]}
+        onChange={(event) => onChange({ ...value, [key]: event.currentTarget.value })}
+        onBlur={() => setLeft(true)}
+      />
+      <span className="t-callout-strong t-secondary" aria-hidden="true">
+        {unit}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="weight-input" role="group" aria-labelledby={`${id}-label`}>
+      <h2 id={`${id}-label`} className="t-title-section">
+        Weight
+      </h2>
+      <SegmentedToggle
+        labelledBy={`${id}-label`}
+        options={WEIGHT_FORMATS}
+        selected={value.format}
+        onSelect={(format) => onChange(switchWeightFormat(value, format))}
+      />
+      <div className="unit-fields">
+        {value.format === "lb" ? (
+          field("pounds", "lb", "pounds", "decimal")
+        ) : (
+          <>
+            {field("wholePounds", "lb", "pounds", "numeric")}
+            {field("ounces", "oz", "ounces", "decimal")}
+          </>
+        )}
+      </div>
+      <p id={helpId} className={`field-help t-footnote${error ? " is-error" : ""}`} aria-live={error ? "polite" : undefined}>
+        {error && <img src="/icons/alert.svg" width={18} height={18} alt="" aria-hidden="true" />}
+        <span>{error ?? (value.format === "lb" ? "Enter exactly what the scale shows, to 2 decimals." : "Ounces to one decimal, 0 to 15.9.")}</span>
+      </p>
+    </div>
+  );
+}
+
+const STATUS: Record<CatchStatus, { tone: Tone; label: string; icon: string }> = {
+  pending: { tone: "warning", label: "Pending", icon: "/icons/clock-warning.svg" },
+  verified: { tone: "success", label: "Verified", icon: "/icons/check-success.svg" },
+  rejected: { tone: "danger", label: "Rejected", icon: "/icons/close-danger.svg" },
+  retracted: { tone: "neutral", label: "Retracted", icon: "/icons/undo-neutral-small.svg" },
 };
 
-/** Catch status: always icon + word, never color alone. Read as "Status: Pending". */
-export function StatusChip({ status }: { status: CatchStatus }) {
-  const { label, icon } = STATUS[status];
-  return (
-    <span className={`chip chip-${status} t-footnote-strong`}>
-      <img src={icon} width={16} height={16} alt="" aria-hidden="true" />
-      <span className="visually-hidden">Status: </span>
-      {label}
-    </span>
-  );
+/** A catch's status: icon + word, never color alone. Read as "Status: Pending". */
+export function CatchStatusChip({ status }: { status: CatchStatus }) {
+  const { tone, label, icon } = STATUS[status];
+  return <StatusChip tone={tone} icon={icon} label={label} spoken={`Status: ${label}`} />;
 }
 
 /** A verified catch counted in the angler's best n. Read as "Counted in best 10". */
 export function InBestMarker({ bestN }: { bestN: number }) {
   return (
-    <span className="chip chip-best t-footnote-strong">
-      <img src="/icons/star-link.svg" width={16} height={16} alt="" aria-hidden="true" />
-      <span aria-hidden="true">In best {bestN}</span>
-      <span className="visually-hidden">Counted in best {bestN}</span>
-    </span>
+    <StatusChip tone="selected" icon="/icons/star-link.svg" label={`In best ${bestN}`} spoken={`Counted in best ${bestN}`} />
   );
 }
 
 interface CatchCardProps {
-  item: MyCatchView;
-  bestN: number;
-  /** Final: the thumbnail shows the archive icon and no file is requested. */
-  archived: boolean;
-  onOpen: () => void;
+  /** Photo 1's preview, or null for the photo icon. */
+  thumbnailUrl: string | null;
+  /** Final: the archive icon in place of the photo, and no file is requested. */
+  archived?: boolean;
+  value: string;
+  unit: string;
+  /** "Largemouth bass · 2 photos" */
+  title: string;
+  /** "Submitted Sat, Jul 10, 7:42 AM" */
+  time: string;
+  status: CatchStatus;
+  /** Set when a verified catch counts in the angler's best n: the "In best 10" marker. */
+  inBestN?: number;
+  /** A rejected catch's reason, shown inline on the angler's own list. */
+  reason?: string;
+  /** The screens.md row the card opens while it isn't built (MY-02). */
+  todo?: string;
+  onClick?: () => void;
 }
 
-/**
- * One catch in a list; the whole card is one button. On the angler's own list a rejected
- * catch shows its reason inline. No flag codes for members.
- */
-export function CatchCard({ item, bestN, archived, onOpen }: CatchCardProps) {
-  const thumb = archived ? undefined : item.photos[0]?.url;
+/** One catch; the whole card is one button. Members never see flag codes. */
+export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, time, status, inBestN, reason, todo, onClick }: CatchCardProps) {
   return (
-    <button type="button" className="catch-card" onClick={onOpen}>
+    <button type="button" className="catch-card" onClick={onClick}>
       <span className="catch-card-thumb">
-        {thumb ? (
-          <img className="catch-card-photo" src={thumb} alt="" />
+        {thumbnailUrl && !archived ? (
+          <img className="photo-slot-preview" src={thumbnailUrl} alt="" />
         ) : (
           <img src={archived ? "/icons/archive.svg" : "/icons/photo.svg"} width={24} height={24} alt="" aria-hidden="true" />
         )}
       </span>
       <span className="catch-card-body">
         <span className="measurement">
-          <span className="t-number-row">{item.measurement.value}</span>
-          <span className="t-footnote-strong t-secondary">{item.measurement.unit}</span>
+          <span className="t-number-row">{value}</span>
+          <span className="t-footnote-strong t-secondary">{unit}</span>
         </span>
-        <span className="t-callout-strong">{item.species}</span>
-        <span className="t-footnote t-secondary">Submitted {formatClubTime(item.created)}</span>
+        <span className="t-callout-strong">{title}</span>
+        <span className="t-footnote t-secondary">{time}</span>
         <span className="chips">
-          <StatusChip status={item.status} />
-          {item.status === "verified" && item.inBest && <InBestMarker bestN={bestN} />}
+          <CatchStatusChip status={status} />
+          {inBestN !== undefined && <InBestMarker bestN={inBestN} />}
         </span>
-        {item.status === "rejected" && item.reason && <span className="t-footnote catch-card-reason">Reason: “{item.reason}”</span>}
+        {reason && <span className="t-footnote catch-card-reason">Reason: “{reason}”</span>}
       </span>
       <img src="/icons/chevron-right.svg" width={24} height={24} alt="" aria-hidden="true" />
+      {todo && <TodoTag row={todo} />}
     </button>
   );
 }

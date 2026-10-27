@@ -6,7 +6,7 @@ import { ActionBar, Button, NavBar, TodoTag } from "../components/ui";
 
 interface Props {
   user: RecordModel;
-  /** The screen Profile was opened from: the back button's label. */
+  /** The screen Back returns to, for its accessible name. */
   backTo: string;
   onBack: () => void;
   onSignOut: () => void;
