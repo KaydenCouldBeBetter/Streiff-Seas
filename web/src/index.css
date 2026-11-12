@@ -1507,6 +1507,11 @@ dd {
   overflow-wrap: anywhere;
 }
 
+/* MY-06a Catch history: the subtitle sits 12 px above the timeline (Figma 49:2303). */
+.tab-screen .catch-history {
+  gap: var(--cf-spacing-md);
+}
+
 /* Action bar, Single type, above the tab bar (MY-02g "Submit a new catch"). */
 .action-bar-above-tabs {
   padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-xs);
