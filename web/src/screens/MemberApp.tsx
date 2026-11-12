@@ -7,6 +7,9 @@
 
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
+import { pb } from "../lib/pb";
+import { retrySave, saveProfile } from "../lib/profile";
+import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampleProfile";
 import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
 import { SAMPLE_CATCH_HISTORY } from "../lib/sampleCatchHistory";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
@@ -26,8 +29,6 @@ import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 
 type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
-/** The screens Profile opens from, and goes back to. */
-type FromScreen = Exclude<Screen, "profile" | "submit">;
 
 const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch">, string> = {
   tournament: SAMPLE_TOURNAMENT.name,
@@ -38,28 +39,18 @@ const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch">, strin
   profile: "Profile",
 };
 
-const BACK_LABELS: Record<FromScreen, string> = {
-  tournament: "Tournament",
-  leaderboard: "Leaderboard",
-  angler: "Angler's catches",
-  anglerCatch: "Catch",
-  catches: "My catches",
-  catch: "Catch",
-  catchHistory: "History",
-};
-
 interface Props {
   user: RecordModel;
+  /** The member's record after a Profile save, so every screen shows the new name and units. */
+  onUserChange: (user: RecordModel) => void;
   onSignOut: () => void;
 }
 
-export function MemberApp({ user, onSignOut }: Props) {
+export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
   const [catchId, setCatchId] = useState<string | null>(null);
   const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
   const [anglerCatchId, setAnglerCatchId] = useState<string | null>(null);
-  // Profile's back button returns to the screen it was opened from.
-  const [profileFrom, setProfileFrom] = useState<FromScreen>("tournament");
   // TODO(S1): the real sender (catchSender.ts) replaces the sample.
   const [sender] = useState(createSampleSender);
 
@@ -80,10 +71,7 @@ export function MemberApp({ user, onSignOut }: Props) {
     if (tab === "home") setScreen("tournament");
     if (tab === "leaderboard") setScreen("leaderboard");
     if (tab === "catches") setScreen("catches");
-    if (tab === "profile" && screen !== "profile" && screen !== "submit") {
-      setProfileFrom(screen);
-      setScreen("profile");
-    }
+    if (tab === "profile") setScreen("profile");
   }
 
   function openAngler(entryId: string) {
@@ -178,8 +166,14 @@ export function MemberApp({ user, onSignOut }: Props) {
       return (
         <Profile
           user={user}
-          backTo={BACK_LABELS[profileFrom]}
-          onBack={() => setScreen(profileFrom)}
+          // TODO(M0-03, S2a): the stats are sample data until the member's own entries and catches can be read.
+          stats={SAMPLE_PROFILE_STATS}
+          season={SAMPLE_SEASON}
+          format={SAMPLE_FORMAT}
+          onSave={(changes) => saveProfile(pb, user.id, changes)}
+          onRetry={(changes) => retrySave(pb, user.id, changes)}
+          onUserChange={onUserChange}
+          onTab={openTab}
           onSignOut={onSignOut}
         />
       );

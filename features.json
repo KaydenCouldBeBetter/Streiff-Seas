@@ -256,5 +256,20 @@
       "npm run check output shown; the ops.md 'Close and finalize' checklist walked once against a seeded event"
     ],
     "passes": false
+  },
+  {
+    "id": "PRF-01-profile",
+    "description": "Profile screens from Figma Flow 8 (PRF-01a, 01b, and the proposed PRF-01c to 01f): a real save of name and display units, the name sync to entries, and the member's own stats on sample data",
+    "steps": [
+      "Migration 1794520253_users_own_update.js opens the users update rule from security.md; RULES.users.updateRule in test/schema.test.ts changed; R-USR-U-01 to U-05 and U-07 tested in test/rules.test.ts",
+      "pb_hooks/users_name_sync.pb.js copies a new name to display_name on the member's entries in live and closed events, not final ones, and a units-only change touches nothing (R-USR-U-06, tested, and the test fails with the hook removed)",
+      "PRF-01a and PRF-01b built from the Figma frames: name field, units toggle, Save changes, 'Name saved' banner, account facts, Club rules (dev TodoTag RULES-01a), Sign out; Profile is a tab screen",
+      "A save with no reply shows NOT SENT with Retry and locked fields; Retry reloads first and sends nothing if the change already landed (PRF-01d, proposed; test/profile.test.ts)",
+      "PRF-01c stats on sample data: identity card, Season / All time, two best tiles, Species, Weekly, Time of day and Finishes charts with Table views and tap-for-value, status counts, Past results; every Figma number reproduced by test/profileStats.test.ts",
+      "decisions.md 2026-11-12 row and Open items 17 to 19 resolved by Kayden, then 'proposed' removed from it and from screens.md PRF-01c to PRF-01f",
+      "Checked at 390 and 320 px wide against Figma 65:3561, 104:8318, 184:9982 and its views; npm run check output shown",
+      "Left for later: real reads for the stats (M0-03), places from scoring.ts (S2a), the Judge tab (JDG-00), RULES-01a, LB-01g"
+    ],
+    "passes": false
   }
 ]
