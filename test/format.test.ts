@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClubClock, formatClubTime, placeLabel, rowPlace, sameClubDay, spokenPlace } from "../web/src/lib/format";
+import { formatClubClock, formatClubTime, formatClubTimeSpoken, placeLabel, rowPlace, sameClubDay, spokenPlace } from "../web/src/lib/format";
 
 describe("formatClubTime", () => {
   it("shows club time (America/New_York), 12-hour, whatever the machine's zone", () => {
@@ -77,5 +77,12 @@ describe("sameClubDay", () => {
     expect(sameClubDay(new Date("2027-08-16T03:30:00Z"), new Date("2027-08-16T00:00:00Z"))).toBe(true);
     // 11:30 PM EDT Aug 15 and 12:30 AM EDT Aug 16.
     expect(sameClubDay(new Date("2027-08-16T03:30:00Z"), new Date("2027-08-16T04:30:00Z"))).toBe(false);
+  });
+});
+
+describe("formatClubTimeSpoken", () => {
+  it("reads a club time out in full (Figma Timeline item VoiceOver note)", () => {
+    expect(formatClubTimeSpoken(new Date("2027-07-10T13:14:00Z"))).toBe("Saturday July 10, 9:14 AM");
+    expect(formatClubTimeSpoken(new Date("2027-07-11T04:05:00Z"))).toBe("Sunday July 11, 12:05 AM");
   });
 });

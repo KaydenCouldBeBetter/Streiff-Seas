@@ -20,6 +20,23 @@ export function formatClubTime(at: Date): string {
   return `${part.weekday}, ${part.month} ${part.day}, ${part.hour}:${part.minute} ${part.dayPeriod}`;
 }
 
+const CLUB_TIME_SPOKEN = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/** A moment in club time as read aloud: "Saturday July 10, 9:14 AM" (Figma Timeline item VoiceOver note). */
+export function formatClubTimeSpoken(at: Date): string {
+  const part: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const { type, value } of CLUB_TIME_SPOKEN.formatToParts(at)) part[type] = value;
+  return `${part.weekday} ${part.month} ${part.day}, ${part.hour}:${part.minute} ${part.dayPeriod}`;
+}
+
 /** "1st", "2nd", "4th", "11th"; a shared place is "T-2" (decisions.md 2026-10-03). */
 export function placeLabel(place: number, tied: boolean): string {
   if (!Number.isInteger(place) || place < 1) throw new RangeError(`place must be a positive integer, got ${place}`);
