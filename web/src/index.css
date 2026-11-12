@@ -94,6 +94,35 @@ footer {
   color: var(--cf-color-text-secondary);
 }
 
+/*
+ * A bar stuck to the bottom (tab bar, accessory bar) can only travel inside its .screen. The
+ * footer sits after .screen, so in flow it adds a strip to the end of the page, and at the end
+ * of a scroll the bar is pushed up by that much (the page "shifts"). Where a bar sticks, the
+ * footer takes no height: it sits at the bottom of the page, behind the bar.
+ * Screens without one (sign-in) keep the footer in flow, visible under the form.
+ * (.action-bar sticks only below 600 px; above that it is part of the form.)
+ */
+#root:has(.tab-screen-bottom) {
+  position: relative;
+  isolation: isolate;
+}
+#root:has(.tab-screen-bottom) footer {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+}
+@media (max-width: 599px) {
+  #root:has(.action-bar) {
+    position: relative;
+    isolation: isolate;
+  }
+  #root:has(.action-bar) footer {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: -1;
+  }
+}
+
 /* Type styles (Figma text styles). rem, so the page grows with the phone's text size. */
 .t-title-large {
   font-size: 1.75rem;
@@ -787,6 +816,10 @@ dd {
   top: 2px;
   right: 2px;
 }
+/* Same for the last tab: its tag at -4px made the page 4 px wider than a 390 px phone. */
+.tab .todo-tag {
+  right: 2px;
+}
 
 /* ---- Submit a catch (SUB-01, SUB-02) ---- */
 
@@ -1423,4 +1456,45 @@ dd {
 .action-bar-above-tabs {
   padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-xs);
   border-top: 1px solid var(--cf-color-border-divider);
+}
+
+/*
+ * App shell (phones). The page itself never scrolls: #root is exactly one screen tall, the top
+ * bar and the bottom bar(s) are fixed rows of that column, and .screen-content is the only thing
+ * that scrolls, between them. Declared last so it replaces the sticky bars above. Wide windows
+ * keep the page scroll with a sticky bar. Headings and the Build footer are unchanged: the
+ * footer already sits behind the bottom bar (see the top of this file).
+ */
+@media (max-width: 599px) {
+  #root:has(.screen) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #root:has(.screen) main,
+  .screen {
+    min-height: 0;
+  }
+  .nav-bar,
+  .nav-bar-large {
+    flex: none;
+  }
+  .screen-content {
+    min-height: 0;
+    /* A TodoTag poking out of a row is clipped, never a sideways scroll. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* Reaching the end of the list doesn't drag the bars (or pull to refresh). */
+    overscroll-behavior-y: contain;
+  }
+  /* In a scrolling column, children keep their height and the column scrolls instead. */
+  .screen-content > * {
+    flex-shrink: 0;
+  }
+  .action-bar,
+  .tab-screen-bottom,
+  .submit-bottom {
+    position: static;
+    flex: none;
+  }
 }
