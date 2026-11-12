@@ -1446,3 +1446,44 @@ dd {
   padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-xs);
   border-top: 1px solid var(--cf-color-border-divider);
 }
+
+/*
+ * App shell (phones). The page itself never scrolls: #root is exactly one screen tall, the top
+ * bar and the bottom bar(s) are fixed rows of that column, and .screen-content is the only thing
+ * that scrolls, between them. Declared last so it replaces the sticky bars above. Wide windows
+ * keep the page scroll with a sticky bar. Headings and the Build footer are unchanged: the
+ * footer already sits behind the bottom bar (see the top of this file).
+ */
+@media (max-width: 599px) {
+  #root:has(.screen) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #root:has(.screen) main,
+  .screen {
+    min-height: 0;
+  }
+  .nav-bar,
+  .nav-bar-large {
+    flex: none;
+  }
+  .screen-content {
+    min-height: 0;
+    /* A TodoTag poking out of a row is clipped, never a sideways scroll. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* Reaching the end of the list doesn't drag the bars (or pull to refresh). */
+    overscroll-behavior-y: contain;
+  }
+  /* In a scrolling column, children keep their height and the column scrolls instead. */
+  .screen-content > * {
+    flex-shrink: 0;
+  }
+  .action-bar,
+  .tab-screen-bottom,
+  .submit-bottom {
+    position: static;
+    flex: none;
+  }
+}
