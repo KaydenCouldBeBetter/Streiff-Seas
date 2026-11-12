@@ -1,7 +1,7 @@
 // LB-02a Angler's catches: another angler's pending and verified catches in this tournament,
-// opened from their leaderboard row (Figma 60:2831). A UI skeleton on sample data: each card
-// carries a TodoTag for LB-03, the catch detail it opens once built. Never shown here: their
-// rejected or retracted catches, for any viewer (LB-02c), or flag codes.
+// opened from their leaderboard row (Figma 60:2831). A UI skeleton on sample data; each card
+// opens LB-03, the catch detail. Never shown here: their rejected or retracted catches, for
+// any viewer (LB-02c), or flag codes.
 // TODO(LB-02b): once the event is final, pass `archived` to the cards ("Photo archived").
 
 import { CatchCard } from "../components/catch";
@@ -17,11 +17,13 @@ interface Props {
   unit: string;
   bestN: number;
   catches: readonly AnglerCatchView[];
+  /** Opens LB-03 for one catch. */
+  onOpen: (catchId: string) => void;
   onBack: () => void;
   onTab: (tab: MemberTab) => void;
 }
 
-export function AnglerCatches({ row, unit, bestN, catches, onBack, onTab }: Props) {
+export function AnglerCatches({ row, unit, bestN, catches, onOpen, onBack, onTab }: Props) {
   const shown = newestFirst(shownOnAnglerPage(catches));
   const facts = anglerFacts(row, unit, bestN, shown.length);
   return (
@@ -50,7 +52,7 @@ export function AnglerCatches({ row, unit, bestN, catches, onBack, onTab }: Prop
                 time={catchTimes(item)}
                 status={item.status}
                 inBestN={item.status === "verified" && item.inBest ? bestN : undefined}
-                todo="LB-03"
+                onClick={() => onOpen(item.id)}
               />
             </li>
           ))}

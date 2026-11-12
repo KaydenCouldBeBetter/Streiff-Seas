@@ -1452,6 +1452,61 @@ dd {
   min-width: 170px;
 }
 
+/* Timeline item (LB-03 History; MY-06 and JDG-02 reuse it): a marker and a line down the rail. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+}
+.timeline-rail {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.timeline-marker {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: var(--cf-stroke-field) solid var(--cf-color-border-neutral);
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-neutral);
+}
+.timeline-marker-success {
+  border-color: var(--cf-color-border-success);
+  background: var(--cf-color-bg-success);
+}
+.timeline-marker-danger {
+  border-color: var(--cf-color-border-danger);
+  background: var(--cf-color-bg-danger);
+}
+.timeline-line {
+  flex: 1;
+  width: 2px;
+  background: var(--cf-color-border-default);
+}
+.timeline-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  padding: var(--cf-spacing-xs) 0 var(--cf-spacing-xl);
+  overflow-wrap: anywhere;
+}
+
 /* Action bar, Single type, above the tab bar (MY-02g "Submit a new catch"). */
 .action-bar-above-tabs {
   padding: var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-xs);

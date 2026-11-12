@@ -1,11 +1,13 @@
 // The Figma components for one catch: Photo slot, Species option (as a picker), Weight input,
 // Status chip, Marker / In best 10, Catch card and the photo viewer. Their usage notes in Figma
 // are followed here. LB-02, LB-03 and JDG-02 are meant to reuse the catch ones (an angler's
-// catches as other members see them, never Rejected or Retracted there).
+// catches as other members see them, never Rejected or Retracted there), and LB-03, MY-06 and
+// JDG-02 the Timeline item.
 
 import { useRef, useState, type ReactElement } from "react";
 import { SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
 import type { SpeciesChoice } from "../lib/catchSender";
+import type { TimelineEntry, TimelineKind } from "../lib/catchTimeline";
 import { photoLabels, type CatchPhoto, type CatchStatus } from "../lib/myCatches";
 import { parseWeight, switchWeightFormat, weightProblemCopy, type WeightEntry, type WeightFormat } from "../lib/weightEntry";
 
@@ -303,5 +305,54 @@ export function PhotoViewer({ photos, archived }: PhotoViewerProps) {
         })}
       </div>
     </div>
+  );
+}
+
+const TIMELINE_ICON: Record<TimelineKind, string> = {
+  Submitted: "/icons/timeline-submitted.svg",
+  Edited: "/icons/timeline-edited.svg",
+  "Photo added": "/icons/timeline-photo.svg",
+  Rejected: "/icons/timeline-rejected.svg",
+  "Re-approved": "/icons/timeline-approved.svg",
+  "Corrected and approved": "/icons/timeline-corrected.svg",
+  Approved: "/icons/timeline-approved.svg",
+  Retracted: "/icons/timeline-retracted.svg",
+};
+
+interface CatchTimelineProps {
+  /** Newest first (timelineEntries). */
+  entries: readonly TimelineEntry[];
+  /** The id of the heading that names this list. */
+  labelledBy: string;
+}
+
+/**
+ * One catch's audit rows, a marker and a line per item. Each item is drawn for the eye and
+ * hidden from screen readers, which get one spoken sentence instead (Figma Timeline item note).
+ */
+export function CatchTimeline({ entries, labelledBy }: CatchTimelineProps) {
+  return (
+    <ol className="timeline" aria-labelledby={labelledBy}>
+      {entries.map((entry, i) => (
+        <li key={entry.id} className="timeline-item">
+          <span className="timeline-rail" aria-hidden="true">
+            <span className={`timeline-marker timeline-marker-${entry.tone}`}>
+              <img src={TIMELINE_ICON[entry.kind]} width={18} height={18} alt="" />
+            </span>
+            {i < entries.length - 1 && <span className="timeline-line" />}
+          </span>
+          <div className="timeline-body" aria-hidden="true">
+            <p className="t-headline">{entry.kind}</p>
+            <p className="t-footnote t-secondary">{entry.meta}</p>
+            {entry.detail.map((line) => (
+              <p key={line.text} className="t-callout">
+                {line.text}
+              </p>
+            ))}
+          </div>
+          <p className="visually-hidden">{entry.spoken}</p>
+        </li>
+      ))}
+    </ol>
   );
 }
