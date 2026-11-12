@@ -94,6 +94,35 @@ footer {
   color: var(--cf-color-text-secondary);
 }
 
+/*
+ * A bar stuck to the bottom (tab bar, accessory bar) can only travel inside its .screen. The
+ * footer sits after .screen, so in flow it adds a strip to the end of the page, and at the end
+ * of a scroll the bar is pushed up by that much (the page "shifts"). Where a bar sticks, the
+ * footer takes no height: it sits at the bottom of the page, behind the bar.
+ * Screens without one (sign-in) keep the footer in flow, visible under the form.
+ * (.action-bar sticks only below 600 px; above that it is part of the form.)
+ */
+#root:has(.tab-screen-bottom) {
+  position: relative;
+  isolation: isolate;
+}
+#root:has(.tab-screen-bottom) footer {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+}
+@media (max-width: 599px) {
+  #root:has(.action-bar) {
+    position: relative;
+    isolation: isolate;
+  }
+  #root:has(.action-bar) footer {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: -1;
+  }
+}
+
 /* Type styles (Figma text styles). rem, so the page grows with the phone's text size. */
 .t-title-large {
   font-size: 1.75rem;
@@ -785,6 +814,10 @@ dd {
 /* Rows run edge to edge: keep the tag inside them so it never scrolls the page sideways. */
 .leaderboard-row .todo-tag {
   top: 2px;
+  right: 2px;
+}
+/* Same for the last tab: its tag at -4px made the page 4 px wider than a 390 px phone. */
+.tab .todo-tag {
   right: 2px;
 }
 
