@@ -1715,6 +1715,21 @@ dd {
   position: relative;
   width: 100%;
 }
+/* The y-axis labels stay put while the plot beside them scrolls sideways (Weekly, many weeks). */
+.plot-axes {
+  position: absolute;
+  left: 0;
+  width: 30px;
+}
+.plot-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.plot-canvas {
+  position: relative;
+}
 .plot-grid {
   position: absolute;
   right: 0;
