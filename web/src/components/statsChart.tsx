@@ -49,10 +49,18 @@ function useWidth(initial: number): [RefObject<HTMLDivElement | null>, number] {
 // ---------------------------------------------------------------------------------------------
 // Line plots (Weekly, and Finishes with its inverted axis). Geometry follows the Figma frames:
 // a 140 px high plot, axis labels in a 30 px column at the left, points 53 to 78 px apart.
+// A plot with `minSpacing` (Weekly) never squeezes its points closer than that: past what fits,
+// the plot beside the fixed axis column scrolls sideways, starting at the latest week.
 
 const PLOT_HEIGHT = 140;
 const AXIS_WIDTH = 30;
 const LABEL_ROW_Y = 116;
+/** Room above the plot for the direct label of a point near the top. */
+const PLOT_TOP_PAD = 12;
+/** Room before the first and after the last point, so their labels and tap targets fit. */
+const PLOT_SIDE_PAD = 22;
+/** Closest two weekly points may sit: wide enough for a "Sep 12" label and a 44 px tap target. */
+const WEEKLY_MIN_SPACING = 48;
 
 interface LineTick {
   y: number;
@@ -75,64 +83,85 @@ interface LinePlotProps {
   points: readonly LinePoint[];
   selected: number | null;
   onSelect: (index: number) => void;
+  /** Never put points closer than this many px; the plot scrolls sideways instead. */
+  minSpacing?: number;
 }
 
-function LinePlot({ ticks, points, selected, onSelect }: LinePlotProps) {
-  const [ref, width] = useWidth(326);
+function LinePlot({ ticks, points, selected, onSelect, minSpacing }: LinePlotProps) {
+  const [ref, outer] = useWidth(326);
+  const scroller = useRef<HTMLDivElement | null>(null);
+  // The room beside the axis column; the plot is drawn at least this wide.
+  const room = outer - AXIS_WIDTH;
   const last = points.length - 1;
-  const spacing = last > 0 ? Math.min(78, (width - 60) / last) : 0;
-  const center = (40 + width - 20) / 2;
-  const x = (index: number) => center + (index - last / 2) * spacing;
-  // Thin the x labels on a long run, keeping the latest week.
-  const every = Math.max(1, Math.ceil(points.length / Math.max(1, Math.floor((width - AXIS_WIDTH) / 44))));
+  const needed = minSpacing === undefined ? 0 : 2 * PLOT_SIDE_PAD + last * minSpacing;
+  const scrolls = needed > room;
+  const width = scrolls ? needed : room;
+  const spacing = last <= 0 ? 0 : scrolls ? minSpacing! : Math.min(78, (width - 2 * PLOT_SIDE_PAD) / last);
+  const x = (index: number) => width / 2 + (index - last / 2) * spacing;
+  // Thin the x labels on a run too long to fit (never when it scrolls), keeping the latest week.
+  const every = scrolls ? 1 : Math.max(1, Math.ceil(points.length / Math.max(1, Math.floor(room / 44))));
   const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
 
+  // Show the latest week first; what came before is a swipe away. Runs again only when the
+  // drawn width changes (another scope), not on every resize, so a scroll position is kept.
+  const drawnWidth = scrolls ? width : 0;
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (element !== null) element.scrollLeft = element.scrollWidth;
+  }, [drawnWidth]);
+
   return (
-    <div className="plot" ref={ref} style={{ height: PLOT_HEIGHT }}>
-      <div aria-hidden="true">
+    <div className="plot" ref={ref}>
+      <div className="plot-axes" aria-hidden="true" style={{ top: PLOT_TOP_PAD, height: PLOT_HEIGHT }}>
         {ticks.map((tick) => (
-          <div key={tick.label}>
-            <span className="plot-grid" style={{ top: tick.y, left: AXIS_WIDTH }} />
-            <span className="plot-axis t-footnote" style={{ top: tick.y - 9 }}>
-              {tick.label}
-            </span>
-          </div>
-        ))}
-        <svg className="plot-line" width={width} height={PLOT_HEIGHT} viewBox={`0 0 ${width} ${PLOT_HEIGHT}`} focusable="false">
-          {points.length > 1 && <path d={path} fill="none" stroke="var(--cf-color-bg-primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
-          {points.map((point, index) => (
-            <g key={point.label}>
-              <circle cx={x(index)} cy={point.y} r={7} fill="var(--cf-color-bg-sunken)" />
-              <circle cx={x(index)} cy={point.y} r={5} fill="var(--cf-color-bg-primary)" />
-            </g>
-          ))}
-        </svg>
-        {points.map((point, index) => (
-          <span key={point.label}>
-            {point.valueLabel !== undefined && (
-              <span className="plot-value t-footnote-strong" style={{ left: x(index), top: point.y - 26 }}>
-                {point.valueLabel}
-              </span>
-            )}
-            {(last - index) % every === 0 && (
-              <span className="plot-x t-footnote" style={{ left: x(index), top: LABEL_ROW_Y }}>
-                {point.label}
-              </span>
-            )}
+          <span key={tick.label} className="plot-axis t-footnote" style={{ top: tick.y - 9 }}>
+            {tick.label}
           </span>
         ))}
       </div>
-      {points.map((point, index) => (
-        <button
-          key={point.label}
-          type="button"
-          className="plot-hit"
-          style={{ left: x(index), top: point.y }}
-          aria-label={point.readout}
-          aria-pressed={selected === index}
-          onClick={() => onSelect(index)}
-        />
-      ))}
+      <div className="plot-scroll" ref={scroller} style={{ marginLeft: AXIS_WIDTH, paddingTop: PLOT_TOP_PAD }}>
+        <div className="plot-canvas" style={{ width, height: PLOT_HEIGHT }}>
+          <div aria-hidden="true">
+            {ticks.map((tick) => (
+              <span key={tick.label} className="plot-grid" style={{ top: tick.y, left: 0 }} />
+            ))}
+            <svg className="plot-line" width={width} height={PLOT_HEIGHT} viewBox={`0 0 ${width} ${PLOT_HEIGHT}`} focusable="false">
+              {points.length > 1 && <path d={path} fill="none" stroke="var(--cf-color-bg-primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+              {points.map((point, index) => (
+                <g key={index}>
+                  <circle cx={x(index)} cy={point.y} r={7} fill="var(--cf-color-bg-sunken)" />
+                  <circle cx={x(index)} cy={point.y} r={5} fill="var(--cf-color-bg-primary)" />
+                </g>
+              ))}
+            </svg>
+            {points.map((point, index) => (
+              <span key={index}>
+                {point.valueLabel !== undefined && (
+                  <span className="plot-value t-footnote-strong" style={{ left: x(index), top: point.y - 26 }}>
+                    {point.valueLabel}
+                  </span>
+                )}
+                {(last - index) % every === 0 && (
+                  <span className="plot-x t-footnote" style={{ left: x(index), top: LABEL_ROW_Y }}>
+                    {point.label}
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+          {points.map((point, index) => (
+            <button
+              key={index}
+              type="button"
+              className="plot-hit"
+              style={{ left: x(index), top: point.y }}
+              aria-label={point.readout}
+              aria-pressed={selected === index}
+              onClick={() => onSelect(index)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -154,6 +183,7 @@ function WeeklyPlot({ chart, selected, onSelect }: { chart: WeeklyChart; selecte
       }))}
       selected={selected}
       onSelect={onSelect}
+      minSpacing={WEEKLY_MIN_SPACING}
     />
   );
 }
