@@ -145,7 +145,7 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
       if (openedCatch) {
         return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onTab={openTab} />;
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
     case "catchHistory":
       if (openedCatch) {
         return (
@@ -159,9 +159,9 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           />
         );
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
     case "catches":
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
     case "profile":
       return (
         <Profile

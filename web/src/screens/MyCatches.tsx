@@ -1,6 +1,7 @@
 // MY-01 My catches: the angler's own catches in one tournament, every status, newest first
 // (Figma 47:1448 empty, 47:1536 list, 102:6949 final). A UI skeleton on sample data:
 // controls whose screens aren't built yet carry a TodoTag with the screens.md row they open.
+// Submit a catch opens SUB-01 (SubmitFlow).
 // The list refreshes on open and when the app returns to the foreground; it is not live
 // (Gap 25, settled 2026-10-05).
 
@@ -14,10 +15,12 @@ interface Props {
   context: MyCatchesContext;
   catches: readonly MyCatchView[];
   onOpen: (id: string) => void;
+  /** Submit a catch opens SUB-01 (SubmitFlow). */
+  onSubmit: () => void;
   onTab: (tab: MemberTab) => void;
 }
 
-export function MyCatches({ context, catches, onOpen, onTab }: Props) {
+export function MyCatches({ context, catches, onOpen, onSubmit, onTab }: Props) {
   const row = myCatchesRow(context, catches.length);
   const canSubmit = submittingOpen(context);
   return (
@@ -31,7 +34,7 @@ export function MyCatches({ context, catches, onOpen, onTab }: Props) {
             message={`Your catches in ${context.eventName} will show up here with their status: pending, verified or rejected.`}
             action={
               canSubmit && (
-                <Button variant="primary" todo="SUB-01">
+                <Button variant="primary" onClick={onSubmit}>
                   Submit a catch
                 </Button>
               )
@@ -69,7 +72,7 @@ export function MyCatches({ context, catches, onOpen, onTab }: Props) {
       <div className="tab-screen-bottom">
         {row !== "MY-01a" && canSubmit && (
           <AccessoryBar>
-            <Button variant="primary" full icon="/icons/plus-on-primary.svg" todo="SUB-01">
+            <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={onSubmit}>
               Submit a catch
             </Button>
           </AccessoryBar>
