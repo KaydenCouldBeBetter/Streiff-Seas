@@ -8,10 +8,12 @@
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
+import { SAMPLE_CATCH_HISTORY } from "../lib/sampleCatchHistory";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
 import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
+import { AnglerCatch } from "./AnglerCatch";
 import { AnglerCatches } from "./AnglerCatches";
 import type { MemberTab } from "./memberTabs";
 import { Tournament } from "./Tournament";
@@ -21,11 +23,11 @@ import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "leaderboard" | "angler" | "catches" | "catch" | "profile" | "submit";
+type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "profile" | "submit";
 /** The screens Profile opens from, and goes back to. */
 type FromScreen = Exclude<Screen, "profile" | "submit">;
 
-const TITLES: Record<Exclude<Screen, "submit" | "angler">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch">, string> = {
   tournament: SAMPLE_TOURNAMENT.name,
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
@@ -37,6 +39,7 @@ const BACK_LABELS: Record<FromScreen, string> = {
   tournament: "Tournament",
   leaderboard: "Leaderboard",
   angler: "Angler's catches",
+  anglerCatch: "Catch",
   catches: "My catches",
   catch: "Catch",
 };
@@ -50,17 +53,21 @@ export function MemberApp({ user, onSignOut }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
   const [catchId, setCatchId] = useState<string | null>(null);
   const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
+  const [anglerCatchId, setAnglerCatchId] = useState<string | null>(null);
   // Profile's back button returns to the screen it was opened from.
   const [profileFrom, setProfileFrom] = useState<FromScreen>("tournament");
   // TODO(S1): the real sender (catchSender.ts) replaces the sample.
   const [sender] = useState(createSampleSender);
 
   const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
+  const anglerCatches = anglerRow ? (SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []) : [];
+  const anglerCatch = anglerCatches.find((c) => c.id === anglerCatchId);
 
   useEffect(() => {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
-    const title = screen === "angler" ? `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}` : TITLES[screen];
+    const angler = `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}`;
+    const title = screen === "angler" ? angler : screen === "anglerCatch" ? `Catch · ${angler}` : TITLES[screen];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
   }, [screen, anglerRow]);
@@ -78,6 +85,11 @@ export function MemberApp({ user, onSignOut }: Props) {
   function openAngler(entryId: string) {
     setAnglerEntryId(entryId);
     setScreen("angler");
+  }
+
+  function openAnglerCatch(id: string) {
+    setAnglerCatchId(id);
+    setScreen("anglerCatch");
   }
 
   function openCatch(id: string) {
@@ -108,8 +120,27 @@ export function MemberApp({ user, onSignOut }: Props) {
             row={anglerRow}
             unit={SAMPLE_LEADERBOARD.unit}
             bestN={SAMPLE_LEADERBOARD.bestN}
-            catches={SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []}
+            catches={anglerCatches}
+            onOpen={openAnglerCatch}
             onBack={() => setScreen("leaderboard")}
+            onTab={openTab}
+          />
+        );
+      }
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
+    case "anglerCatch":
+      if (anglerRow && anglerCatch) {
+        return (
+          <AnglerCatch
+            key={anglerCatch.id}
+            anglerName={anglerRow.displayName}
+            item={anglerCatch}
+            bestN={SAMPLE_LEADERBOARD.bestN}
+            metric={SAMPLE_MY_CATCHES_CONTEXT.metric}
+            history={SAMPLE_CATCH_HISTORY[anglerCatch.id] ?? []}
+            // TODO(LB-03b): the sample event is live; read events.status once M0-03 exists.
+            final={SAMPLE_MY_CATCHES_CONTEXT.phase === "final"}
+            onBack={() => setScreen("angler")}
             onTab={openTab}
           />
         );
