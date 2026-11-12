@@ -1,9 +1,21 @@
 // The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
 // Live badge, Text field, Button (Large, Medium and Text), Action bar (Single and Accessory),
-// List link, Tab bar, Banner, Empty state, Status chip and Segmented toggle. Their usage notes
-// in Figma are followed here.
+// List link, Tab bar, Banner, Empty state, Status chip, Segmented toggle and Switch row. Their
+// usage notes in Figma are followed here.
 
 import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
+import { iconSrc } from "../lib/theme";
+import { useTheme } from "../lib/themeStore";
+
+/**
+ * A decorative icon (the label next to it carries the meaning). Every icon goes through here
+ * so Dark mode can swap in its Dark twin; an <img> can't take a CSS colour (lib/theme.ts).
+ */
+export function Icon({ src, size, className }: { src: string | undefined; size: number; className?: string }) {
+  const theme = useTheme();
+  if (src === undefined) return null;
+  return <img className={className} src={iconSrc(src, theme)} width={size} height={size} alt="" aria-hidden="true" />;
+}
 
 export function Brand() {
   return (
@@ -30,7 +42,7 @@ export function NavBar({ title, backLabel, backName, onBack, trailing }: NavBarP
   return (
     <div className="nav-bar">
       <button type="button" className="nav-bar-back t-body" aria-label={backName} onClick={onBack}>
-        <img src="/icons/chevron-left.svg" width={24} height={24} alt="" aria-hidden="true" />
+        <Icon src="/icons/chevron-left.svg" size={24} />
         <span>{backLabel}</span>
       </button>
       <h1 className="nav-bar-title t-headline">{title}</h1>
@@ -76,7 +88,7 @@ export function TextField({ id, label, help, error, value, onValueChange, ...inp
         aria-describedby={helpId}
       />
       <p id={helpId} className={`field-help t-footnote${error ? " is-error" : ""}`} aria-live={error ? "polite" : undefined}>
-        {error && <img src="/icons/alert.svg" width={18} height={18} alt="" aria-hidden="true" />}
+        {error && <Icon src="/icons/alert.svg" size={18} />}
         <span>{error ?? help}</span>
       </p>
     </div>
@@ -117,8 +129,8 @@ export function Button({ children, variant, large = false, full = false, icon, t
         else onClick?.();
       }}
     >
-      {loading && <img className="spin" src={spinner} width={24} height={24} alt="" aria-hidden="true" />}
-      {!loading && icon && <img src={icon} width={24} height={24} alt="" aria-hidden="true" />}
+      {loading && <Icon className="spin" src={spinner} size={24} />}
+      {!loading && icon && <Icon src={icon} size={24} />}
       {loading ? loadingLabel : children}
       {todo && <TodoTag row={todo} />}
     </button>
@@ -161,7 +173,7 @@ export function EventStatus({ status }: { status: EventStatusValue }) {
   const { label, icon } = EVENT_STATUS[status];
   return (
     <span className={`event-status event-status-${status} t-footnote-strong`}>
-      <img src={icon} width={16} height={16} alt="" aria-hidden="true" />
+      <Icon src={icon} size={16} />
       <span className="visually-hidden">Status: </span>
       {label}
     </span>
@@ -182,7 +194,7 @@ const LIVE_BADGE: Record<LiveBadgeState, string> = {
 export function LiveBadge({ state }: { state: LiveBadgeState }) {
   return (
     <span className={`live-badge live-badge-${state} t-footnote-strong`} role="status">
-      <img src="/icons/live-dot.svg" width={10} height={10} alt="" aria-hidden="true" />
+      <Icon src="/icons/live-dot.svg" size={10} />
       <span className="visually-hidden">Leaderboard </span>
       {LIVE_BADGE[state]}
     </span>
@@ -221,12 +233,12 @@ interface ListLinkProps {
 export function ListLink({ icon, title, detail, todo, onClick }: ListLinkProps) {
   return (
     <button type="button" className="list-link" onClick={onClick}>
-      <img src={icon} width={24} height={24} alt="" aria-hidden="true" />
+      <Icon src={icon} size={24} />
       <span className="list-link-text">
         <span className="t-headline">{title}</span>
         <span className="t-footnote t-secondary">{detail}</span>
       </span>
-      <img src="/icons/chevron-right.svg" width={24} height={24} alt="" aria-hidden="true" />
+      <Icon src="/icons/chevron-right.svg" size={24} />
       {todo && <TodoTag row={todo} />}
     </button>
   );
@@ -255,7 +267,7 @@ export function TabBar<Id extends string>({ tabs, selected, onSelect }: TabBarPr
       <div role="tablist" className="tab-bar-tabs">
         {tabs.map((tab) => (
           <button key={tab.id} type="button" role="tab" className="tab" aria-selected={tab.id === selected} onClick={() => onSelect(tab.id)}>
-            <img src={tab.id === selected ? (tab.selectedIcon ?? tab.icon) : tab.icon} width={24} height={24} alt="" aria-hidden="true" />
+            <Icon src={tab.id === selected ? (tab.selectedIcon ?? tab.icon) : tab.icon} size={24} />
             <span>{tab.label}</span>
             {tab.todo && <TodoTag row={tab.todo} />}
           </button>
@@ -279,7 +291,7 @@ interface StatusChipProps {
 export function StatusChip({ tone, icon, label, spoken }: StatusChipProps) {
   return (
     <span className={`status-chip status-chip-${tone} t-footnote-strong`}>
-      <img src={icon} width={16} height={16} alt="" aria-hidden="true" />
+      <Icon src={icon} size={16} />
       {spoken === undefined ? (
         label
       ) : (
@@ -316,7 +328,7 @@ export function Banner({ tone, icon, title, children }: BannerProps) {
   const role = tone === "danger" ? "alert" : tone === "success" ? "status" : undefined;
   return (
     <div className={`banner banner-${tone}`} role={role}>
-      <img src={icon ?? BANNER_ICON[tone]} width={24} height={24} alt="" aria-hidden="true" />
+      <Icon src={icon ?? BANNER_ICON[tone]} size={24} />
       <div className="banner-body">
         <p className="banner-title t-headline">{title}</p>
         <p className="t-callout">{children}</p>
@@ -339,7 +351,7 @@ export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
   return (
     <div className="empty-state">
       <span className="empty-state-badge">
-        <img src={icon} width={28} height={28} alt="" aria-hidden="true" />
+        <Icon src={icon} size={28} />
       </span>
       <h2 className="t-title-section">{title}</h2>
       <p className="t-callout t-secondary">{message}</p>
@@ -376,5 +388,50 @@ export function SegmentedToggle<Id extends string>({ labelledBy, options, select
         </button>
       ))}
     </div>
+  );
+}
+
+interface SwitchRowProps {
+  id: string;
+  label: string;
+  /** The line under the label; it is the switch's spoken hint. */
+  detail: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+/**
+ * An on/off setting as one 56 px row; the whole row is the target (Figma Switch row).
+ * On = primary track, knob right. Off = an edged track, knob left, so the state never rests on
+ * colour alone. VoiceOver: "Dark mode, switch button, on", the detail line as the hint.
+ */
+export function SwitchRow({ id, label, detail, checked, disabled = false, onChange }: SwitchRowProps) {
+  const labelId = `${id}-label`;
+  const detailId = `${id}-detail`;
+  return (
+    <button
+      type="button"
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-labelledby={labelId}
+      aria-describedby={detailId}
+      disabled={disabled}
+      className="switch-row"
+      onClick={() => onChange(!checked)}
+    >
+      <span className="switch-row-text">
+        <span id={labelId} className="switch-row-label t-body">
+          {label}
+        </span>
+        <span id={detailId} className="switch-row-detail t-footnote">
+          {detail}
+        </span>
+      </span>
+      <span className="switch-track" aria-hidden="true">
+        <span className="switch-knob" />
+      </span>
+    </button>
   );
 }

@@ -36,6 +36,18 @@
   --cf-color-border-warning: #6b4100;
   --cf-color-border-neutral: #3d4850;
   --cf-color-border-divider: #eef3f6;
+  --cf-color-border-on-primary: #ffffff;
+  --cf-color-bg-danger-strong: #871b14;
+  --cf-color-bg-backdrop: #0b1a2666;
+  --cf-color-icon-default: #0b1a26;
+  --cf-color-icon-secondary: #33434f;
+  --cf-color-icon-primary: #0a4a6b;
+  --cf-color-icon-on-primary: #ffffff;
+  --cf-color-icon-success: #0b5530;
+  --cf-color-icon-warning: #6b4100;
+  --cf-color-icon-danger: #871b14;
+  --cf-color-icon-neutral: #3d4850;
+  --cf-color-icon-disabled: #5e6f7c;
 
   --cf-spacing-2xs: 2px;
   --cf-spacing-xs: 4px;
@@ -62,6 +74,59 @@
   color: var(--cf-color-text-default);
   background: var(--cf-color-bg-default);
   -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * Dark mode (Figma "Dark mode · key screens", Color collection, "Dark" mode). Light is the
+ * default; Profile's Appearance switch sets data-theme="dark" on <html> (lib/themeStore.ts, and
+ * index.html before the first paint). Only colour tokens change: spacing, radii and type are the
+ * same, and no screen holds a colour of its own. Every colour token above is set here, and
+ * test/darkTokens.test.ts holds this block to the Figma values and to the Light list.
+ * Dark text is 7:1 or better on every surface it sits on; borders and marks 3:1 or better (Figma).
+ */
+:root[data-theme="dark"] {
+  --cf-color-text-default: #eaf1f6;
+  --cf-color-text-secondary: #b7c5cf;
+  --cf-color-text-link: #8acff2;
+  --cf-color-text-on-primary: #04202f;
+  --cf-color-text-danger: #ffa59c;
+  --cf-color-text-disabled: #b7c5cf;
+  --cf-color-text-success: #8eddaa;
+  --cf-color-text-warning: #f4c46e;
+  --cf-color-text-neutral: #c3cdd4;
+  --cf-color-bg-default: #0b141b;
+  --cf-color-bg-primary: #8acff2;
+  --cf-color-bg-primary-pressed: #62b2dc;
+  --cf-color-bg-selected: #0f3245;
+  --cf-color-bg-disabled: #22303b;
+  --cf-color-bg-sunken: #16222c;
+  --cf-color-bg-success: #0f2f1e;
+  --cf-color-bg-warning: #3a2706;
+  --cf-color-bg-danger: #3d1411;
+  --cf-color-bg-neutral: #22303b;
+  --cf-color-border-default: #7d8e9a;
+  --cf-color-border-selected: #8acff2;
+  --cf-color-border-focus: #8acff2;
+  --cf-color-border-danger: #ffa59c;
+  --cf-color-border-success: #8eddaa;
+  --cf-color-border-warning: #f4c46e;
+  --cf-color-border-neutral: #c3cdd4;
+  --cf-color-border-divider: #22303b;
+  --cf-color-border-on-primary: #04202f;
+  --cf-color-bg-danger-strong: #ffa59c;
+  --cf-color-bg-backdrop: #00000099;
+  --cf-color-icon-default: #eaf1f6;
+  --cf-color-icon-secondary: #b7c5cf;
+  --cf-color-icon-primary: #8acff2;
+  --cf-color-icon-on-primary: #04202f;
+  --cf-color-icon-success: #8eddaa;
+  --cf-color-icon-warning: #f4c46e;
+  --cf-color-icon-danger: #ffa59c;
+  --cf-color-icon-neutral: #c3cdd4;
+  --cf-color-icon-disabled: #7d8e9a;
+
+  /* Form controls, scrollbars and autofill follow the page. */
+  color-scheme: dark;
 }
 
 *,
@@ -786,6 +851,12 @@ dd {
   white-space: nowrap;
   pointer-events: none;
 }
+/* Dev builds only: the same amber tag in Dark, from the warning tokens (Figma's Open gap note). */
+:root[data-theme="dark"] .todo-tag {
+  border-color: var(--cf-color-border-warning);
+  background: var(--cf-color-bg-warning);
+  color: var(--cf-color-text-warning);
+}
 
 /* Nav bar, Push type: the trailing text action ("History"). */
 .nav-bar-trailing {
@@ -1109,6 +1180,89 @@ dd {
 .segmented-option:focus-visible {
   outline: none;
   box-shadow: var(--cf-focus-ring);
+}
+/*
+ * Switch row (Figma Switch row): one 56 px target; track 51 x 31. On = primary fill with the knob
+ * on the right; Off = an edged track with the knob on the left, so state is never colour alone.
+ * Focus = the 3 px ring on the track. Disabled = neutral fill and disabled text.
+ */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--cf-spacing-sm) 0;
+  border: none;
+  background: none;
+  color: var(--cf-color-text-default);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.switch-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+.switch-row-detail {
+  color: var(--cf-color-text-secondary);
+}
+.switch-track {
+  position: relative;
+  flex: none;
+  width: 51px;
+  height: 31px;
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-default);
+}
+.switch-knob {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-border-neutral);
+}
+.switch-row[aria-checked="true"] .switch-track {
+  border-color: var(--cf-color-bg-primary);
+  background: var(--cf-color-bg-primary);
+}
+.switch-row[aria-checked="true"] .switch-knob {
+  transform: translateX(20px);
+  background: var(--cf-color-text-on-primary);
+}
+.switch-row:focus-visible {
+  outline: none;
+}
+.switch-row:focus-visible .switch-track {
+  box-shadow: var(--cf-focus-ring);
+}
+.switch-row:disabled {
+  color: var(--cf-color-text-disabled);
+  cursor: default;
+}
+.switch-row:disabled .switch-row-detail {
+  color: var(--cf-color-text-disabled);
+}
+.switch-row:disabled .switch-track {
+  border-color: var(--cf-color-border-neutral);
+  background: var(--cf-color-bg-disabled);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .switch-track,
+  .switch-knob {
+    transition:
+      transform 120ms ease-out,
+      background-color 120ms ease-out,
+      border-color 120ms ease-out;
+  }
 }
 .unit-fields {
   display: flex;

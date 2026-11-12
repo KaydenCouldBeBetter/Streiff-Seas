@@ -4,6 +4,8 @@
 // Settings are real: the name and display units save to PocketBase (R-USR-U-01, U-06, U-07), the
 // name follows to the member's entries on the server. The stats are sample data until M0-03
 // opens the reads and scoring.ts (S2a) works out each final's place (lib/sampleProfile.ts).
+// Appearance (PRF-01g, Figma "Dark mode" section): a Dark mode switch that applies at once and is
+// remembered on this phone only (lib/theme.ts); it is not part of Save.
 // Not live (Gap 25): the stats refresh when the screen opens and on focus, once they are real.
 //
 // A save that gets no reply shows NOT SENT with Retry and keeps the fields locked
@@ -14,7 +16,7 @@ import { useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { BestTile, IdentityCard, StatusCountsCard } from "../components/profile";
 import { StatsChart, readChart } from "../components/statsChart";
-import { Banner, Button, LargeNavBar, ListLink, SegmentedToggle, TabBar, TextField } from "../components/ui";
+import { Banner, Button, LargeNavBar, ListLink, SegmentedToggle, SwitchRow, TabBar, TextField } from "../components/ui";
 import {
   PROFILE_COPY,
   UNIT_OPTIONS,
@@ -30,6 +32,8 @@ import {
   type SaveOutcome,
 } from "../lib/profile";
 import { computeStats, type ChartId, type MeasureFormat, type ProfileStatsInput, type StatsScope } from "../lib/profileStats";
+import { APPEARANCE_COPY } from "../lib/theme";
+import { setTheme, useTheme } from "../lib/themeStore";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 interface Props {
@@ -56,6 +60,7 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
   const [sending, setSending] = useState(false);
   const [scope, setScope] = useState<StatsScope>("season");
   const [chart, setChart] = useState<ChartId>(readChart);
+  const theme = useTheme();
 
   const units = unitsOf(user);
   const stats = useMemo(() => computeStats(statsInput, scope, season, units, format), [statsInput, scope, season, units, format]);
@@ -184,6 +189,19 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
             Save changes
           </Button>
           {!dirty && notice?.kind !== "saved" && <p className="t-footnote t-secondary">{PROFILE_COPY.nothingToSave}</p>}
+        </section>
+
+        <section className="profile-section" aria-labelledby="appearance-heading">
+          <h2 id="appearance-heading" className="t-title-section">
+            Appearance
+          </h2>
+          <SwitchRow
+            id="dark-mode"
+            label={APPEARANCE_COPY.label}
+            detail={APPEARANCE_COPY.detail}
+            checked={theme === "dark"}
+            onChange={(on) => setTheme(on ? "dark" : "light")}
+          />
         </section>
 
         <section className="profile-section" aria-labelledby="account-heading">

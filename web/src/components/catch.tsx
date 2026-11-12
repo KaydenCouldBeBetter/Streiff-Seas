@@ -5,7 +5,7 @@
 // JDG-02 the Timeline item.
 
 import { useRef, useState, type ReactElement } from "react";
-import { SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
+import { Icon, SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
 import type { SpeciesChoice } from "../lib/catchSender";
 import type { TimelineEntry, TimelineKind } from "../lib/catchTimeline";
 import { photoLabels, type CatchPhoto, type CatchStatus } from "../lib/myCatches";
@@ -71,7 +71,7 @@ function EmptyImage({ name, onPick }: { name: string; onPick: (file: File) => vo
   return (
     <>
       <button type="button" className="photo-slot-image photo-slot-empty" aria-label={`${name}, empty. Add photo`} onClick={picker.open}>
-        <img src="/icons/camera-link.svg" width={28} height={28} alt="" aria-hidden="true" />
+        <Icon src="/icons/camera-link.svg" size={28} />
         <span className="t-callout-strong">Add photo</span>
       </button>
       {picker.input}
@@ -115,7 +115,7 @@ export function SpeciesPicker({ species, selectedId, onSelect }: SpeciesPickerPr
         return (
           <label key={option.id} className={`species-option${selected ? " is-selected" : ""}`}>
             <input type="radio" name="species" className="visually-hidden" checked={selected} onChange={() => onSelect(option)} />
-            <img src={selected ? "/icons/radio-selected.svg" : "/icons/radio.svg"} width={22} height={22} alt="" aria-hidden="true" />
+            <Icon src={selected ? "/icons/radio-selected.svg" : "/icons/radio.svg"} size={22} />
             <span className="t-headline">{option.name}</span>
           </label>
         );
@@ -186,7 +186,7 @@ export function WeightInput({ id, value, onChange }: WeightInputProps) {
         )}
       </div>
       <p id={helpId} className={`field-help t-footnote${error ? " is-error" : ""}`} aria-live={error ? "polite" : undefined}>
-        {error && <img src="/icons/alert.svg" width={18} height={18} alt="" aria-hidden="true" />}
+        {error && <Icon src="/icons/alert.svg" size={18} />}
         <span>{error ?? (value.format === "lb" ? "Enter exactly what the scale shows, to 2 decimals." : "Ounces to one decimal, 0 to 15.9.")}</span>
       </p>
     </div>
@@ -242,7 +242,7 @@ export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, 
         {thumbnailUrl && !archived ? (
           <img className="photo-slot-preview" src={thumbnailUrl} alt="" />
         ) : (
-          <img src={archived ? "/icons/archive.svg" : "/icons/photo.svg"} width={24} height={24} alt="" aria-hidden="true" />
+          <Icon src={archived ? "/icons/archive.svg" : "/icons/photo.svg"} size={24} />
         )}
       </span>
       <span className="catch-card-body">
@@ -258,7 +258,7 @@ export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, 
         </span>
         {reason && <span className="t-footnote catch-card-reason">Reason: “{reason}”</span>}
       </span>
-      <img src="/icons/chevron-right.svg" width={24} height={24} alt="" aria-hidden="true" />
+      <Icon src="/icons/chevron-right.svg" size={24} />
       {todo && <TodoTag row={todo} />}
     </button>
   );
@@ -284,7 +284,7 @@ export function PhotoViewer({ photos, archived }: PhotoViewerProps) {
         {url && <img src={url} alt="" />}
         {archived && (
           <span className="photo-viewer-archived t-callout-strong">
-            <img src="/icons/archive.svg" width={24} height={24} alt="" aria-hidden="true" />
+            <Icon src="/icons/archive.svg" size={24} />
             Photo archived
           </span>
         )}
@@ -337,7 +337,7 @@ export function CatchTimeline({ entries, labelledBy }: CatchTimelineProps) {
         <li key={entry.id} className="timeline-item">
           <span className="timeline-rail" aria-hidden="true">
             <span className={`timeline-marker timeline-marker-${entry.tone}`}>
-              <img src={TIMELINE_ICON[entry.kind]} width={18} height={18} alt="" />
+              <Icon src={TIMELINE_ICON[entry.kind]} size={18} />
             </span>
             {i < entries.length - 1 && <span className="timeline-line" />}
           </span>

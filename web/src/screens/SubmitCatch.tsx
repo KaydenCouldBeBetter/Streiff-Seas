@@ -9,7 +9,7 @@
 //   It needs "now" from serverClock and the event's live phase (M0-03).
 
 import { useState, type FormEvent } from "react";
-import { ActionBar, Button, NavBar, TodoTag } from "../components/ui";
+import { ActionBar, Button, Icon, NavBar, TodoTag } from "../components/ui";
 import { PhotoSlot, SpeciesPicker, WeightInput, usePhotoPicker } from "../components/catch";
 import { MAX_PHOTOS, missingInputs, photoSlotLabel, photoSlotName, stillNeededLine } from "../lib/catchForm";
 import type { CatchDraft, PickedPhoto, SpeciesChoice } from "../lib/catchSender";
@@ -135,7 +135,7 @@ export function SubmitCatch({ tournament, makePreview, onSend, onBack }: Props) 
       <div className="submit-bottom">
         {stillNeeded && (
           <p className="still-needed t-callout-strong" aria-live="polite">
-            <img src="/icons/alert-warning.svg" width={20} height={20} alt="" aria-hidden="true" />
+            <Icon src="/icons/alert-warning.svg" size={20} />
             <span>{stillNeeded}</span>
           </p>
         )}

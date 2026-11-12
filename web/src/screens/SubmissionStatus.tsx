@@ -3,7 +3,7 @@
 // catch and View only). Not accepted (SUB-02e) is a placeholder until the refusal reason can be
 // inferred from a reload of the event and entry (decisions.md 2026-10-05, Gap 16).
 
-import { ActionBar, Banner, Button, NavBar, TodoTag } from "../components/ui";
+import { ActionBar, Banner, Button, Icon, NavBar, TodoTag } from "../components/ui";
 import { CatchCard, PhotoSlot, type PhotoSlotState } from "../components/catch";
 import { photoSlotLabel, photoSlotName, type Metric } from "../lib/catchForm";
 import type { CatchDraft, ReceivedCatch, SendProgress } from "../lib/catchSender";
@@ -25,7 +25,7 @@ function CatchAsEntered({ draft, metric, slotState }: CatchAsEnteredProps) {
         <h2 id="entered-heading" className="t-headline">
           Catch as entered
         </h2>
-        <img src="/icons/lock-secondary.svg" width={18} height={18} alt="" aria-hidden="true" />
+        <Icon src="/icons/lock-secondary.svg" size={18} />
         <span className="t-footnote-strong t-secondary">Locked until sent</span>
       </div>
       <div className="photo-slots">
@@ -63,7 +63,7 @@ export function Sending({ draft, metric, progress, onBack }: SendingProps) {
       <div className="screen-content submit-content">
         <section className="send-status">
           <p className="send-status-title t-headline">
-            <img src="/icons/upload-link.svg" width={24} height={24} alt="" aria-hidden="true" />
+            <Icon src="/icons/upload-link.svg" size={24} />
             Sending your catch…
           </p>
           <div className="progress-track" role="progressbar" aria-label="Sending your catch" aria-valuemin={0} aria-valuemax={100} aria-valuenow={overall}>
