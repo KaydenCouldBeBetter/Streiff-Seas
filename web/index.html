@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" />
+    <!-- Sets the saved appearance before the first paint, so Dark never flashes Light. Same key and
+         colour as web/src/lib/theme.ts; if this can't run, main.tsx applies it a moment later. -->
+    <script>
+      try {
+        if (localStorage.getItem("cf-theme") === "dark") {
+          document.documentElement.dataset.theme = "dark";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#0b141b");
+        }
+      } catch (e) {}
+    </script>
     <link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
     <title>Chromie Fishing</title>
   </head>

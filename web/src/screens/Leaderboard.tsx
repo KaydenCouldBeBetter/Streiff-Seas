@@ -5,7 +5,7 @@
 
 import type { LeaderboardRow, LeaderboardView } from "../lib/sampleLeaderboard";
 import { placeLabel, rowPlace, spokenPlace } from "../lib/format";
-import { AccessoryBar, Button, LargeNavBar, LiveBadge, StatusChip, TabBar } from "../components/ui";
+import { AccessoryBar, Button, Icon, LargeNavBar, LiveBadge, StatusChip, TabBar } from "../components/ui";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", in: "inches" };
@@ -100,7 +100,7 @@ function LeaderboardRowButton({ row, unit, bestN, crown, onClick }: RowProps) {
   return (
     <button type="button" className={`leaderboard-row${row.isViewer ? " is-you" : ""}`} aria-label={name} onClick={onClick}>
       <span className="leaderboard-row-place">
-        {crown && <img src="/icons/crown.svg" width={20} height={20} alt="" aria-hidden="true" />}
+        {crown && <Icon src="/icons/crown.svg" size={20} />}
         <span className="t-number-row">{rowPlace(row.place, row.tied)}</span>
       </span>
       <span className="leaderboard-row-angler">
