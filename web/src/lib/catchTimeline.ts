@@ -13,8 +13,11 @@
 import { formatClubTime, formatClubTimeSpoken } from "./format";
 import type { CatchStatus } from "./myCatches";
 
-/** Labelled by comparing IDs the viewer can read; members can't read `users` (screens.md Gap 13). */
-export type AuditActor = "Angler" | "Judge" | "Backup judge" | "Organizer";
+/**
+ * Labelled by comparing IDs the viewer can read; members can't read `users` (screens.md Gap 13).
+ * "You" is the angler's own step on their own catch (MY-06a); everyone else sees "Angler" (LB-03).
+ */
+export type AuditActor = "You" | "Angler" | "Judge" | "Backup judge" | "Organizer";
 
 /** The catch actions in audit_log.action (security.md); join, withdraw and the event actions have no catch. */
 export type AuditAction = "create" | "edit" | "retract" | "approve" | "reject" | "correct";
@@ -77,6 +80,11 @@ const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", in: "inches" };
 
 function spokenUnit(unit: string): string {
   return SPOKEN_UNIT[unit] ?? unit;
+}
+
+/** "by you", "by the judge": how a screen reader names who did it. */
+function spokenActor(actor: AuditActor): string {
+  return actor === "You" ? "you" : `the ${actor.toLowerCase()}`;
 }
 
 function photoCount(n: number): string {
@@ -168,7 +176,7 @@ export function timelineEntries(rows: readonly CatchAuditRow[], metric: "weight"
     .sort((a, b) => b.row.created.getTime() - a.row.created.getTime() || b.index - a.index)
     .map(({ row }) => {
       const { kind, tone, detail } = describe(row, metricLabel);
-      const spoken = [`${kind} by the ${row.actor.toLowerCase()}, ${formatClubTimeSpoken(row.created)}.`, ...detail.map((line) => sentence(line.spoken))].join(" ");
+      const spoken = [`${kind} by ${spokenActor(row.actor)}, ${formatClubTimeSpoken(row.created)}.`, ...detail.map((line) => sentence(line.spoken))].join(" ");
       return {
         id: row.id,
         kind,
@@ -180,4 +188,10 @@ export function timelineEntries(rows: readonly CatchAuditRow[], metric: "weight"
         spoken,
       };
     });
+}
+
+/** MY-06a's line under the nav bar: "4.02 lb Smallmouth bass · newest first". */
+export function historySubtitle(catchNow: { species: string; measurement: { value: string; unit: string } }): string {
+  const { value, unit } = catchNow.measurement;
+  return `${value} ${unit} ${catchNow.species} · newest first`;
 }

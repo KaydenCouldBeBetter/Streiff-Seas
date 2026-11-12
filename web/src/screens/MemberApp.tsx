@@ -10,6 +10,7 @@ import type { RecordModel } from "pocketbase";
 import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
 import { SAMPLE_CATCH_HISTORY } from "../lib/sampleCatchHistory";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
+import { SAMPLE_MY_CATCH_HISTORY } from "../lib/sampleMyCatchHistory";
 import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
@@ -19,11 +20,12 @@ import type { MemberTab } from "./memberTabs";
 import { Tournament } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
 import { MyCatch } from "./MyCatch";
+import { MyCatchHistory } from "./MyCatchHistory";
 import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 
-type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "profile" | "submit";
+type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
 /** The screens Profile opens from, and goes back to. */
 type FromScreen = Exclude<Screen, "profile" | "submit">;
 
@@ -32,6 +34,7 @@ const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch">, strin
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
+  catchHistory: `History · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   profile: "Profile",
 };
 
@@ -42,6 +45,7 @@ const BACK_LABELS: Record<FromScreen, string> = {
   anglerCatch: "Catch",
   catches: "My catches",
   catch: "Catch",
+  catchHistory: "History",
 };
 
 interface Props {
@@ -151,7 +155,21 @@ export function MemberApp({ user, onSignOut }: Props) {
       return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;
     case "catch":
       if (openedCatch) {
-        return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onTab={openTab} />;
+        return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onTab={openTab} />;
+      }
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
+    case "catchHistory":
+      if (openedCatch) {
+        return (
+          <MyCatchHistory
+            key={openedCatch.id}
+            item={openedCatch}
+            metric={SAMPLE_MY_CATCHES_CONTEXT.metric}
+            history={SAMPLE_MY_CATCH_HISTORY[openedCatch.id] ?? []}
+            onBack={() => setScreen("catch")}
+            onTab={openTab}
+          />
+        );
       }
       return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onTab={openTab} />;
     case "catches":

@@ -2,6 +2,7 @@
 // pending, 102:7297 four photos, 102:7401 past the deadline, 102:7499 withdrawn, 47:1882
 // verified, 48:1828 corrected, 48:1917 rejected, 48:1977 retracted, 102:7597 final).
 // lib/myCatches.ts picks the row; controls whose screens aren't built yet carry a TodoTag.
+// History opens MY-06a (MyCatchHistory.tsx) from every row.
 // Never shown here: delete, remove or replace a photo, change the photo time, approve own
 // (R-CAT-D-01, U-26, U-28, U-06), or flag codes.
 
@@ -15,15 +16,17 @@ interface Props {
   context: MyCatchesContext;
   item: MyCatchView;
   onBack: () => void;
+  /** The nav bar's History link (MY-06a). */
+  onHistory: () => void;
   onTab: (tab: MemberTab) => void;
 }
 
-export function MyCatch({ context, item, onBack, onTab }: Props) {
+export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
   const state = myCatchState(item, context);
   const note = noteFor(state, context);
   return (
     <div className="screen tab-screen">
-      <NavBar title="Catch" backLabel="My catches" backName="Back to My catches" onBack={onBack} trailing={{ label: "History", todo: "MY-06" }} />
+      <NavBar title="Catch" backLabel="My catches" backName="Back to My catches" onBack={onBack} trailing={{ label: "History", onClick: onHistory }} />
       <div className="screen-content catch-detail">
         <PhotoViewer photos={item.photos} archived={state.photosArchived} />
 
