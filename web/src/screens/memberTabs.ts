@@ -11,5 +11,5 @@ export const MEMBER_TABS: readonly Tab<MemberTab>[] = [
   // Figma draws the leaderboard icon the same in both states.
   { id: "leaderboard", label: "Leaderboard", icon: "/icons/leaderboard.svg" },
   { id: "catches", label: "My catches", icon: "/icons/list-tab.svg", selectedIcon: "/icons/list.svg" },
-  { id: "profile", label: "Profile", icon: "/icons/person-tab.svg", todo: "PRF-01" },
+  { id: "profile", label: "Profile", icon: "/icons/person-tab.svg", selectedIcon: "/icons/person-selected.svg" },
 ];

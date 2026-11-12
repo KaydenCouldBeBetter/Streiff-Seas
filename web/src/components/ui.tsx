@@ -353,11 +353,13 @@ interface SegmentedToggleProps<Id extends string> {
   labelledBy: string;
   options: readonly { id: Id; label: string }[];
   selected: Id;
+  /** Locked while a change is being sent or waits on Retry (decisions.md 2026-10-05). */
+  disabled?: boolean;
   onSelect: (id: Id) => void;
 }
 
 /** Two-option switch: a radio group, 44 px segments, tap only (no drag). */
-export function SegmentedToggle<Id extends string>({ labelledBy, options, selected, onSelect }: SegmentedToggleProps<Id>) {
+export function SegmentedToggle<Id extends string>({ labelledBy, options, selected, disabled = false, onSelect }: SegmentedToggleProps<Id>) {
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} className="segmented">
       {options.map((option) => (
@@ -366,6 +368,7 @@ export function SegmentedToggle<Id extends string>({ labelledBy, options, select
           type="button"
           role="radio"
           aria-checked={option.id === selected}
+          disabled={disabled}
           className="segmented-option t-callout-strong"
           onClick={() => onSelect(option.id)}
         >

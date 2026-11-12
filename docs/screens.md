@@ -1,6 +1,7 @@
 # Screens: Fishing Scoreboard (UI step 1, screen inventory)
 
-**Status:** Draft v0.9, 25 Oct 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**Status:** Draft v0.10, 12 Nov 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
+**v0.10:** proposes the Profile stats (PRF-01c, PRF-01e, PRF-01f) and a NOT SENT row for Profile Save (PRF-01d), `decisions.md` 2026-11-12; PRF-01a and PRF-01b are built with a real save. Nothing here is settled until Open item 17 closes.
 **v0.9:** open self sign-up (`decisions.md` 2026-10-25): new screen AUTH-03 Create an account (rows AUTH-03a, AUTH-03b; Figma row "1b"); AUTH-01a offers it and no longer lists sign-up as not shown.
 **v0.8:** EVT-02n (Join: name needed first) is dropped: since M0-02, `users.name` is required and refuses blank or badly spaced values (`decisions.md` 2026-10-12), so a member's name can't be empty. Its Figma frame stays for history, like ORG-08c.
 **v0.7:** applies the Figma pass-3b review (`claude/review-figma-pass3.md` §5, in the Claude Project: all 130 rows have frames, §7.3) and Kayden's answers of 7 Oct 2026, recorded in `decisions.md`: Gap 19 values (8-digit code, 10 minutes, a new code after 60 s, 14-day token refreshed on open), Gap 37 (Club rules adds the tournament's values when opened from a tournament page). The open questions moved to `decisions.md` Open items; the status-word rule gained one sentence. Sources now use repo paths (`decisions.md` 2026-10-07: the repo is the source of truth).
@@ -118,7 +119,7 @@ Gaps 2, 3, 8, 12, 14, 18, 23, 26, 27, 30, 35 and 36 are settled; Gaps 22 and 29 
 | SYS-03 | Locked | A change refused because the event is final |
 | SYS-04 | Session ended | PocketBase session no longer valid |
 
-**Count:** 39 screens designed here (AUTH-00 is listed but out of scope), in 132 state rows (section 2), of which EVT-02n is dropped.
+**Count:** 39 screens designed here (AUTH-00 is listed but out of scope), in 136 state rows (section 2), of which EVT-02n is dropped. PRF-01c to PRF-01f are proposed (DEC 2026-11-12) and drawn in Figma Flow 8, except PRF-01d.
 
 ---
 
@@ -292,6 +293,10 @@ One row per distinct state. The table is split by area; the columns are the same
 |---|---|---|---|---|---|---|---|---|---|
 | PRF-01a | Profile | M, J, S, K | — | — | `name`, `display_units` (lb or lb_oz), `email` (read only). [W] everywhere follows this setting | Change name; change display units; sign out | Change `email` or `verified` (R-USR-U-03); change `role` (R-USR-U-02); delete account (R-USR-D-01) | R-USR-V-02, U-01 | SPEC roles; SCO §4; DEC 2026-10-03 (sign-out on Profile) |
 | PRF-01b | Profile: name changed | M, J, S, K | live, closed vs final | — | "Your board name updates in live and closed tournaments; final results keep the name they were published with" | — | — | R-USR-U-06 | SCO §9; DEC name sync |
+| PRF-01c | Profile: stats **(proposed, DEC 2026-11-12)** | M, J, S, K | any | Own catches in every status, own entries, own final results | Identity card (`name`, monogram, role tags: "Organizer" from `users.role`; "Judge" or "Backup judge" with the tournament for live or closed events). Your stats under a Season / All time toggle: Heaviest and Longest fish tiles (species, tournament; [W] follows `display_units`, lengths in inches); a chart card with chips Species (default, remembered on this phone), Weekly, Time of day, Finishes; Catches submitted by status (Verified, Pending, Rejected, Retracted), Tournaments entered, Fish counted toward totals; "Bests, charts and counted fish use verified catches only." Past results: every final tournament fished, newest first, "Final · 3rd of 12 · 158 1/4 in". Refreshes on open and on focus (Gap 25), no Live badge | Season / All time; choose a chart; Table or Chart; tap a point for its value; open a past result (→ LB-01g) | Another member's place or any points (AOY, SPEC 'Not doing'); anyone else's stats; a Judge tab (JDG-00 isn't built) | R-USR-V-02, R-CAT-L-04, R-CAT-L-11, R-CAT-L-12 (no new rule) | DEC 2026-11-12; Figma 184:9982, 185:10439, 185:10548 |
+| PRF-01d | Profile: NOT SENT **(proposed)** | M, J, S, K | any | No reply to Save | Banner "NOT SENT" (role=alert): "Your changes didn't reach the club. Nothing here is lost. Tap Retry when you have signal."; the fields stay locked and show what was typed | Retry: reloads the record first; if the name and units already match, says it was saved and sends nothing; otherwise resends | Editing the fields while NOT SENT | R-USR-U-01, U-06 | DEC 2026-10-05 "No reply on any change"; DEC 2026-11-12 |
+| PRF-01e | Profile: stats, Weekly, Time of day, Finishes **(proposed)** | M, J, S, K | any | — | Weekly: verified fish per week by `captured_at` (submit time if the photo had none), weeks from Sunday in club time, empty weeks 0, labels on the peaks and the latest week. Time of day: columns Dawn (before 7 AM), Morning (7 to 11), Midday (11 to 2), Afternoon (2 to 5), Evening (after 5 PM) from `captured_at`; "11 of 12 fish had a photo time". Finishes: your own place in each final tournament in scope, oldest first, 1st at the top, shared places T-n, "Field size and total for each are in Past results." Each chart has a one-sentence spoken summary and a Table of the same numbers | Tap a point for its value; Table | Hover-only values | R-CAT-L-04 | DEC 2026-11-12; Figma 188:10339, 188:10448, 188:10553 |
+| PRF-01f | Profile: stats, nothing to show **(proposed)** | M, J, S, K | any | No verified catch in scope, or no final tournament | A tile or chart with nothing to show reads "None yet"; Finishes reads "No final results this season yet" under a season with none final, "No final results yet" under All time; Past results reads "None yet" | Season / All time | — | R-CAT-L-04 | DEC 2026-11-12; Figma annotation 189:10555 |
 | SYS-01a | Offline | M, J, S, K | any | — | "No connection"; data on screen is the last loaded; submissions go to SUB-02c; leaderboard to LB-01b or c | Retry where the screen offers it | — | FEAT S1 step 13, S2 step 10 (no test ID) | ARCH §4 |
 | SYS-02a | Not found / not allowed | M, J, S | — | A draft event, another angler's rejected or retracted catch, a catch on someone else's withdrawn entry, or a JDG or ORG screen without the role | "Not available" (the API returns the record as absent) | Back | — | R-EVT-V-01, R-CAT-V-01, R-ALL-V-01, R-EVT-U-02, R-CAT-U-10 | SEC conventions "What Deny means" |
 | SYS-03a | Locked | M, J, S, K | final | — | "This tournament is final; nothing can change" after a refused change; the screen reloads read only | Reload | Any change (R-CAT-U-12, R-ENT-U-10, R-EVT-U-05) | R-CAT-U-12, R-ENT-U-10, R-EVT-U-05 | SPEC invariant 7 |
@@ -414,7 +419,7 @@ Indented items lead from the item above them. Conditions in brackets.
 | Finalize (refused while anything is pending) | ORG-06a, ORG-06b |
 | Results and audit CSV with SHA-256 | ORG-07a (preview while closed: ORG-01d) |
 | Add a species | ORG-10a, ORG-10b |
-| Profile: own name and display units | PRF-01a, PRF-01b |
+| Profile: own name and display units; own stats and past results (proposed) | PRF-01a, PRF-01b; PRF-01c to PRF-01f |
 | Empty: no events | EVT-01c |
 | Empty: nothing submitted | MY-01a, LB-01d |
 | Empty: empty queue | JDG-01c |

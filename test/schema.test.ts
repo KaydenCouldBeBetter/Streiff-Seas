@@ -40,6 +40,11 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
     createRule:
       '@request.auth.id = "" && @request.body.role = "member" && ' +
       "@request.body.verified:isset = false && @request.body.emailVisibility:isset = false",
+    // R-USR-U-01 to U-07 (security.md v0.12): a member updates their own record, never role,
+    // email or verified.
+    updateRule:
+      '@request.auth.id != "" && id = @request.auth.id && @request.body.role:changed = false && ' +
+      "@request.body.email:isset = false && @request.body.verified:isset = false",
   },
   species: { ...LOCKED },
   events: { ...LOCKED },

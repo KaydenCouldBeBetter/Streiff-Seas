@@ -1558,3 +1558,294 @@ dd {
     flex: none;
   }
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Profile (PRF-01, Figma 65:3561, 104:8318, 184:9982 and its views). Tokens only.
+ * ------------------------------------------------------------------------------------------ */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-lg);
+}
+.profile-section-stats {
+  gap: var(--cf-spacing-md);
+}
+.profile-section-tight {
+  gap: var(--cf-spacing-xs);
+}
+.profile-units {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.profile .button-text {
+  align-self: flex-start;
+}
+.segmented-option:disabled {
+  cursor: not-allowed;
+}
+
+/* Identity: the monogram is decorative, the role tags are plain text. */
+.identity-card {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.monogram {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-primary);
+  color: var(--cf-color-text-on-primary);
+}
+.identity-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  overflow-wrap: anywhere;
+}
+.identity-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-spacing-xs);
+  margin: 0;
+  padding: var(--cf-spacing-xs) 0 0;
+  list-style: none;
+}
+
+/* Personal bests. */
+.best-tiles {
+  display: flex;
+  gap: var(--cf-spacing-md);
+}
+.best-tile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.best-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cf-spacing-xs);
+  white-space: nowrap;
+}
+
+/* Stats chart: chips, then one chart card. */
+.stats-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.chart-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-spacing-sm);
+}
+.chart-chip {
+  min-height: 44px;
+  padding: 0 var(--cf-spacing-md);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-full);
+  background: var(--cf-color-bg-default);
+  color: var(--cf-color-text-default);
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.chart-chip[aria-pressed="true"] {
+  border-color: var(--cf-color-bg-primary);
+  background: var(--cf-color-bg-primary);
+  color: var(--cf-color-text-on-primary);
+}
+.chart-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.chart-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+}
+.chart-card-title h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.chart-card-title .button-text {
+  flex: none;
+  align-self: center;
+}
+.chart-spacer {
+  height: var(--cf-spacing-sm);
+}
+.chart-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+}
+.chart-readout {
+  margin: 0;
+}
+
+/* Plots. A line plot is 140 px high with its axis labels in a 30 px column (Figma Plot / line). */
+.plot {
+  position: relative;
+  width: 100%;
+}
+.plot-grid {
+  position: absolute;
+  right: 0;
+  height: 1px;
+  background: var(--cf-color-border-divider);
+}
+.plot-axis {
+  position: absolute;
+  left: 0;
+  color: var(--cf-color-text-secondary);
+  white-space: nowrap;
+}
+.plot-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.plot-value,
+.plot-x {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.plot-x {
+  color: var(--cf-color-text-secondary);
+}
+/* A 44 px target over each point: tapping it shows its value. */
+.plot-hit {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: var(--cf-radius-full);
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.plot-hit:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.plot-hit[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--cf-color-bg-primary);
+}
+.plot-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plot-bars li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.plot-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cf-spacing-sm);
+  white-space: nowrap;
+}
+.plot-bar {
+  display: block;
+  height: 12px;
+  border-radius: 0 var(--cf-radius-sm) var(--cf-radius-sm) 0;
+  background: var(--cf-color-bg-primary);
+}
+.plot-columns {
+  display: flex;
+}
+.plot-column {
+  flex: 1;
+  min-width: 0;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cf-spacing-xs);
+}
+.plot-column-bar {
+  display: block;
+  width: 28px;
+  border-radius: var(--cf-radius-sm) var(--cf-radius-sm) 0 0;
+  background: var(--cf-color-bg-primary);
+}
+.plot-baseline {
+  align-self: stretch;
+  height: 1px;
+  background: var(--cf-color-border-default);
+}
+
+/* Catches submitted, by status. */
+.status-counts {
+  margin-top: var(--cf-spacing-xs);
+}
+.status-counts-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  white-space: nowrap;
+}
+.status-counts-by {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cf-spacing-sm) var(--cf-spacing-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.status-counts-by li {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+}
+.status-counts-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--cf-color-border-divider);
+}
+.status-counts-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+}

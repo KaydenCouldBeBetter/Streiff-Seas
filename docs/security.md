@@ -1,6 +1,8 @@
 # Security: Fishing Scoreboard
 
-**Status:** Draft v0.11, 25 Oct 2026. v0.11 applies `decisions.md` 2026-10-25 "Open self sign-up": the `users` create rule opens for anon, as a member only (R-USR-C-01 changed to Allow; R-USR-C-04 to C-09 and R-USR-A-03 new; tests in `test/rules.test.ts` and `test/auth.test.ts`).
+**Status:** Draft v0.12, 12 Nov 2026. v0.12 implements the `users` update rule and the name-sync hook (R-USR-U-01 to U-07, no row changed): migration `1794520253_users_own_update.js`, `pb_hooks/users_name_sync.pb.js`, tests in `test/rules.test.ts`, `RULES.users.updateRule` in `test/schema.test.ts`. Found while testing on v0.40.4: a member's update may also set `emailVisibility` (create refuses it; no row says either way, see `decisions.md` Open item 19) and sends of `tokenKey` are accepted but ignored; a password change is refused.
+
+**Earlier:** v0.11 applies `decisions.md` 2026-10-25 "Open self sign-up": the `users` create rule opens for anon, as a member only (R-USR-C-01 changed to Allow; R-USR-C-04 to C-09 and R-USR-A-03 new; tests in `test/rules.test.ts` and `test/auth.test.ts`).
 
 v0.10 (12 Oct 2026). v0.10 applies the M0-02 schema rows of `decisions.md` 2026-10-12: the seeded species are "largemouth bass" and "smallmouth bass", unique ignoring case; `users.name` and `species.name` refuse empty, all-space and badly spaced values (R-USR-U-07 and R-SPC-C-04 new, R-SPC-C-03 reworded); `audit_log.actor` is empty for a superuser action.
 

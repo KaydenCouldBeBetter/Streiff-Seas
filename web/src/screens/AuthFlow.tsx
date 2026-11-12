@@ -127,6 +127,7 @@ export function AuthFlow() {
       return (
         <MemberApp
           user={step.user}
+          onUserChange={(user) => setStep({ kind: "signedIn", user })}
           onSignOut={() => {
             pb.authStore.clear();
             setStep({ kind: "signin", email: String(step.user.email ?? "") });
