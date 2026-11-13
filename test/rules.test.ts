@@ -2,10 +2,15 @@
 // PocketBase booted from pb_migrations/. Rules still locked are swept in schema.test.ts.
 
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import type PocketBase from "pocketbase";
+import type { RecordModel } from "pocketbase";
 import { beforeAll, describe, expect, it } from "vitest";
-import { usePocketBase } from "./harness/pocketbase";
+import { REPO_ROOT, usePocketBase } from "./harness/pocketbase";
 import { refusedFields, statusOf } from "./harness/requests";
-import { actAs, actAsAnon, createFixtureUsers, newUser, type FixtureUsers } from "./harness/users";
+import { actAs, actAsAnon, createFixtureUsers, newUser, type FixtureName, type FixtureUsers } from "./harness/users";
+import { CATCH_KEYS, catchOf, entryOf, parseCatchKey, seedWorld, type CatchKey, type World } from "./harness/world";
 
 const pocketbase = usePocketBase();
 
@@ -164,5 +169,260 @@ describe("users update", () => {
       name: expect.stringMatching(/^validation_/),
     });
     expect((await pocketbase().superuser.collection("users").getOne(member.id)).name).toBe("Dana Ruiz");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// M0-03: the list and view rules of events, entries, catches and species (security.md v0.9 text),
+// read against the security.md fixture world. Other tests in this file add events and entries
+// of their own, so each list is compared exactly over the world's records, and every returned
+// record is checked against the row's claim.
+
+/** The list / view rule as docs/security.md writes it for one collection. */
+async function documentedListRule(collection: string): Promise<string> {
+  const doc = await readFile(path.join(REPO_ROOT, "docs", "security.md"), "utf8");
+  const start = doc.indexOf(`\n### ${collection}\n`);
+  if (start < 0) throw new Error(`security.md has no ### ${collection} section`);
+  const end = doc.indexOf("\n### ", start + 1);
+  const section = doc.slice(start, end < 0 ? undefined : end);
+  const block = /\*\*List \/ view\*\*[^\n]*\n```\n([\s\S]*?)\n```/.exec(section);
+  if (block?.[1] !== undefined) return block[1];
+  const inline = /\*\*List \/ view:\*\* `([^`]*)`/.exec(section);
+  if (inline?.[1] !== undefined) return inline[1];
+  throw new Error(`security.md ### ${collection} has no list / view rule`);
+}
+
+const sorted = (ids: string[]) => [...ids].sort();
+const idsOf = (records: { id: string }[]) => sorted(records.map((record) => record.id));
+
+describe("live reads (M0-03)", () => {
+  let world: World;
+
+  beforeAll(async () => {
+    world = await seedWorld(pocketbase(), users);
+  });
+
+  const as = (who: FixtureName) => actAs(pocketbase(), users[who]);
+  const all = (client: PocketBase, collection: string, filter = "") => client.collection(collection).getFullList({ filter });
+
+  /** The ids in `records` that belong to the world's records of that kind. */
+  function worldOnly(records: RecordModel[], world: Record<string, RecordModel | undefined>): string[] {
+    const known = new Set(Object.values(world).map((record) => record?.id));
+    return idsOf(records.filter((record) => known.has(record.id)));
+  }
+
+  /** The world's catches whose key passes the test. */
+  function catchIds(keep: (key: ReturnType<typeof parseCatchKey>) => boolean): string[] {
+    return sorted(CATCH_KEYS.filter((key) => keep(parseCatchKey(key))).map((key) => catchOf(world, key).id));
+  }
+
+  const catchId = (key: CatchKey) => catchOf(world, key).id;
+
+  /** An anonymous list, straight over HTTP, so the status code is the one PocketBase sent. */
+  async function anonList(collection: string): Promise<{ status: number; totalItems: number }> {
+    const response = await fetch(`${pocketbase().url}/api/collections/${collection}/records`);
+    const body = (await response.json()) as { totalItems: number };
+    return { status: response.status, totalItems: body.totalItems };
+  }
+
+  it("stores each list and view rule exactly as security.md writes it", async () => {
+    for (const name of ["events", "entries", "catches", "species"]) {
+      const stored = await pocketbase().superuser.collections.getOne(name);
+      const documented = await documentedListRule(name);
+
+      expect(stored.listRule, name).toBe(documented);
+      expect(stored.viewRule, name).toBe(documented);
+    }
+  });
+
+  describe("events", () => {
+    it("R-EVT-L-01: anon lists no events", async () => {
+      expect(await anonList("events")).toEqual({ status: 200, totalItems: 0 });
+    });
+
+    it("R-EVT-L-02: M lists live, closed and final events, and no drafts", async () => {
+      const listed = await all(await as("M"), "events");
+      const { E1, E2, EL, EC, EF } = world.events;
+
+      expect(worldOnly(listed, world.events)).toEqual(idsOf([E1, E2, EL, EC, EF]));
+      expect(listed.filter((event) => event.status === "draft")).toEqual([]);
+    });
+
+    it("R-EVT-L-03: K lists every event, drafts included", async () => {
+      const listed = await all(await as("K"), "events");
+
+      expect(idsOf(listed)).toEqual(idsOf(await all(pocketbase().superuser, "events")));
+      expect(idsOf(listed)).toContain(world.events.ED.id);
+    });
+
+    it("R-EVT-V-01: M may not view ED, a draft (and may view E1)", async () => {
+      const m = await as("M");
+
+      expect(await statusOf(m.collection("events").getOne(world.events.ED.id))).toBe(404);
+      expect(await statusOf(m.collection("events").getOne(world.events.E1.id))).toBe("allowed");
+    });
+  });
+
+  describe("entries", () => {
+    it("R-ENT-L-01: anon lists no entries", async () => {
+      expect(await anonList("entries")).toEqual({ status: 200, totalItems: 0 });
+    });
+
+    it("R-ENT-L-02: M lists the non-withdrawn entries in live, closed and final events", async () => {
+      const listed = await all(await as("M"), "entries");
+      const expected = Object.entries(world.entries)
+        .filter(([key, entry]) => !key.startsWith("ED.") && entry.withdrawn === false)
+        .map(([, entry]) => entry);
+      const drafts = new Set((await all(pocketbase().superuser, "events", 'status = "draft"')).map((event) => event.id));
+
+      expect(worldOnly(listed, world.entries)).toEqual(idsOf(expected));
+      for (const entry of listed) {
+        expect(drafts.has(entry.event), entry.id).toBe(false);
+        expect(entry.withdrawn === false || entry.angler === users.M.id, entry.id).toBe(true);
+      }
+    });
+
+    it("R-ENT-L-03: M doesn't see W's withdrawn entry", async () => {
+      expect(idsOf(await all(await as("M"), "entries"))).not.toContain(entryOf(world, "E1.W").id);
+    });
+
+    it("R-ENT-L-04: W sees their own withdrawn entry", async () => {
+      expect(idsOf(await all(await as("W"), "entries"))).toContain(entryOf(world, "E1.W").id);
+    });
+
+    // The row says "All"; the rule's first clause, `event.status != "draft"`, holds for the
+    // organizer too, so "all" means every entry outside a draft (Kayden's call, 2026-11-13:
+    // keep the v0.9 rule and read the row this way; decisions.md 2026-11-13 M0-03 row).
+    it("R-ENT-L-05: K lists every entry outside a draft, withdrawn included", async () => {
+      const listed = await all(await as("K"), "entries");
+      const outsideDrafts = await all(pocketbase().superuser, "entries", 'event.status != "draft"');
+
+      expect(idsOf(listed)).toEqual(idsOf(outsideDrafts));
+      expect(idsOf(listed)).toContain(entryOf(world, "E1.W").id);
+      expect(idsOf(listed)).not.toContain(entryOf(world, "ED.K").id);
+      expect(idsOf(listed)).not.toContain(entryOf(world, "ED.N").id);
+    });
+
+    // Last of the entries tests: it withdraws K's own entries for a moment and puts them back.
+    it("R-ENT-L-06: after K withdraws, S still sees K's E1 entry but not W's, and in E2 K's entry follows the member rule", async () => {
+      const entries = pocketbase().superuser.collection("entries");
+      const k1 = entryOf(world, "E1.K");
+      const k2 = entryOf(world, "E2.K");
+      try {
+        for (const entry of [k1, k2]) await entries.update(entry.id, { withdrawn: true, withdrawn_by: users.K.id });
+
+        const listed = idsOf(await all(await as("S"), "entries"));
+        expect(listed).toContain(k1.id);
+        expect(listed).not.toContain(entryOf(world, "E1.W").id);
+        expect(listed).not.toContain(k2.id);
+        // As for any member.
+        expect(idsOf(await all(await as("M"), "entries"))).not.toContain(k2.id);
+      } finally {
+        for (const entry of [k1, k2]) await entries.update(entry.id, { withdrawn: false, withdrawn_by: "" });
+      }
+    });
+  });
+
+  describe("catches", () => {
+    it("R-CAT-L-01: anon lists no catches", async () => {
+      expect(await anonList("catches")).toEqual({ status: 200, totalItems: 0 });
+    });
+
+    it("R-CAT-L-02: M lists the pending and verified catches on non-withdrawn entries (and their own)", async () => {
+      const listed = await all(await as("M"), "catches");
+      const expected = catchIds(
+        ({ angler, status }) => ((status === "pending" || status === "verified") && angler !== "W") || angler === "M",
+      );
+
+      expect(worldOnly(listed, world.catches)).toEqual(expected);
+    });
+
+    it("R-CAT-L-03: M doesn't see another angler's rejected catch", async () => {
+      const listed = idsOf(await all(await as("M"), "catches"));
+
+      expect(listed).not.toContain(catchId("E1.Y.rejected"));
+      expect(listed).not.toContain(catchId("E1.K.rejected"));
+    });
+
+    it("R-CAT-L-04: M sees their own rejected catch, with its reason", async () => {
+      const own = (await all(await as("M"), "catches")).find((record) => record.id === catchId("E1.M.rejected"));
+
+      expect(own).toMatchObject({ status: "rejected", reason: "Readout not legible" });
+    });
+
+    it("R-CAT-L-05: K lists every catch in E1, rejected included", async () => {
+      const filter = `entry.event = "${world.events.E1.id}"`;
+      const listed = await all(await as("K"), "catches", filter);
+
+      expect(idsOf(listed)).toEqual(idsOf(await all(pocketbase().superuser, "catches", filter)));
+      expect(idsOf(listed)).toEqual(catchIds(({ event }) => event === "E1"));
+    });
+
+    it("R-CAT-L-06: S sees rejected catches in E1 only where the angler is K or S", async () => {
+      const listed = await all(await as("S"), "catches", `entry.event = "${world.events.E1.id}"`);
+      const expected = catchIds(
+        ({ event, angler, status }) =>
+          event === "E1" && (((status === "pending" || status === "verified") && angler !== "W") || angler === "K" || angler === "S"),
+      );
+
+      expect(idsOf(listed)).toEqual(expected);
+      expect(listed.filter((record) => record.status === "rejected").map((record) => record.id).sort()).toEqual(
+        sorted([catchId("E1.K.rejected"), catchId("E1.S.rejected")]),
+      );
+      // Outside E1, K's rejected catch is hidden from S as from any member.
+      expect(idsOf(await all(await as("S"), "catches"))).not.toContain(catchId("E2.K.rejected"));
+    });
+
+    it("R-CAT-L-07: M doesn't see the catches on W's withdrawn entry", async () => {
+      const listed = idsOf(await all(await as("M"), "catches"));
+
+      expect(listed).not.toContain(catchId("E1.W.pending"));
+      expect(listed).not.toContain(catchId("E1.W.verified"));
+    });
+
+    it("R-CAT-L-08: K, the organizer, lists every catch in every event", async () => {
+      const listed = await all(await as("K"), "catches");
+
+      expect(idsOf(listed)).toEqual(idsOf(await all(pocketbase().superuser, "catches")));
+      expect(worldOnly(listed, world.catches)).toEqual(catchIds(() => true));
+    });
+
+    it("R-CAT-L-10: M doesn't see Y's retracted catch", async () => {
+      expect(idsOf(await all(await as("M"), "catches"))).not.toContain(catchId("E1.Y.retracted"));
+    });
+
+    it("R-CAT-L-11: Y sees their own retracted catch", async () => {
+      expect(idsOf(await all(await as("Y"), "catches"))).toContain(catchId("E1.Y.retracted"));
+    });
+
+    it("R-CAT-L-12: W sees their own catches on the withdrawn entry", async () => {
+      const listed = idsOf(await all(await as("W"), "catches"));
+
+      expect(listed).toContain(catchId("E1.W.pending"));
+      expect(listed).toContain(catchId("E1.W.verified"));
+    });
+
+    it("R-CAT-V-01: M may not view another angler's rejected catch (and may view their verified one)", async () => {
+      const m = await as("M");
+
+      expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.rejected")))).toBe(404);
+      expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.verified")))).toBe("allowed");
+    });
+  });
+
+  describe("species", () => {
+    it("R-SPC-L-01: anon lists no species", async () => {
+      expect(await anonList("species")).toEqual({ status: 200, totalItems: 0 });
+    });
+
+    it.each([
+      ["R-SPC-L-02", "M" as const],
+      ["R-SPC-L-03", "K" as const],
+    ])("%s: %s lists every species", async (_id, who) => {
+      const listed = await all(await as(who), "species");
+
+      expect(idsOf(listed)).toEqual(idsOf(await all(pocketbase().superuser, "species")));
+      expect(idsOf(listed)).toContain(world.species.walleye.id);
+    });
   });
 });
