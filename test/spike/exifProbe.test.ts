@@ -98,4 +98,22 @@ describe("exif-probe.html reader", () => {
     expect(t.trailing).toBeGreaterThan(100);
     expect(describe_("text-chunk.png").isJpeg).toBe(false);
   });
+
+  it("lists the 8BIM resource ids of a Photoshop APP13 block (0x0404 would be IPTC)", () => {
+    const resource = (id: number, data: Buffer) => {
+      const head = Buffer.alloc(12);
+      head.write("8BIM", 0, "latin1");
+      head.writeUInt16BE(id, 4); // name: empty pascal string, padded to two bytes
+      head.writeUInt32BE(data.length, 8);
+      return Buffer.concat([head, data, data.length % 2 ? Buffer.alloc(1) : Buffer.alloc(0)]);
+    };
+    const body = Buffer.concat([Buffer.from("Photoshop 3.0\0", "latin1"), resource(0x0404, Buffer.from("City")), resource(0x0425, Buffer.alloc(16))]);
+    const seg = Buffer.alloc(4);
+    seg.writeUInt16BE(0xffed, 0);
+    seg.writeUInt16BE(body.length + 2, 2);
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8]), seg, body, Buffer.from([0xff, 0xda, 0, 2, 0xff, 0xd9])]);
+    const d = probe.describeJpeg(jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength) as ArrayBuffer);
+    expect(d.segments[0].resources).toEqual(["0x0404/4", "0x0425/16"]);
+    expect(probe.describeText(d)).toContain("8BIM[0x0404/4 0x0425/16]");
+  });
 });

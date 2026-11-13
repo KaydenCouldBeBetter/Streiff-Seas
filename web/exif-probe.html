@@ -216,7 +216,23 @@ var ExifProbe = (function () {
       } else if (marker === 0xe1) seg.kind = ascii(view, i + 4, 28).indexOf("http://ns.adobe.com/xap") === 0 ? "XMP" : "other";
       else if (marker === 0xe0) seg.kind = ascii(view, i + 4, 4).replace(/\0/g, "");
       else if (marker === 0xe2) seg.kind = ascii(view, i + 4, 11).replace(/\0/g, "");
-      else if (marker === 0xed) seg.kind = ascii(view, i + 4, 13).replace(/\0/g, "");
+      else if (marker === 0xed) {
+        seg.kind = ascii(view, i + 4, 13).replace(/\0/g, "");
+        // Photoshop resource blocks: "8BIM", id, pascal name (padded to even), size, data (padded to even).
+        // 0x0404 is IPTC-NAA, 0x0422/0x0423 Exif, 0x0424 XMP; anything else carries no location.
+        if (seg.kind === "Photoshop 3.0") {
+          seg.resources = [];
+          var q = i + 4 + 14, stop = i + 2 + len;
+          while (q + 12 <= stop && ascii(view, q, 4) === "8BIM") {
+            var rid = view.getUint16(q + 4), nlen = view.getUint8(q + 6);
+            var after = q + 6 + 1 + nlen; if ((1 + nlen) % 2) after++;
+            if (after + 4 > stop) break;
+            var rsize = view.getUint32(after);
+            seg.resources.push("0x" + hex(rid, 4) + "/" + rsize);
+            q = after + 4 + rsize + (rsize % 2);
+          }
+        }
+      }
       r.segments.push(seg);
       i += 2 + len;
     }
@@ -229,7 +245,7 @@ var ExifProbe = (function () {
   function describeText(d) {
     if (!d.isJpeg) return "not a JPEG";
     var parts = d.segments.map(function (s) {
-      var x = s.name + (s.kind ? "(" + s.kind + ")" : "") + (s.len ? ":" + s.len : "");
+      var x = s.name + (s.kind ? "(" + s.kind + ")" : "") + (s.len ? ":" + s.len : "") + (s.resources ? " 8BIM[" + s.resources.join(" ") + "]" : "");
       if (s.tiff) x += " [" + s.tiff.order + " " + Object.keys(s.tiff.ifds).map(function (k) { return k + " " + s.tiff.ifds[k].join(" "); }).join(" ; ") + "]";
       return x;
     });

@@ -30,3 +30,38 @@ file: IMG_1308.jpeg | type image/jpeg | 2591502 bytes | container jpeg
 EXIF block: yes | DateTimeOriginal: 2026:11:04 00:03:37 | offset: -05:00 | XMP: -
 GPS in delivered file: YES | lastModified: 2026-11-04T05:03:37.000Z
 canvas re-encode: ok, EXIF in output YES, GPS in output no, 1380848 bytes
+
+
+=== Second iPhone run, same day (High Efficiency format; Location believed on; #2 was an old library photo, #3 a live camera shot, per Kayden)
+Device: iPhone 16 Pro, Safari 26.5.2. No coordinates appear below (the GPS lines are tag ids and refs only), but the file names and capture times do.
+
+#1 accept="image/*"
+file: IMG_1398.jpeg | type image/jpeg | 1604424 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:11:12 17:34:30 | offset: -05:00 | XMP: -
+GPS in delivered file: no
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 826622 bytes
+delivered segments: APP0(JFIF):20 | APP1(Exif):7971 [MM IFD0 (Make Apple, Model iPhone 16 Pro, Orientation 6, Software 26.5.2, DateTime, ExifIFD ptr) ; ExifIFD (exposure, DateTimeOriginal/Digitized, offsets -05:00, MakerNote 0x927c 1959 bytes, pixel dims 4032x3024, lens make/model) ; IFD1 (thumbnail)] | APP2(MPF) | APP2(urn:iso:std) | APP2(ICC_PROFILE):552 | APP10:766 | image data | trailing bytes after end marker: 0 | GPS IFD: no
+output segments: APP0(JFIF):16 | APP1(Exif):76 [MM IFD0 0x8769/4/1=26 ; ExifIFD 0xa001/3/1=1 0xa002/4/1=1920 0xa003/4/1=2560] | APP13(Photoshop 3.0):56 | 0xc0:17 | 0xc4:31 | 0xc4:181 | 0xc4:31 | 0xc4:181 | 0xdb:67 | 0xdb:67 | 0xdd:4 | SOS | trailing bytes after end marker: 0 | GPS IFD: no
+#2 accept="image/jpeg" (old library photo, per Kayden)
+file: IMG_1355.jpeg | type image/jpeg | 2222145 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:11:08 13:57:06 | offset: -05:00 | XMP: -
+GPS in delivered file: YES
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1129713 bytes
+delivered segments: APP0(JFIF):20 | APP1(Exif):11870 [... GPSIFD 0x0001 0x0002 0x0003 0x0004 0x0005 0x0006 0x0007 0x000c 0x000d 0x0010 0x0011 0x0017 0x0018 0x001d 0x001f ...] | APP1(XMP):3390 | APP2(MPF) | APP2(urn:iso:std) | APP2(ICC_PROFILE):552 | APP10:766 | image data | trailing bytes after end marker: 0 | GPS IFD: YES
+output segments: (identical to #1)
+#3 accept="image/*" capture="environment" (live camera shot, per Kayden)
+file: image.jpg | type image/jpeg | 3545579 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: NOT FOUND | offset: - | XMP: -
+GPS in delivered file: no
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1728886 bytes
+delivered segments: APP0(JFIF):16 | APP1(Exif):140 [MM IFD0 0x0112/3/1=6 0x011a/5/1 0x011b/5/1 0x0128/3/1=2 0x8769/4/1=90 ; ExifIFD 0xa001/3/1=65535 0xa002/4/1=4032 0xa003/4/1=3024] | APP13(Photoshop 3.0):56 | APP2(ICC_PROFILE):552 | image data | trailing bytes after end marker: 0 | GPS IFD: no
+output segments: (identical to #1)
+#4 accept="image/heic,image/heif,image/jpeg" (library photo, High Efficiency format)
+file: IMG_0581.jpeg | type image/jpeg | 3760533 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:07:12 11:26:30 | offset: -04:00 | XMP: -
+GPS in delivered file: YES
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1158960 bytes
+delivered segments: APP0(JFIF):20 | APP1(Exif):10626 [... GPSIFD ...] | APP1(XMP):3676 | APP2(MPF) | APP2(urn:iso:std) | APP2(ICC_PROFILE):552 | APP10:1082 | image data | trailing bytes after end marker: 0 | GPS IFD: YES
+output segments: (identical to #1)
+
+(The delivered-segments lines above are shortened by hand: tag values such as coordinates were left out of this file; the full per-tag lines were in Kayden's paste in the session.)

@@ -4,14 +4,14 @@ For Kayden to review and commit. Claude did not edit `decisions.md` or `security
 Evidence: `docs/evidence/m0-04-photo.txt` (raw output). Tests: `test/upload.test.ts`, `test/spike/mechanics.test.ts`,
 `test/spike/exifProbe.test.ts`. Fixtures: `scripts/make-photo-fixtures.py`. Binary: PocketBase v0.40.4.
 
-**Status of the spike: the server side is settled on the dev machine (Option A and B both run; exiftool also ran in a throwaway unprivileged LXC).
-iPhone Safari has been run once (section 4) and it changes the answer: its canvas re-encode writes an EXIF block, so Option B as first written would refuse every iPhone upload.
-Android Chrome is not run, the probe needs one more iPhone run to show what is in Safari's EXIF block, and the real staging container does not exist yet.
-The item stays open.**
+**Status of the spike: answered, with one gap that Kayden cannot close (no Android phone).** Server side: Option A and B both run on v0.40.4; exiftool also ran in a throwaway unprivileged LXC.
+iPhone Safari: run twice (section 4). Its canvas re-encode writes an EXIF block and a Photoshop APP13 block (no GPS), so Option B as first written would refuse every iPhone upload; the recommendation is now Option A.
+**Not verified: Android Chrome (no Android phone), the contents of Safari's APP13 block (the probe now prints its resource ids), and the real staging container (does not exist yet).**
+`passes` stays false for those; Kayden decides whether to close the item with Android recorded as untested.
 
 ## 1. The row to add to the log (top table)
 
-| 2026-11-13 | **Photo spike result: Option B as written (refuse any upload that carries EXIF) cannot be S1's rule, because iPhone Safari's own canvas re-encode writes an EXIF block (no GPS) into every JPEG it makes. S1 builds Option A (exiftool `-all=` through `$os.cmd`, proven here and in a throwaway LXC) unless the Safari tag listing shows a narrower check works (B with an allowlist: no GPS IFD, no XMP/IPTC/COM/trailing data, only known harmless tags). Append-only photos stay (R-CAT-U-21 stays Allow); the `rev` re-read is a compare-and-swap, not "inside the save transaction".** A hook that refuses any EXIF, XMP, IPTC, comment, PNG text chunk or trailing data leaves nothing in originals or thumbnails and a refusal leaves zero files, but on iPhone Safari it refuses everything. Option A cleaned all four leaky fixtures (trailing data too) on create and on an added photo, and exiftool 13.25 ran as a service user under `NoNewPrivileges` and `ProtectSystem=strict` (temp files must be under `pb_data`, not `/tmp`). The append-only check runs before PocketBase deletes anything. `@request.body.photo:length` counts uploaded files. `judge.role` resolves against the submitted body. **Not finished: Android Chrome unrun; Safari's EXIF contents and the camera format setting not recorded; the real staging container not built.** | iPhone Safari: all 5 runs, canvas output EXIF YES, GPS no; GPS was in the delivered file in 3 of 5 (the server check matters); the camera and one picker run gave no DateTimeOriginal. Option A needs exiftool on the host (a second parser of untrusted files, kept patched) and a writable temp directory under `pb_data`. See `docs/evidence/m0-04-photo.txt`. | If Safari's EXIF block turns out to be a handful of harmless tags, an allowlist B avoids exiftool; if it holds anything else, A. A means exiftool on prod (check on the real staging first). Append-only is lost if a PocketBase upgrade changes when `onRecordUpdateRequest` sees the list |
+| 2026-11-13 | **Photo spike result: S1 builds Option A (exiftool `-all=` through `$os.cmd`), then refuses the photo if anything location-capable is still in the cleaned bytes. Option B as first written (refuse any upload that carries EXIF) is dropped: iPhone Safari's canvas re-encode writes an EXIF block and an APP13 block into every JPEG it makes. Append-only photos stay (R-CAT-U-21 stays Allow); the `rev` re-read is a compare-and-swap, not "inside the save transaction".** Option A cleaned all four leaky fixtures (trailing data too) on create and on an added photo, with nothing left in originals or thumbnails; exiftool 13.25 ran as a service user under `NoNewPrivileges` and `ProtectSystem=strict` in an unprivileged Debian 13 LXC (temp files must be under `pb_data`, not `/tmp`). The append-only check runs before PocketBase deletes anything. `@request.body.photo:length` counts uploaded files. `judge.role` resolves against the submitted body. **Not verified: Android Chrome (no Android phone), the real staging container.** | iPhone Safari (two runs, 9 files): the canvas output was identical every time (JFIF, a 76-byte Exif block holding only ColorSpace and pixel size, a 56-byte Photoshop APP13 block, no GPS, no XMP, nothing after the end marker), so a strict allowlist B would pass it, but Android is unknown and an unexpected tag would refuse a real catch; A cleans whatever arrives. Delivered iPhone files carry GPS, MakerNote, XMP and APP10 when location is on, so the server step is not optional. A needs exiftool on the host (a second parser of untrusted files, kept patched). See `docs/evidence/m0-04-photo.txt`, `docs/evidence/m0-04-iphone-safari.txt`. | A means exiftool on prod: check it on the real staging first and keep it patched; if exiftool is unwanted, the no-dependency alternative is the allowlist B, but only after Android Chrome is checked. Append-only is lost if a PocketBase upgrade changes when `onRecordUpdateRequest` sees the list |
 
 ## 2. Text to add under L2 (replacing "The Phase 2 spike decides")
 
@@ -43,13 +43,12 @@ The item stays open.**
   **Not tested through PocketBase: the real `iphone.heic`.** Run by hand on a copy: `-all=` removed EXIF and GPS (4147147 to 4144619 bytes), left only an Apple
   HDR gain-map XMP block (no location), and warned "ICC_Profile deleted. Image colors may be affected". The designed field refuses HEIC anyway.
   A still means a second parser of untrusted files, exiftool in the LXC, and an `$os.cmd` the unit's hardening allows.
-- *Choice: not B as written; A, unless the allowlist form of B is shown to work.* B (refuse any EXIF) is proven on the server and needs nothing installed, and Desktop Chrome 157's canvas JPEG has only
-  JFIF and ICC segments, so it passes there. **But iPhone Safari's canvas re-encode wrote an EXIF block in all five runs** (section 4), so B as written would refuse every upload from an iPhone.
-  The probe could not say what is in that block (GPS no). The updated probe prints every segment and EXIF tag of the re-encoded output; one more iPhone run gives that list.
-  - If the block is only harmless tags (orientation, colour space, pixel size, EXIF version and the like), S1 can build **B with an allowlist**: parse the EXIF, refuse a GPS IFD, XMP, IPTC, COM,
-    trailing data, PNG chunks, HEIF and any tag not on the list. Nothing to install; the cost is a parser S1 owns and tests.
-  - If it holds anything else, or the list differs by iOS version, build **A**: it cleans whatever is there, it ran on all four fixtures, and it works under the unit's hardening. Its cost is exiftool
-    on the host, patched, with temp files under `pb_data`.
+- *Choice: A, then verify.* B (refuse any EXIF) is proven on the server, but **iPhone Safari's canvas re-encode wrote an EXIF block and an APP13 block in every run** (section 4), so B as written would refuse every iPhone upload.
+  Safari's output is small and constant (EXIF with ColorSpace and pixel size only; APP13 of 56 bytes whose contents are not yet recorded), so an allowlist B (parse, refuse a GPS IFD, XMP, COM, trailing data, any other tag, any APP13 resource id not on a list) would pass it
+  and needs nothing installed. It is not the pick because Android Chrome was never run: any tag it writes that is not on the list would refuse a real catch, possibly at the deadline. A strips whatever arrives. So: run `exiftool -all=` on each upload,
+  then scan the cleaned bytes with the B walker and refuse (`photo_has_metadata`) if anything location-capable remains. The two pieces were each tested here (A on the four fixtures; the walker as B); the combined hook is S1's to write and test.
+  A by-hand check: `exiftool -all=` on a JPEG with IPTC (City, Sub-location) removed the APP13 block (and APP0) entirely.
+  If exiftool on prod is unwanted, use the allowlist B instead, after Android Chrome has been run.
 - *Can exiftool run in a container like the LXC?* **Yes, in a throwaway container (2026-11-13, run by Kayden; output pasted into the session).** Unprivileged Debian 13
   (trixie) LXC, nesting off, Proxmox host on Wi-Fi with a NATed bridge. `apt-get install libimage-exiftool-perl` gave exiftool **13.25** (well past 12.24). As a `pocketbase` system user under
   `systemd-run -p NoNewPrivileges=yes -p ProtectSystem=strict -p ReadWritePaths=<pb_data>`: wrote GPS and DateTimeOriginal to a test JPEG, then `exiftool -all= -overwrite_original` removed them (exit 0, both reads empty).
@@ -90,27 +89,32 @@ The item stays open.**
    the same body with a member as judge: refused; an unknown user id as judge: refused; judge and backup judge the same: refused; a second organizer as backup: allowed; a member creating: refused.
    Refusals are `400 "Failed to create record."`, empty `data`.
 
-**Q4. What each browser delivers.** iPhone Safari run once, over `http` (so `isSecureContext` was false; the real app is https). Android Chrome not run.
+**Q4. What each browser delivers.** iPhone Safari run twice (iPhone 16 Pro, Safari 26.5.2, UA shows `iPhone OS 18_7` because Safari freezes the OS in the string), over `http` so `isSecureContext` was false (the real app is https).
+Camera format: High Efficiency; Location believed on for all runs (Kayden's recollection). Android Chrome: **not run, no Android phone**.
 
-- UA: iPhone, iOS 18_7 in the string with `Version/26.5.2` (Safari freezes the OS in the UA, so the OS version is not reliable from it).
-- *The canvas re-encode wrote an EXIF block in all five runs, GPS in none.* This is the finding that breaks B as written (see Q1).
-- *The delivered file carried GPS in three of five runs* (the picker, `image/*` and `image/jpeg`, with a camera-roll JPEG, and the HEIC-accepting control with a JPEG): the location reaches the page, so the server check is a real second line of defence.
-- *`DateTimeOriginal` was found in those same three runs* (with an offset, `-05:00`) and **not found in two**: the `image/jpeg` picker run and the `capture` (camera) run each delivered `image.jpg` (3.2 and 3.5 MB), with an EXIF block but no `DateTimeOriginal`, no GPS, and a `lastModified` of the moment of picking.
-  So a photo taken through the camera control, and at least one picker case, arrives with no capture time in the file: the client would set `no_capture_time` for those.
-- *No HEIC reached the page.* Every delivered file was `image/jpeg` (`IMG_*.jpeg` or `image.jpg`). Whether Safari converted a HEIC or the photos were already JPEG is unknown: **the Camera format setting and picker Location option were not recorded** (the template was not filled).
+- *Canvas re-encode output, identical in all four second-run files:* `APP0(JFIF)`, `APP1(Exif)` of 76 bytes (IFD0 holds only the ExifIFD pointer; ExifIFD holds `0xa001` ColorSpace = 1, `0xa002` and `0xa003` pixel width and height of the output),
+  `APP13(Photoshop 3.0)` of 56 bytes, the image data, nothing after the end marker. No GPS IFD, no XMP, no COM, no Make/Model, no capture time. The 56-byte APP13 block is the same size whatever the input,
+  so it looks like fixed boilerplate, but its resource ids were not printed (the probe now prints them: `0x0404` would be IPTC). The first run's outputs also had EXIF and no GPS (segment lists were not printed then).
+- *High Efficiency photos arrive as JPEG.* Every picked file in both runs was `image/jpeg` named `IMG_nnnn.jpeg`; no HEIC reached the page, even from the control that accepts `image/heic`. Safari converts on pick.
+- *The delivered (converted) file keeps the metadata.* The three library photos in run two with a Make carried `Apple` / `iPhone 16 Pro`, Software, `DateTimeOriginal` with offset (`-05:00` or `-04:00`), a MakerNote of about 2 KB, an XMP block of 3.4 to 3.7 KB, `APP10`, and (when the photo had a location) a full GPS IFD: latitude, longitude, altitude, speed, direction, date.
+  So the client re-encode is what removes GPS, MakerNote and XMP; skipping it would put all of it on the server.
+- *A fresh library photo can arrive with no GPS IFD* (`IMG_1398`, 2026-11-12, location believed on). A photo's location depends on the photo, not only the picker.
+- *A live camera shot (`capture`) arrives with no capture time.* `image.jpg`, EXIF holding only orientation, resolution and pixel size (no Make/Model, no `DateTimeOriginal`, no GPS), `lastModified` = the moment of capture. In the first run the other `image.jpg` (control 2, `accept="image/jpeg"`)
+  did the same, almost certainly a camera shot taken through that picker (not confirmed). So for any photo taken live on an iPhone, `captured_at` cannot come from the file: the client sets `no_capture_time`. A photo picked from the library keeps `DateTimeOriginal`.
 
-| Browser | Control | File delivered | DateTimeOriginal found | GPS in delivered file | Canvas re-encode: EXIF / GPS in output |
+| Browser | Run, control | File delivered | DateTimeOriginal | GPS in delivered file | Canvas output: EXIF / GPS |
 |---|---|---|---|---|---|
-| iPhone Safari | #1 picker, `image/*` | `IMG_1399.jpeg`, 2.0 MB | 2026:11:12 17:35:16, -05:00 | YES | YES / no |
-| iPhone Safari | #2 picker, `image/jpeg` | `image.jpg`, 3.2 MB | NOT FOUND | no | YES / no |
-| iPhone Safari | #3 camera, `image/*` with `capture` | `image.jpg`, 3.5 MB | NOT FOUND | no | YES / no |
-| iPhone Safari | #4 picker, `image/jpeg` | `IMG_1343.jpeg`, 4.9 MB | 2026:11:06 11:28:47, -05:00 | YES | YES / no |
-| iPhone Safari | #5 picker, `image/heic,image/heif,image/jpeg` | `IMG_1308.jpeg`, 2.6 MB | 2026:11:04 00:03:37, -05:00 | YES | YES / no |
-| Android Chrome | any | not run | | | |
+| iPhone Safari | 1 #1 `image/*`, fresh library photo | `IMG_1399.jpeg` | 2026:11:12 17:35:16, -05:00 | YES | EXIF / no |
+| iPhone Safari | 1 #2 `image/jpeg`, probably a camera shot | `image.jpg` | NOT FOUND | no | EXIF / no |
+| iPhone Safari | 1 #3 `capture` | `image.jpg` | NOT FOUND | no | EXIF / no |
+| iPhone Safari | 1 #4 `image/jpeg`, library | `IMG_1343.jpeg` | 2026:11:06 11:28:47, -05:00 | YES | EXIF / no |
+| iPhone Safari | 1 #5 `image/heic,...`, library | `IMG_1308.jpeg` | 2026:11:04 00:03:37, -05:00 | YES | EXIF / no |
+| iPhone Safari | 2 #1 `image/*`, fresh library photo | `IMG_1398.jpeg` | 2026:11:12 17:34:30, -05:00 | no | EXIF + APP13 / no |
+| iPhone Safari | 2 #2 `image/jpeg`, old library photo | `IMG_1355.jpeg` | 2026:11:08 13:57:06, -05:00 | YES | EXIF + APP13 / no |
+| iPhone Safari | 2 #3 `capture`, live | `image.jpg` | NOT FOUND | no | EXIF + APP13 / no |
+| iPhone Safari | 2 #4 `image/heic,...`, library | `IMG_0581.jpeg` | 2026:07:12 11:26:30, -04:00 | YES | EXIF + APP13 / no |
+| Android Chrome | any | **not run** | | | |
 | Desktop Chrome 157 (headless, canvas only) | n/a | n/a | n/a | n/a | no (JFIF and ICC only) / no |
-
-Still needed from Kayden: one more iPhone run with the updated probe (it prints `output segments:` and `delivered segments:` lines), the Camera format setting, whether Location was on in the picker Options, which photos #2 and #3 were,
-and Android Chrome.
 
 **Other things found on v0.40.4 (S1 will meet them)**
 
@@ -126,16 +130,14 @@ and Android Chrome.
 2. LXC check: done in a throwaway unprivileged Debian 13 container (see Q1). Left for when the real staging CT exists: repeat the `systemd-run` check there with the unit's real user and `pb_data`.
 3. exiftool has had remote-code-execution bugs on crafted files (CVE-2021-22204, fixed in 12.24, from memory: please check). A means keeping it patched on a host that parses members' uploads.
 
-## 4. Needs Kayden: what is left on the phones
+## 4. What is left
 
-iPhone Safari's first run is in Q4 above. Still to do, with `docs/drafts/photo-spike-phone-steps.md` (the page now prints `delivered segments:` and `output segments:` lines):
-
-1. iPhone Safari again: one run of each control, then paste Build results plus the template. Note the Camera format setting (High Efficiency or Most Compatible), whether Location was on in the picker Options, and which photos #2 and #3 were (fresh camera shots, screenshots, older photos).
-   The `output segments:` line shows every tag in Safari's EXIF block: it decides between Option A and an allowlist B.
-2. Android Chrome: the steps in the phone file. Not run at all.
+1. Android Chrome: not run (no Android phone). If a member or friend has one, `docs/drafts/photo-spike-phone-steps.md` takes about ten minutes. Until then the allowlist B stays unproven and A is the pick because it does not depend on what Android writes.
+2. Optional: reload the probe on the iPhone and pick any one photo; the output line now shows the APP13 `8BIM[...]` resource ids (`0x0404` would be IPTC). Only needed if S1 ever uses the allowlist B.
+3. The real staging container: repeat the exiftool `systemd-run` check there when it exists.
 
 ## 5. Edits this implies in security.md (Kayden's to make)
 
 - Open item 2: closed, append-only works; R-CAT-U-21 stays Allow.
 - Open item 7: all three confirmed; the `rev` wording changes as in Q3.2 (the catches update hook paragraph and "Why `rev`").
-- The catches hook paragraphs gain the photo rule once chosen: **not** "refuse any EXIF" (iPhone Safari's canvas writes some). Either Option A (exiftool, temp files under `pb_data`) or B with an allowlist (refuse GPS IFD, XMP, APP13, COM, trailing data, PNG text chunks, HEIF and any tag not allowed).
+- The catches hook paragraphs gain the photo rule: strip every upload with exiftool (`-all=`, temp files under `pb_data`), then refuse if the cleaned bytes still carry anything location-capable. **Not** "refuse any EXIF": iPhone Safari's canvas writes some.
