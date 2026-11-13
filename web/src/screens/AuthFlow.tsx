@@ -8,6 +8,7 @@ import { resumeSession } from "../lib/auth";
 import { SignInEmail } from "./SignInEmail";
 import { CreateAccount } from "./CreateAccount";
 import { SignInCode } from "./SignInCode";
+import { LiveCheck } from "./LiveCheck";
 import { MemberApp } from "./MemberApp";
 
 interface PendingCode {
@@ -124,6 +125,17 @@ export function AuthFlow() {
       );
     }
     case "signedIn":
+      // The bare live page (M0-03): /#live opens it instead of the app, after sign-in if needed.
+      if (window.location.hash === "#live") {
+        return (
+          <LiveCheck
+            onSignOut={() => {
+              pb.authStore.clear();
+              setStep({ kind: "signin", email: String(step.user.email ?? "") });
+            }}
+          />
+        );
+      }
       return (
         <MemberApp
           user={step.user}

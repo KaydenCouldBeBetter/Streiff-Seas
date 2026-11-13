@@ -227,7 +227,7 @@ sequenceDiagram
     PB->>PB: updateRule angler branch - own pending catch, entry not withdrawn, event live, before submit_deadline, rev matches
     PB->>PB: Hook - rev re-read in the transaction, existing photos and capture times kept, strip added photo, flag it, rev plus 1
     PB->>DB: Update catch, write edit or retract audit row
-    PB--)M: SSE catches update, a retracted catch drops off other boards
+    PB--)M: SSE catches update to those who can still see it. Other boards drop a retracted catch at their next heartbeat refetch
   end
   J->>CF: PATCH catch with the rev it loaded - approve, reject with reason, correct, or re-judge
   CF->>PB: Forward

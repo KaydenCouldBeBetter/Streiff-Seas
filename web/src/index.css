@@ -2018,3 +2018,67 @@ dd {
   gap: var(--cf-spacing-sm);
   margin: 0;
 }
+
+/*
+ * Live check (/#live, M0-03): the bare live page. Plain stacked text; the leaderboard (LB-01)
+ * replaces it. The badge is outlined and the event status is plain text, so the two never read
+ * as one thing (decisions.md 2026-10-05).
+ */
+.live-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-lg);
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--cf-spacing-lg);
+  box-sizing: border-box;
+  color: var(--cf-color-text-default);
+  overflow-wrap: anywhere;
+}
+.live-check h1,
+.live-check h2,
+.live-check p {
+  margin: 0;
+}
+.live-check-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-spacing-sm);
+}
+.live-check-badge {
+  margin: 0;
+  padding: var(--cf-spacing-2xs) var(--cf-spacing-sm);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-neutral);
+  border-radius: var(--cf-radius-full);
+  color: var(--cf-color-text-neutral);
+}
+.live-check-badge[data-badge="live"] {
+  border-color: var(--cf-color-border-success);
+  color: var(--cf-color-text-success);
+}
+.live-check-badge[data-badge="reconnecting"] {
+  border-color: var(--cf-color-border-warning);
+  color: var(--cf-color-text-warning);
+}
+.live-check-event {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.live-check-muted {
+  color: var(--cf-color-text-secondary);
+}
+.live-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.live-check-list li {
+  display: flex;
+  flex-direction: column;
+  padding: var(--cf-spacing-sm) 0;
+  border-bottom: var(--cf-stroke-hairline) solid var(--cf-color-border-divider);
+}
