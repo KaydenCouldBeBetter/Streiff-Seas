@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EXIF probe (M0-04 spike)</title>
+<!--
+  SPIKE PAGE, M0-04. Not part of the app: Vite serves it in dev at /exif-probe.html and never builds it
+  (the build's only entry is index.html). Nothing leaves the phone: the file is read in the page and
+  not uploaded. Delete it when the spike is done (docs/drafts/photo-spike-phone-steps.md has the steps).
+-->
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 40rem; padding: 16px; }
+  h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+  label { display: block; margin: .8rem 0 .2rem; font-weight: 600; }
+  input[type=file] { width: 100%; font-size: 1rem; }
+  .card { border: 1px solid #8887; border-radius: 8px; padding: 10px; margin: 10px 0; overflow-wrap: anywhere; }
+  .card dl { margin: 0; display: grid; grid-template-columns: 11rem 1fr; gap: 2px 8px; font-size: .9rem; }
+  .card dt { color: #666; } .card dd { margin: 0; font-family: ui-monospace, monospace; }
+  .bad { color: #b00020; font-weight: 600; } .ok { color: #0a7a2f; font-weight: 600; }
+  textarea { width: 100%; height: 14rem; font: 12px ui-monospace, monospace; }
+  button { font-size: 1rem; padding: 8px 14px; }
+  .note { font-size: .85rem; color: #555; }
+</style>
+</head>
+<body>
+<h1>EXIF probe</h1>
+<p class="note">Pick a photo with each control below. The page reads it here on the phone (nothing is uploaded) and prints what the browser handed over. Then press <b>Build results</b> and paste the box into the thread.</p>
+<p class="note" id="env"></p>
+
+<label for="f1">1. Photo picker, accept="image/*"</label>
+<input id="f1" type="file" accept="image/*" data-variant='accept="image/*"'>
+<label for="f2">2. Photo picker, accept="image/jpeg"</label>
+<input id="f2" type="file" accept="image/jpeg" data-variant='accept="image/jpeg"'>
+<label for="f3">3. Camera directly, accept="image/*" capture="environment"</label>
+<input id="f3" type="file" accept="image/*" capture="environment" data-variant='accept="image/*" capture="environment"'>
+<label for="f4">4. Photo picker, accept="image/heic,image/heif,image/jpeg"</label>
+<input id="f4" type="file" accept="image/heic,image/heif,image/jpeg" data-variant='accept="image/heic,image/heif,image/jpeg"'>
+
+<h2>What the browser delivered</h2>
+<div id="cards"></div>
+
+<h2>Results to paste back</h2>
+<button id="build" type="button">Build results</button>
+<textarea id="out" readonly placeholder="Press Build results"></textarea>
+
+<script>
+/* READER:BEGIN (pure functions, no DOM: test/spike/exifProbe.test.ts runs this block in Node) */
+var ExifProbe = (function () {
+  function ascii(view, from, len) {
+    var s = "";
+    for (var i = from; i < from + len && i < view.byteLength; i++) s += String.fromCharCode(view.getUint8(i));
+    return s;
+  }
+  // Reads one TIFF block (what EXIF is) starting at `start`. Returns the tags this spike cares about.
+  function readTiff(view, start) {
+    var out = { dateTimeOriginal: null, offsetTimeOriginal: null, dateTimeDigitized: null, dateTime: null, orientation: null, gps: null, make: null, model: null };
+    if (start + 8 > view.byteLength) return null;
+    var bo = ascii(view, start, 2);
+    var le = bo === "II";
+    if (!le && bo !== "MM") return null;
+    if (view.getUint16(start + 2, le) !== 42) return null;
+    function str(entryPos) {
+      var count = view.getUint32(entryPos + 4, le);
+      var at = count > 4 ? start + view.getUint32(entryPos + 8, le) : entryPos + 8;
+      return ascii(view, at, count).replace(/\0+$/, "");
+    }
+    function rational(at) { var d = view.getUint32(at + 4, le); return d ? view.getUint32(at, le) / d : 0; }
+    function ifd(offset, handler) {
+      var pos = start + offset;
+      if (pos + 2 > view.byteLength) return;
+      var n = view.getUint16(pos, le);
+      if (n > 500) return;
+      for (var i = 0; i < n; i++) {
+        var e = pos + 2 + i * 12;
+        if (e + 12 > view.byteLength) return;
+        handler(view.getUint16(e, le), view.getUint16(e + 2, le), e);
+      }
+    }
+    var exifPtr = 0, gpsPtr = 0;
+    ifd(view.getUint32(start + 4, le), function (tag, type, e) {
+      if (tag === 0x8769) exifPtr = view.getUint32(e + 8, le);
+      else if (tag === 0x8825) gpsPtr = view.getUint32(e + 8, le);
+      else if (tag === 0x0132) out.dateTime = str(e);
+      else if (tag === 0x0112) out.orientation = view.getUint16(e + 8, le);
+      else if (tag === 0x010f) out.make = str(e);
+      else if (tag === 0x0110) out.model = str(e);
+    });
+    if (exifPtr) ifd(exifPtr, function (tag, type, e) {
+      if (tag === 0x9003) out.dateTimeOriginal = str(e);
+      else if (tag === 0x9004) out.dateTimeDigitized = str(e);
+      else if (tag === 0x9011) out.offsetTimeOriginal = str(e);
+    });
+    if (gpsPtr) {
+      var g = { present: true, latRef: null, lonRef: null, lat: null, lon: null };
+      ifd(gpsPtr, function (tag, type, e) {
+        var at = start + view.getUint32(e + 8, le);
+        if (tag === 1) g.latRef = ascii(view, e + 8, 1);
+        else if (tag === 3) g.lonRef = ascii(view, e + 8, 1);
+        else if (tag === 2) g.lat = rational(at) + rational(at + 8) / 60 + rational(at + 16) / 3600;
+        else if (tag === 4) g.lon = rational(at) + rational(at + 8) / 60 + rational(at + 16) / 3600;
+      });
+      out.gps = g;
+    }
+    return out;
+  }
+  function xmpFields(text) {
+    var m = /DateTimeOriginal(?:=["']|>)([^"'<]+)/.exec(text);
+    return { dateTimeOriginal: m ? m[1] : null, gps: /GPSLatitude|GPSLongitude/.test(text) };
+  }
+  // Container-by-container: where the EXIF (and XMP) is, and what the file is.
+  function inspect(buffer) {
+    var view = new DataView(buffer);
+    var r = { container: "unknown", exif: null, xmp: null, exifFound: false, notes: [] };
+    if (view.byteLength > 4 && view.getUint16(0) === 0xffd8) {
+      r.container = "jpeg";
+      var i = 2;
+      while (i + 4 <= view.byteLength && view.getUint8(i) === 0xff) {
+        var marker = view.getUint8(i + 1);
+        if (marker === 0xda || marker === 0xd9) break;
+        var len = view.getUint16(i + 2);
+        if (marker === 0xe1) {
+          var head = ascii(view, i + 4, 29);
+          if (head.indexOf("Exif\0\0") === 0) { r.exifFound = true; r.exif = readTiff(view, i + 10); }
+          else if (head.indexOf("http://ns.adobe.com/xap") === 0) r.xmp = xmpFields(ascii(view, i + 4 + 29, Math.min(len, 65000)));
+        }
+        i += 2 + len;
+      }
+    } else if (view.byteLength > 8 && ascii(view, 1, 3) === "PNG") {
+      r.container = "png";
+      var p = 8;
+      while (p + 8 <= view.byteLength) {
+        var clen = view.getUint32(p), type = ascii(view, p + 4, 4);
+        if (type === "eXIf") { r.exifFound = true; r.exif = readTiff(view, p + 8); }
+        if (type === "iTXt" && ascii(view, p + 8, 17) === "XML:com.adobe.xmp") r.xmp = xmpFields(ascii(view, p + 8, clen));
+        if (type === "IEND") break;
+        p += 12 + clen;
+      }
+    } else if (view.byteLength > 12 && ascii(view, 4, 4) === "ftyp") {
+      var brand = ascii(view, 8, 4);
+      r.container = "isobmff:" + brand + (/^(heic|heix|hevc|heim|heis|mif1|msf1)$/.test(brand) ? " (HEIC/HEIF)" : brand === "avif" ? " (AVIF)" : "");
+      // The EXIF item is a TIFF block somewhere in the file. Find a header that parses; this is a
+      // heuristic, not a full ISO box walk, and the page says so.
+      for (var q = 12; q + 16 < view.byteLength && q < 4000000; q++) {
+        var a = view.getUint8(q), b = view.getUint8(q + 1);
+        if ((a === 0x4d && b === 0x4d && view.getUint16(q + 2) === 42) || (a === 0x49 && b === 0x49 && view.getUint16(q + 2, true) === 42)) {
+          var t = readTiff(view, q);
+          if (t && (t.dateTimeOriginal || t.gps || t.make)) { r.exifFound = true; r.exif = t; r.notes.push("EXIF TIFF block found by scan at byte " + q + " (heuristic)"); break; }
+        }
+      }
+    } else if (view.byteLength > 12 && ascii(view, 0, 4) === "RIFF" && ascii(view, 8, 4) === "WEBP") {
+      r.container = "webp";
+    }
+    return r;
+  }
+  return { inspect: inspect, readTiff: readTiff };
+})();
+/* READER:END */
+
+(function () {
+  var cards = document.getElementById("cards");
+  var results = [];
+  document.getElementById("env").textContent = "UA: " + navigator.userAgent + " | secure context: " + window.isSecureContext;
+
+  function row(dl, k, v, cls) {
+    var dt = document.createElement("dt"); dt.textContent = k;
+    var dd = document.createElement("dd"); dd.textContent = v; if (cls) dd.className = cls;
+    dl.appendChild(dt); dl.appendChild(dd);
+  }
+
+  // What a re-encode does: decode, draw at up to 2560 px on the long edge, write a JPEG, and look at what is in it.
+  async function reencode(file) {
+    try {
+      var bmp = await createImageBitmap(file);
+      var scale = Math.min(1, 2560 / Math.max(bmp.width, bmp.height));
+      var c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      var blob = await new Promise(function (res) { c.toBlob(res, "image/jpeg", 0.85); });
+      var info = ExifProbe.inspect(await blob.arrayBuffer());
+      return { ok: true, w: bmp.width, h: bmp.height, outW: c.width, outH: c.height, bytes: blob.size, exifFound: info.exifFound, gps: !!(info.exif && info.exif.gps) };
+    } catch (e) {
+      return { ok: false, error: String(e && e.message || e) };
+    }
+  }
+
+  async function onPick(ev) {
+    var input = ev.target, file = input.files && input.files[0];
+    if (!file) return;
+    var buffer = await file.arrayBuffer();
+    var info = ExifProbe.inspect(buffer);
+    var re = await reencode(file);
+    var x = info.exif || {};
+    var rec = {
+      variant: input.getAttribute("data-variant"),
+      name: file.name, type: file.type || "(empty)", bytes: file.size,
+      lastModified: file.lastModified ? new Date(file.lastModified).toISOString() : "(none)",
+      container: info.container,
+      exifFound: info.exifFound,
+      dateTimeOriginal: x.dateTimeOriginal || null,
+      offsetTimeOriginal: x.offsetTimeOriginal || null,
+      dateTimeDigitized: x.dateTimeDigitized || null,
+      ifd0DateTime: x.dateTime || null,
+      xmpDateTimeOriginal: info.xmp ? info.xmp.dateTimeOriginal : null,
+      gpsInFile: !!x.gps || !!(info.xmp && info.xmp.gps),
+      orientation: x.orientation || null,
+      makeModel: x.make ? (x.make + " " + (x.model || "")).trim() : null,
+      notes: info.notes.join("; "),
+      reencode: re
+    };
+    results.push(rec);
+
+    var card = document.createElement("div"); card.className = "card";
+    var dl = document.createElement("dl"); card.appendChild(dl);
+    row(dl, "control", rec.variant);
+    row(dl, "name / type", rec.name + "  |  " + rec.type);
+    row(dl, "size", rec.bytes + " bytes");
+    row(dl, "container", rec.container);
+    row(dl, "EXIF block present", rec.exifFound ? "yes" : "no", rec.exifFound ? "ok" : "bad");
+    row(dl, "DateTimeOriginal", rec.dateTimeOriginal || "NOT FOUND", rec.dateTimeOriginal ? "ok" : "bad");
+    row(dl, "OffsetTimeOriginal", rec.offsetTimeOriginal || "-");
+    row(dl, "DateTimeDigitized", rec.dateTimeDigitized || "-");
+    row(dl, "XMP DateTimeOriginal", rec.xmpDateTimeOriginal || "-");
+    row(dl, "file.lastModified", rec.lastModified);
+    row(dl, "GPS in the delivered file", rec.gpsInFile ? "YES (server must strip)" : "no", rec.gpsInFile ? "bad" : "ok");
+    row(dl, "orientation / camera", (rec.orientation || "-") + " / " + (rec.makeModel || "-"));
+    if (rec.notes) row(dl, "notes", rec.notes);
+    row(dl, "canvas re-encode", re.ok ? ("ok: " + re.w + "x" + re.h + " -> " + re.outW + "x" + re.outH + ", " + re.bytes + " bytes, EXIF in output: " + (re.exifFound ? "YES" : "no") + ", GPS in output: " + (re.gps ? "YES" : "no")) : ("FAILED: " + re.error), re.ok ? "ok" : "bad");
+    cards.insertBefore(card, cards.firstChild);
+  }
+
+  ["f1", "f2", "f3", "f4"].forEach(function (id) { document.getElementById(id).addEventListener("change", onPick); });
+
+  document.getElementById("build").addEventListener("click", function () {
+    var lines = ["M0-04 browser results", "UA: " + navigator.userAgent, "secure context: " + window.isSecureContext, ""];
+    results.forEach(function (r, i) {
+      lines.push("#" + (i + 1) + " " + r.variant);
+      lines.push("  file: " + r.name + " | type " + r.type + " | " + r.bytes + " bytes | container " + r.container);
+      lines.push("  EXIF block: " + (r.exifFound ? "yes" : "NO") + " | DateTimeOriginal: " + (r.dateTimeOriginal || "NOT FOUND") + " | offset: " + (r.offsetTimeOriginal || "-") + " | XMP: " + (r.xmpDateTimeOriginal || "-"));
+      lines.push("  GPS in delivered file: " + (r.gpsInFile ? "YES" : "no") + " | lastModified: " + r.lastModified);
+      lines.push("  canvas re-encode: " + (r.reencode.ok ? "ok, EXIF in output " + (r.reencode.exifFound ? "YES" : "no") + ", GPS in output " + (r.reencode.gps ? "YES" : "no") + ", " + r.reencode.bytes + " bytes" : "FAILED " + r.reencode.error));
+      if (r.notes) lines.push("  notes: " + r.notes);
+    });
+    document.getElementById("out").value = lines.join("\n");
+  });
+})();
+</script>
+</body>
+</html>

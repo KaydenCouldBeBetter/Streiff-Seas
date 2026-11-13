@@ -48,6 +48,8 @@ export interface Harness {
 export interface StartOptions {
   /** Migrations to boot from; the repo's pb_migrations/ unless a test says otherwise. */
   migrationsDir?: string;
+  /** Hooks to load; the repo's pb_hooks/ unless a test says otherwise (the photo spike's own). */
+  hooksDir?: string;
   /** Where the throwaway directory is made; the system temp directory by default. */
   tmpRoot?: string;
   /** The port to try next. A port that turns out to be taken is asked for again. */
@@ -182,13 +184,18 @@ async function serve(dirFlags: string[], cwd: string, pickPort: () => Promise<nu
   for (let attempt = 1; ; attempt++) {
     const port = await pickPort();
     const url = `http://127.0.0.1:${port}`;
-    const child = spawn(BINARY, ["serve", "--http", `127.0.0.1:${port}`, ...dirFlags], {
+    const child = spawn(BINARY, ["serve", "--http", `127.0.0.1:${port}`, ...dirFlags, ...(process.env.HARNESS_ECHO_LOG === "1" ? ["--dev"] : [])], {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let log = "";
     child.stdout?.on("data", (chunk: Buffer) => (log += chunk.toString()));
     child.stderr?.on("data", (chunk: Buffer) => (log += chunk.toString()));
+    // Debugging aid: HARNESS_ECHO_LOG=1 prints the server's own output as the tests run.
+    if (process.env.HARNESS_ECHO_LOG === "1") {
+      child.stdout?.on("data", (chunk: Buffer) => process.stderr.write(chunk));
+      child.stderr?.on("data", (chunk: Buffer) => process.stderr.write(chunk));
+    }
     // "close" comes after "exit", once everything the child printed has been read.
     let closed = false;
     child.once("close", () => (closed = true));
@@ -250,7 +257,7 @@ export async function startPocketBase(options: StartOptions = {}): Promise<Harne
     const dirFlags = [
       "--dir", dataDir,
       "--migrationsDir", options.migrationsDir ?? path.join(REPO_ROOT, "pb_migrations"),
-      "--hooksDir", path.join(REPO_ROOT, "pb_hooks"),
+      "--hooksDir", options.hooksDir ?? path.join(REPO_ROOT, "pb_hooks"),
       "--publicDir", publicDir,
       // Never write a generated migration into the repo, and don't watch pb_hooks/.
       "--automigrate=false",
