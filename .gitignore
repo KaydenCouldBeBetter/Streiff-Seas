@@ -23,3 +23,7 @@ CLAUDE.local.md
 # OS clutter
 .DS_Store
 .idea/
+
+# real iPhone photo with real GPS: never commit it (see docs/drafts/decisions-L2-photo-spike.md)
+test/fixtures/iphone.heic
+test/fixtures/IPhone.HEIC

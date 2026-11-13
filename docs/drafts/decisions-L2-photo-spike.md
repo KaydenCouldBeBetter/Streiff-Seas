@@ -4,8 +4,9 @@ For Kayden to review and commit. Claude did not edit `decisions.md` or `security
 Evidence: `docs/evidence/m0-04-photo.txt` (raw output). Tests: `test/upload.test.ts`, `test/spike/mechanics.test.ts`,
 `test/spike/exifProbe.test.ts`. Fixtures: `scripts/make-photo-fixtures.py`. Binary: PocketBase v0.40.4.
 
-**Status of the spike: the server side is settled except Option A with exiftool (not installed on the dev machine, and the
-LXC is not reachable from here); the browser side is not verified at all. The item stays open until you paste the phone results.**
+**Status of the spike: the server side is settled on the dev machine (Option A was also run with exiftool 13.50 once Kayden installed it);
+the LXC is not reachable from here, so "can exiftool run in the LXC" is still open; the browser side is not verified at all.
+The item stays open until you paste the phone results.**
 
 ## 1. The row to add to the log (top table)
 
@@ -30,15 +31,18 @@ LXC is not reachable from here); the browser side is not verified at all. The it
   | `xmp-gps.jpg` (XMP GPS, no EXIF) | same | same |
   | `text-chunk.png` (tEXt and iTXt) | same (the designed `image/jpeg` field refuses it on its own too: `validation_invalid_mime_type`, 0 files) | same |
   | `trailer-gps.jpg` (EXIF/XMP packet after the end marker; **extra, not one of L2's four**) | same | same |
-  | `iphone.heic` | **not tested: no genuine iPhone file here.** Drop a real one into `test/fixtures/iphone.heic`; the test and the schema test then run | same |
+  | `iphone.heic` (real iPhone 13, iOS 16.0, 4032x3024, with GPS and DateTimeOriginal) | refused, `photo_has_metadata` (HEIF cannot be walked, so it fails closed); the designed `image/jpeg` field refuses it first anyway (`validation_invalid_mime_type`) | same |
   | two clean JPEGs | stored; originals and thumbnails show no metadata | stored |
 
   Reading the upload in the hook is cheap: two 4.77 MB files create in 60 ms with no hook and 67 ms with the scan.
-- *Option A, partly tested.* The mechanics work on v0.40.4 with `exiv2 rm` standing in for exiftool: `$os.cmd` runs, the cleaned bytes
-  replace the upload on create and on an added photo, and the existing photos are kept (stored sizes dropped, e.g. `gps.jpg` 23931 to 23635 bytes).
-  **Not tested: exiftool itself** (not installed here; `sudo` needs a password). Its tests are in `test/upload.test.ts` and run on their own once
-  `exiftool` is on the PATH. Nothing below claims an A result.
-- *Choice: B.* It is proven, small, and needs nothing installed. It turns the client re-encode from a first line of defence into a rule the server
+- *Option A, tested with exiftool 13.50 on the dev machine* (`exiftool -all= -overwrite_original` through `$os.cmd`, field widened so the PNG gets in).
+  On a two-photo create and on an added photo, for `gps.jpg`, `xmp-gps.jpg`, `text-chunk.png` and `trailer-gps.jpg`: all 8 cases stored originals and
+  thumbnails with no location data (scanner and exiftool dump both empty), and the existing photos were kept. `trailer-gps.jpg` came out byte-for-byte
+  the size of `clean-1.jpg` (20738), so `-all=` also removes data after the end marker; no `-trailer:all=` is needed. Stored size of `gps.jpg`: 23931 to 23617.
+  **Not tested through PocketBase: the real `iphone.heic`.** Run by hand on a copy: `-all=` removed EXIF and GPS (4147147 to 4144619 bytes), left only an Apple
+  HDR gain-map XMP block (no location), and warned "ICC_Profile deleted. Image colors may be affected". The designed field refuses HEIC anyway.
+  A still means a second parser of untrusted files, exiftool in the LXC, and an `$os.cmd` the unit's hardening allows.
+- *Choice: B (A also works here, so it is a sound fallback).* B is proven, small, and needs nothing installed. It turns the client re-encode from a first line of defence into a rule the server
   enforces. The client already has to re-encode (canvas to JPEG) for size, and the field only takes `image/jpeg`.
 - *What B costs.* A client that skips the re-encode, or a browser whose canvas writes metadata, gets its submission refused instead of cleaned.
   Desktop Chrome 157's canvas JPEG has only JFIF and ICC segments, so B passes it (evidence file). **iPhone Safari and Android Chrome must be
@@ -89,7 +93,7 @@ LXC is not reachable from here); the browser side is not verified at all. The it
 
 ## 3. Needs Kayden: exiftool in the LXC (only matters if B is rejected)
 
-1. On the dev machine: `sudo dnf install -y perl-Image-ExifTool`, then `SPIKE_EVIDENCE=1 npx vitest run test/upload.test.ts` and tell Claude. This runs the eight Option A cases against real exiftool, including `trailer-gps.jpg`, which `-all=` may leave in place (if so, the A command needs `-trailer:all=`).
+1. Dev machine: done. exiftool 13.50 installed; the eight Option A cases passed, `trailer-gps.jpg` included (see Q1).
 2. On the **staging** LXC (not prod): `apt-get install -y libimage-exiftool-perl && exiftool -ver`. Then, as the PocketBase user and under the unit's hardening
    (`NoNewPrivileges`, `ProtectSystem=strict`, writes only to `pb_data`; the unit file is still `TODO` in ops.md), confirm it can write a temp file and run exiftool on it. A temp file in `/tmp` fails under `ProtectSystem=strict` unless the unit has `PrivateTmp=yes`, so the hook would need a directory under `pb_data`.
 3. exiftool has had remote-code-execution bugs on crafted files (CVE-2021-22204, fixed in 12.24, from memory: please check). A means keeping it patched on a host that parses members' uploads.
