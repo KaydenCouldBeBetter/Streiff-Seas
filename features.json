@@ -58,7 +58,7 @@
       "On the pinned binary: @request.body.photo:length counts the uploaded files in a multipart create; the update hook can re-read rev inside the save transaction; judge.role resolves against the submitted body in the events create rule",
       "Spike code stays off main unless it becomes the real implementation; the results, the chosen option and the reasons are drafted as a decisions.md row for Kayden to review and commit"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-03-live-skeleton",
