@@ -10,7 +10,7 @@ The item stays open until you paste the phone results.**
 
 ## 1. The row to add to the log (top table)
 
-| 2026-11-13 | **Photo spike result: build Option B (fail closed) in S1; append-only photos stay (R-CAT-U-21 stays Allow); the `rev` re-read is a compare-and-swap, not "inside the save transaction".** On v0.40.4, a hook that refuses any upload carrying EXIF, XMP, IPTC, a JPEG comment, PNG text chunks or data after the JPEG end marker leaves no location data in any original or thumbnail, on a two-photo create and on an added photo, and a refused request leaves zero files in `pb_data`. The append-only check runs before PocketBase deletes anything. `@request.body.photo:length` counts uploaded files. `judge.role` resolves against the submitted body. **Browser step not verified: needs Kayden's phone results (below).** | Option B is proven here and costs about 7 ms on two 4.8 MB files. Option A needs exiftool in the LXC (not checked), a second parser of untrusted files running as the PocketBase user, and an `$os.cmd` allowed by the unit's hardening. See `docs/evidence/m0-04-photo.txt`. | B stops working if a phone's canvas re-encode writes EXIF/XMP (every submission would be refused: then A, or a smaller B that refuses only GPS); append-only is lost if a PocketBase upgrade changes when `onRecordUpdateRequest` sees the list |
+| 2026-11-13 | **Photo spike result: build Option B (fail closed) in S1; append-only photos stay (R-CAT-U-21 stays Allow); the `rev` re-read is a compare-and-swap, not "inside the save transaction".** On v0.40.4, a hook that refuses any upload carrying EXIF, XMP, IPTC, a JPEG comment, PNG text chunks or data after the JPEG end marker leaves no location data in any original or thumbnail, on a two-photo create and on an added photo, and a refused request leaves zero files in `pb_data`. The append-only check runs before PocketBase deletes anything. `@request.body.photo:length` counts uploaded files. `judge.role` resolves against the submitted body. **Browser step not verified: needs Kayden's phone results (below).** | Option B is proven here and costs about 7 ms on two 4.8 MB files. Option A needs exiftool in the LXC (works in a throwaway unprivileged container under the hardening, with temp files under `pb_data`), a second parser of untrusted files running as the PocketBase user, and an `$os.cmd` allowed by the unit's hardening. See `docs/evidence/m0-04-photo.txt`. | B stops working if a phone's canvas re-encode writes EXIF/XMP (every submission would be refused: then A, or a smaller B that refuses only GPS); append-only is lost if a PocketBase upgrade changes when `onRecordUpdateRequest` sees the list |
 
 ## 2. Text to add under L2 (replacing "The Phase 2 spike decides")
 
@@ -47,7 +47,13 @@ The item stays open until you paste the phone results.**
 - *What B costs.* A client that skips the re-encode, or a browser whose canvas writes metadata, gets its submission refused instead of cleaned.
   Desktop Chrome 157's canvas JPEG has only JFIF and ICC segments, so B passes it (evidence file). **iPhone Safari and Android Chrome must be
   checked: the probe prints "EXIF in output".** If a phone's re-encode carries APP1 or COM, B as written refuses every upload from it.
-- *Can exiftool run in the LXC?* **Needs Kayden.** I cannot reach it. Check on the staging LXC first (steps in section 3).
+- *Can exiftool run in a container like the LXC?* **Yes, in a throwaway container (2026-11-13, run by Kayden; output pasted into the session).** Unprivileged Debian 13
+  (trixie) LXC, nesting off, Proxmox host on Wi-Fi with a NATed bridge. `apt-get install libimage-exiftool-perl` gave exiftool **13.25** (well past 12.24). As a `pocketbase` system user under
+  `systemd-run -p NoNewPrivileges=yes -p ProtectSystem=strict -p ReadWritePaths=<pb_data>`: wrote GPS and DateTimeOriginal to a test JPEG, then `exiftool -all= -overwrite_original` removed them (exit 0, both reads empty).
+  With the scratch directory in `/tmp` instead, `mkdir` failed with "Read-only file system". So **under `ProtectSystem=strict` the hook must keep its temp files in a directory under `pb_data`**
+  (or the unit needs `PrivateTmp=yes`). `-overwrite_original` writes its temp file next to the target, which also worked inside `pb_data`.
+  **Not tested:** this was a shell check under the same hardening, not PocketBase calling exiftool through `$os.cmd` inside the LXC, and not the real staging container (CT still `TODO` in ops.md,
+  and a different bridge may filter the Debian mirrors). Repeat `systemd-run` there when it exists. The throwaway container was destroyed afterwards.
 
 **Q2. Can append-only be enforced before deletion?** Yes. R-CAT-U-21 stays **Allow**; R-CAT-U-34 to U-36 and U-40 stay.
 
@@ -94,8 +100,7 @@ The item stays open until you paste the phone results.**
 ## 3. Needs Kayden: exiftool in the LXC (only matters if B is rejected)
 
 1. Dev machine: done. exiftool 13.50 installed; the eight Option A cases passed, `trailer-gps.jpg` included (see Q1).
-2. On the **staging** LXC (not prod): `apt-get install -y libimage-exiftool-perl && exiftool -ver`. Then, as the PocketBase user and under the unit's hardening
-   (`NoNewPrivileges`, `ProtectSystem=strict`, writes only to `pb_data`; the unit file is still `TODO` in ops.md), confirm it can write a temp file and run exiftool on it. A temp file in `/tmp` fails under `ProtectSystem=strict` unless the unit has `PrivateTmp=yes`, so the hook would need a directory under `pb_data`.
+2. LXC check: done in a throwaway unprivileged Debian 13 container (see Q1). Left for when the real staging CT exists: repeat the `systemd-run` check there with the unit's real user and `pb_data`.
 3. exiftool has had remote-code-execution bugs on crafted files (CVE-2021-22204, fixed in 12.24, from memory: please check). A means keeping it patched on a host that parses members' uploads.
 
 ## 4. Needs Kayden: phone results
