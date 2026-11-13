@@ -1,0 +1,32 @@
+M0-04 iPhone Safari, first run, pasted by Kayden on 2026-11-13 (probe page served over http from the workstation, reached over Tailscale).
+Not recorded: Camera format setting, picker Options Location, what photos #2 and #3 were. No photo content or coordinates in this file.
+
+M0-04 browser results
+UA: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5.2 Mobile/15E148 Safari/604.1
+secure context: false
+
+#1 accept="image/*"
+file: IMG_1399.jpeg | type image/jpeg | 2009719 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:11:12 17:35:16 | offset: -05:00 | XMP: -
+GPS in delivered file: YES | lastModified: 2026-11-12T22:35:16.000Z
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1047026 bytes
+#2 accept="image/jpeg"
+file: image.jpg | type image/jpeg | 3244079 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: NOT FOUND | offset: - | XMP: -
+GPS in delivered file: no | lastModified: 2026-11-13T19:06:18.000Z
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1662912 bytes
+#3 accept="image/*" capture="environment"
+file: image.jpg | type image/jpeg | 3516131 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: NOT FOUND | offset: - | XMP: -
+GPS in delivered file: no | lastModified: 2026-11-13T19:06:23.000Z
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1777404 bytes
+#4 accept="image/jpeg"
+file: IMG_1343.jpeg | type image/jpeg | 4884533 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:11:06 11:28:47 | offset: -05:00 | XMP: -
+GPS in delivered file: YES | lastModified: 2026-11-06T16:28:47.000Z
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1473803 bytes
+#5 accept="image/heic,image/heif,image/jpeg"
+file: IMG_1308.jpeg | type image/jpeg | 2591502 bytes | container jpeg
+EXIF block: yes | DateTimeOriginal: 2026:11:04 00:03:37 | offset: -05:00 | XMP: -
+GPS in delivered file: YES | lastModified: 2026-11-04T05:03:37.000Z
+canvas re-encode: ok, EXIF in output YES, GPS in output no, 1380848 bytes

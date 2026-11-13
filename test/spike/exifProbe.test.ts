@@ -10,6 +10,8 @@ import { FIXTURES } from "./spike";
 const page = readFileSync(path.join(import.meta.dirname, "..", "..", "web", "exif-probe.html"), "utf8");
 const block = /\/\* READER:BEGIN[^*]*\*\/([\s\S]*?)\/\* READER:END \*\//.exec(page)![1]!;
 const probe = new Function(`${block}; return ExifProbe;`)() as {
+  describeJpeg(buffer: ArrayBuffer): any;
+  describeText(d: any): string;
   inspect(buffer: ArrayBuffer): { container: string; exifFound: boolean; exif: any; xmp: any; notes: string[] };
 };
 
@@ -69,5 +71,31 @@ describe("exif-probe.html reader", () => {
     const r = inspectFixture("iphone.heic");
     expect(r.container).toContain("HEIC");
     expect(r.exif?.dateTimeOriginal).toMatch(/^\d{4}:\d\d:\d\d \d\d:\d\d:\d\d$/);
+  });
+
+  const describe_ = (name: string) => {
+    const b = readFileSync(path.join(FIXTURES, name));
+    return probe.describeJpeg(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+  };
+
+  it("lists the segments and EXIF tags of a file (to see what Safari's canvas writes)", () => {
+    const g = describe_("gps.jpg");
+    expect(g.isJpeg).toBe(true);
+    expect(g.gpsIfd).toBe(true);
+    const exif = g.segments.find((s: any) => s.kind === "Exif");
+    expect(exif.tiff.ifds.IFD0.some((e: string) => e.startsWith("0x010f/2/"))).toBe(true);
+    expect(exif.tiff.ifds.ExifIFD.some((e: string) => e.startsWith("0x9003/2/20="))).toBe(true);
+    expect(exif.tiff.ifds.GPSIFD.length).toBeGreaterThan(3);
+    expect(probe.describeText(g)).toContain("GPS IFD: YES");
+
+    const c = describe_("clean-1.jpg");
+    expect(c.gpsIfd).toBe(false);
+    expect(c.exifSegments).toBe(0);
+    expect(c.trailing).toBe(0);
+    expect(probe.describeText(c)).toContain("GPS IFD: no");
+
+    const t = describe_("trailer-gps.jpg");
+    expect(t.trailing).toBeGreaterThan(100);
+    expect(describe_("text-chunk.png").isJpeg).toBe(false);
   });
 });

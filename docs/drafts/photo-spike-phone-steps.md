@@ -33,6 +33,12 @@ Run each step, then note what the cards say.
 4. If you have a HEIC or HEIF file on the phone (some Samsung or iPhone-shared photos), pick it with control 1 and control 4: the canvas line will probably say FAILED to decode, which is what we need to know.
 5. Press **Build results**, copy the text box.
 
+## Second iPhone run (after the first results)
+
+The first iPhone run showed Safari's canvas re-encode writes an EXIF block (no GPS). The page now also prints, for each pick, `delivered segments:` and `output segments:`: every JPEG segment and every EXIF tag
+in the file the browser handed over and in the re-encoded copy. Reload the page, run controls 1 to 4 once each as before, press **Build results** and paste it. Also tell me:
+the Camera format setting, whether Location was on in the picker Options, and what each photo was (fresh camera shot, older, screenshot). Do not paste the photos themselves.
+
 ## What to paste back
 
 Paste the **Build results** text for each phone, and answer these in your own words:

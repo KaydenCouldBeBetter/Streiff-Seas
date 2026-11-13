@@ -153,7 +153,89 @@ var ExifProbe = (function () {
     }
     return r;
   }
-  return { inspect: inspect, readTiff: readTiff };
+  function hex(n, w) { var s = n.toString(16); while (s.length < w) s = "0" + s; return s; }
+  // Lists every entry of one IFD as "tag/type/count[=value]" (value only for short ASCII or one SHORT/LONG).
+  // Follows the Exif, GPS and Interop pointers. This is for the Safari question: what does its EXIF hold?
+  function listTiff(view, start) {
+    if (start + 8 > view.byteLength) return null;
+    var bo = ascii(view, start, 2), le = bo === "II";
+    if (!le && bo !== "MM") return null;
+    var out = { order: bo, ifds: {} };
+    var seen = {};
+    function walk(name, offset) {
+      if (!offset || seen[offset]) return;
+      seen[offset] = true;
+      var pos = start + offset;
+      if (pos + 2 > view.byteLength) return;
+      var n = view.getUint16(pos, le);
+      if (n > 500) return;
+      var list = [], ptrs = [];
+      for (var i = 0; i < n; i++) {
+        var e = pos + 2 + i * 12;
+        if (e + 12 > view.byteLength) break;
+        var tag = view.getUint16(e, le), type = view.getUint16(e + 2, le), count = view.getUint32(e + 4, le);
+        var s = "0x" + hex(tag, 4) + "/" + type + "/" + count;
+        if (type === 2 && count <= 64) {
+          var at = count > 4 ? start + view.getUint32(e + 8, le) : e + 8;
+          s += "=" + JSON.stringify(ascii(view, at, count).replace(/\0+$/, ""));
+        } else if (count === 1 && type === 3) s += "=" + view.getUint16(e + 8, le);
+        else if (count === 1 && type === 4) s += "=" + view.getUint32(e + 8, le);
+        list.push(s);
+        if (tag === 0x8769) ptrs.push(["ExifIFD", view.getUint32(e + 8, le)]);
+        if (tag === 0x8825) ptrs.push(["GPSIFD", view.getUint32(e + 8, le)]);
+        if (tag === 0xa005) ptrs.push(["InteropIFD", view.getUint32(e + 8, le)]);
+      }
+      out.ifds[name] = list;
+      for (var k = 0; k < ptrs.length; k++) walk(ptrs[k][0], ptrs[k][1]);
+      var next = pos + 2 + n * 12;
+      if (next + 4 <= view.byteLength && name === "IFD0") walk("IFD1", view.getUint32(next, le));
+    }
+    walk("IFD0", view.getUint32(start + 4, le));
+    return out;
+  }
+  // Every JPEG segment up to the image data, what it is, and anything after the end marker.
+  // For an Exif segment, the entries of every IFD. `gpsIfd` is true when a GPS IFD exists at all.
+  function describeJpeg(buffer) {
+    var view = new DataView(buffer);
+    var r = { isJpeg: false, segments: [], trailing: 0, gpsIfd: false, exifSegments: 0 };
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xffd8) return r;
+    r.isJpeg = true;
+    var i = 2, end = -1;
+    while (i + 4 <= view.byteLength && view.getUint8(i) === 0xff) {
+      var marker = view.getUint8(i + 1);
+      if (marker === 0xda) { r.segments.push({ name: "SOS", len: 0 }); break; }
+      if (marker === 0xd9) break;
+      var len = view.getUint16(i + 2);
+      var seg = { name: marker >= 0xe0 && marker <= 0xef ? "APP" + (marker - 0xe0) : marker === 0xfe ? "COM" : "0x" + hex(marker, 2), len: len };
+      if (marker === 0xe1 && ascii(view, i + 4, 6) === "Exif\0\0") {
+        r.exifSegments++;
+        seg.kind = "Exif";
+        var tl = listTiff(view, i + 10);
+        seg.tiff = tl;
+        if (tl && tl.ifds.GPSIFD) r.gpsIfd = true;
+      } else if (marker === 0xe1) seg.kind = ascii(view, i + 4, 28).indexOf("http://ns.adobe.com/xap") === 0 ? "XMP" : "other";
+      else if (marker === 0xe0) seg.kind = ascii(view, i + 4, 4).replace(/\0/g, "");
+      else if (marker === 0xe2) seg.kind = ascii(view, i + 4, 11).replace(/\0/g, "");
+      else if (marker === 0xed) seg.kind = ascii(view, i + 4, 13).replace(/\0/g, "");
+      r.segments.push(seg);
+      i += 2 + len;
+    }
+    for (var j = view.byteLength - 2; j >= 2; j--) {
+      if (view.getUint8(j) === 0xff && view.getUint8(j + 1) === 0xd9) { end = j + 2; break; }
+    }
+    r.trailing = end < 0 ? -1 : view.byteLength - end;
+    return r;
+  }
+  function describeText(d) {
+    if (!d.isJpeg) return "not a JPEG";
+    var parts = d.segments.map(function (s) {
+      var x = s.name + (s.kind ? "(" + s.kind + ")" : "") + (s.len ? ":" + s.len : "");
+      if (s.tiff) x += " [" + s.tiff.order + " " + Object.keys(s.tiff.ifds).map(function (k) { return k + " " + s.tiff.ifds[k].join(" "); }).join(" ; ") + "]";
+      return x;
+    });
+    return parts.join(" | ") + " | trailing bytes after end marker: " + d.trailing + " | GPS IFD: " + (d.gpsIfd ? "YES" : "no");
+  }
+  return { inspect: inspect, readTiff: readTiff, describeJpeg: describeJpeg, describeText: describeText };
 })();
 /* READER:END */
 
@@ -177,8 +259,9 @@ var ExifProbe = (function () {
       c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
       c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
       var blob = await new Promise(function (res) { c.toBlob(res, "image/jpeg", 0.85); });
-      var info = ExifProbe.inspect(await blob.arrayBuffer());
-      return { ok: true, w: bmp.width, h: bmp.height, outW: c.width, outH: c.height, bytes: blob.size, exifFound: info.exifFound, gps: !!(info.exif && info.exif.gps) };
+      var outBuf = await blob.arrayBuffer();
+      var info = ExifProbe.inspect(outBuf);
+      return { segments: ExifProbe.describeText(ExifProbe.describeJpeg(outBuf)), ok: true, w: bmp.width, h: bmp.height, outW: c.width, outH: c.height, bytes: blob.size, exifFound: info.exifFound, gps: !!(info.exif && info.exif.gps) };
     } catch (e) {
       return { ok: false, error: String(e && e.message || e) };
     }
@@ -189,6 +272,7 @@ var ExifProbe = (function () {
     if (!file) return;
     var buffer = await file.arrayBuffer();
     var info = ExifProbe.inspect(buffer);
+    var deliveredSegments = ExifProbe.describeText(ExifProbe.describeJpeg(buffer));
     var re = await reencode(file);
     var x = info.exif || {};
     var rec = {
@@ -206,6 +290,7 @@ var ExifProbe = (function () {
       orientation: x.orientation || null,
       makeModel: x.make ? (x.make + " " + (x.model || "")).trim() : null,
       notes: info.notes.join("; "),
+      deliveredSegments: deliveredSegments,
       reencode: re
     };
     results.push(rec);
@@ -226,6 +311,8 @@ var ExifProbe = (function () {
     row(dl, "orientation / camera", (rec.orientation || "-") + " / " + (rec.makeModel || "-"));
     if (rec.notes) row(dl, "notes", rec.notes);
     row(dl, "canvas re-encode", re.ok ? ("ok: " + re.w + "x" + re.h + " -> " + re.outW + "x" + re.outH + ", " + re.bytes + " bytes, EXIF in output: " + (re.exifFound ? "YES" : "no") + ", GPS in output: " + (re.gps ? "YES" : "no")) : ("FAILED: " + re.error), re.ok ? "ok" : "bad");
+    row(dl, "delivered file segments", rec.deliveredSegments);
+    if (re.ok) row(dl, "re-encoded output segments", re.segments);
     cards.insertBefore(card, cards.firstChild);
   }
 
@@ -240,6 +327,8 @@ var ExifProbe = (function () {
       lines.push("  GPS in delivered file: " + (r.gpsInFile ? "YES" : "no") + " | lastModified: " + r.lastModified);
       lines.push("  canvas re-encode: " + (r.reencode.ok ? "ok, EXIF in output " + (r.reencode.exifFound ? "YES" : "no") + ", GPS in output " + (r.reencode.gps ? "YES" : "no") + ", " + r.reencode.bytes + " bytes" : "FAILED " + r.reencode.error));
       if (r.notes) lines.push("  notes: " + r.notes);
+      lines.push("  delivered segments: " + r.deliveredSegments);
+      if (r.reencode.ok) lines.push("  output segments: " + r.reencode.segments);
     });
     document.getElementById("out").value = lines.join("\n");
   });
