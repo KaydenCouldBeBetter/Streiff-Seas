@@ -26,6 +26,30 @@ const LOCKED: Record<RuleName, null> = {
   deleteRule: null,
 };
 
+// The M0-03 read rules (migration 1794602178_open_live_reads.js): the security.md code blocks,
+// line breaks and indentation included.
+const SPECIES_READ = '@request.auth.id != ""';
+const EVENTS_READ = ['@request.auth.id != "" &&', '(status != "draft" || @request.auth.role = "organizer")'].join("\n");
+const ENTRIES_READ = [
+  '@request.auth.id != "" &&',
+  'event.status != "draft" &&',
+  "(withdrawn = false ||",
+  " angler = @request.auth.id ||",
+  " event.judge = @request.auth.id ||",
+  " (event.backup_judge = @request.auth.id && angler = event.judge) ||",
+  ' @request.auth.role = "organizer")',
+].join("\n");
+const CATCHES_READ = [
+  '@request.auth.id != "" &&',
+  "(",
+  '  (status != "rejected" && status != "retracted" && entry.withdrawn = false) ||',
+  "  entry.angler = @request.auth.id ||",
+  "  entry.event.judge = @request.auth.id ||",
+  "  (entry.event.backup_judge = @request.auth.id && entry.angler = entry.event.judge) ||",
+  '  @request.auth.role = "organizer"',
+  ")",
+].join("\n");
+
 /**
  * Every API rule of every collection, in one table. null means superuser only.
  *
@@ -46,10 +70,14 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
       '@request.auth.id != "" && id = @request.auth.id && @request.body.role:changed = false && ' +
       "@request.body.email:isset = false && @request.body.verified:isset = false",
   },
-  species: { ...LOCKED },
-  events: { ...LOCKED },
-  entries: { ...LOCKED },
-  catches: { ...LOCKED },
+  // R-SPC-L-01 to L-03 (security.md v0.9 text; opened by M0-03, Kayden's call 2026-11-13).
+  species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },
+  // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line).
+  events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
+  // R-ENT-L-01 to L-06.
+  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ },
+  // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01.
+  catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ },
   audit_log: { ...LOCKED },
 };
 
