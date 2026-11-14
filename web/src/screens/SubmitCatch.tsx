@@ -140,7 +140,7 @@ export function SubmitCatch({ tournament, makePreview, onSend, onBack }: Props) 
           </p>
         )}
         <ActionBar>
-          <Button variant="primary" large type="submit" disabled={stillNeeded !== null} todo="S1-submit">
+          <Button variant="primary" large type="submit" disabled={stillNeeded !== null}>
             Send catch
           </Button>
         </ActionBar>

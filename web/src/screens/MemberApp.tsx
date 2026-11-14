@@ -2,10 +2,11 @@
 //
 // Landing (decisions.md 2026-10-03 "Home screen and landing"): one live entry lands on that
 // tournament's leaderboard (LB-01), two or more on the Tournaments list (EVT-01d), anyone
-// else on Tournaments (EVT-01a). Until M0-03 opens the reads and EVT-01 exists, every
-// sign-in lands on the EVT-02d skeleton with sample data.
+// else on Tournaments (EVT-01a). Until EVT-01 exists, every sign-in lands on the first live
+// tournament (liveTournament.ts): Join, Submit a catch and the real sender are live (S1); the
+// standing, leaderboard, My catches and Profile stats are still sample data.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { pb } from "../lib/pb";
 import { retrySave, saveProfile } from "../lib/profile";
@@ -16,11 +17,16 @@ import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
 import { SAMPLE_MY_CATCH_HISTORY } from "../lib/sampleMyCatchHistory";
 import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
-import { SAMPLE_SUBMIT, createSampleSender } from "../lib/sampleSubmit";
+import { formatClubTime } from "../lib/format";
+import { canJoin, canSubmit, joinTournament, livePhase, loadLiveTournament, type LiveTournament } from "../lib/liveTournament";
+import { preparePhoto } from "../lib/photoPrepare";
+import { unitsOf } from "../lib/profile";
+import { createCatchSender } from "../lib/sendCatch";
+import { serverNowMs } from "../lib/serverClock";
 import { AnglerCatch } from "./AnglerCatch";
 import { AnglerCatches } from "./AnglerCatches";
 import type { MemberTab } from "./memberTabs";
-import { Tournament } from "./Tournament";
+import { NoTournament, Tournament, type TournamentAction } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
 import { MyCatch } from "./MyCatch";
 import { MyCatchHistory } from "./MyCatchHistory";
@@ -30,14 +36,15 @@ import { SubmitFlow } from "./SubmitFlow";
 
 type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
 
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch">, string> = {
-  tournament: SAMPLE_TOURNAMENT.name,
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament">, string> = {
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   catchHistory: `History · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   profile: "Profile",
 };
+
+type Live = { state: "loading" } | { state: "none" } | { state: "error" } | { state: "ready"; tournament: LiveTournament };
 
 interface Props {
   user: RecordModel;
@@ -51,8 +58,33 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   const [catchId, setCatchId] = useState<string | null>(null);
   const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
   const [anglerCatchId, setAnglerCatchId] = useState<string | null>(null);
-  // TODO(S1): the real sender (catchSender.ts) replaces the sample.
-  const [sender] = useState(createSampleSender);
+  const [live, setLive] = useState<Live>({ state: "loading" });
+  const [joining, setJoining] = useState(false);
+  const [joinFailed, setJoinFailed] = useState<"not-sent" | "not-accepted" | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const tournament = await loadLiveTournament(pb, user.id);
+      setLive(tournament ? { state: "ready", tournament } : { state: "none" });
+    } catch {
+      setLive({ state: "error" });
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const ready = live.state === "ready" ? live.tournament : null;
+  const activeEntryId = ready?.entry.kind === "active" ? ready.entry.id : null;
+  const units = unitsOf(user);
+  const sender = useMemo(
+    () => (ready && activeEntryId ? createCatchSender({ pb, entryId: activeEntryId, metric: ready.submit.metric, units, prepare: preparePhoto }) : null),
+    [ready, activeEntryId, units],
+  );
+  const view = ready
+    ? { ...SAMPLE_TOURNAMENT, name: ready.submit.name, rulesLine: ready.rulesLine, endsAt: ready.submit.endsAt, submitDeadline: ready.submit.submitDeadline }
+    : SAMPLE_TOURNAMENT;
 
   const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
   const anglerCatches = anglerRow ? (SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []) : [];
@@ -62,10 +94,56 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
     const angler = `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}`;
-    const title = screen === "angler" ? angler : screen === "anglerCatch" ? `Catch · ${angler}` : TITLES[screen];
+    const title = screen === "angler" ? angler : screen === "anglerCatch" ? `Catch · ${angler}` : screen === "tournament" ? (ready ? view.name : "Tournament") : TITLES[screen];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
-  }, [screen, anglerRow]);
+  }, [screen, anglerRow, ready, view.name]);
+
+  /** Every "Submit a catch" button: the form only while submitting is open, else the tournament page says why. */
+  function openSubmit() {
+    setScreen(ready && sender && canSubmit(ready, serverNowMs()) ? "submit" : "tournament");
+  }
+
+  async function join() {
+    if (!ready || joining) return;
+    setJoining(true);
+    setJoinFailed(null);
+    const result = await joinTournament(pb, ready.submit.eventId, user.id);
+    setJoining(false);
+    if (result.kind !== "joined") setJoinFailed(result.kind);
+    // Refused means something changed (deadline passed, already joined elsewhere): reload to show it.
+    if (result.kind !== "not-sent") await reload();
+  }
+
+  function tournamentAction(tournament: LiveTournament): TournamentAction {
+    const now = serverNowMs();
+    if (canSubmit(tournament, now)) return { kind: "submit", onSubmit: openSubmit };
+    if (canJoin(tournament, now)) return { kind: "join", joining, failed: joinFailed, onJoin: () => void join() };
+    const { entry } = tournament;
+    if (entry.kind === "withdrawn") {
+      return entry.bySelf
+        ? { kind: "closed", title: "You withdrew", message: "You're not on the leaderboard. Your catches are kept, and pending ones are still judged." }
+        : { kind: "closed", title: "Withdrawn by the organizer", message: entry.reason || "You're not on the leaderboard. Your catches are kept." };
+    }
+    if (livePhase(tournament, now) === "pre") {
+      return { kind: "closed", title: "Fishing hasn't started", message: `The fishing window opens ${formatClubTime(tournament.startsAt)}.` };
+    }
+    return { kind: "closed", title: "Submissions have closed", message: `The deadline was ${formatClubTime(tournament.submit.submitDeadline)}.` };
+  }
+
+  function home() {
+    if (!ready) return <NoTournament state={live.state === "ready" ? "loading" : live.state} onRetry={() => void reload()} onTab={openTab} />;
+    return (
+      <Tournament
+        tournament={view}
+        entry={ready.entry.kind}
+        action={tournamentAction(ready)}
+        onTab={openTab}
+        onMyCatches={() => setScreen("catches")}
+        onLeaderboard={() => setScreen("leaderboard")}
+      />
+    );
+  }
 
   function openTab(tab: MemberTab) {
     if (tab === "home") setScreen("tournament");
@@ -93,17 +171,9 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
 
   switch (screen) {
     case "tournament":
-      return (
-        <Tournament
-          tournament={SAMPLE_TOURNAMENT}
-          onTab={openTab}
-          onMyCatches={() => setScreen("catches")}
-          onLeaderboard={() => setScreen("leaderboard")}
-          onSubmit={() => setScreen("submit")}
-        />
-      );
+      return home();
     case "leaderboard":
-      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={openSubmit} onOpenRow={openAngler} />;
     case "angler":
       if (anglerRow) {
         return (
@@ -119,7 +189,7 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           />
         );
       }
-      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={openSubmit} onOpenRow={openAngler} />;
     case "anglerCatch":
       if (anglerRow && anglerCatch) {
         return (
@@ -137,15 +207,25 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           />
         );
       }
-      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={() => setScreen("submit")} onOpenRow={openAngler} />;
+      return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={openSubmit} onOpenRow={openAngler} />;
     case "submit":
       // Every submit screen's Back reads "Tournament" (Figma), so it goes there whichever screen opened it.
-      return <SubmitFlow tournament={SAMPLE_SUBMIT} sender={sender} onBack={() => setScreen("tournament")} />;
+      if (!ready || !sender) return home();
+      return (
+        <SubmitFlow
+          tournament={ready.submit}
+          sender={sender}
+          onBack={() => {
+            setScreen("tournament");
+            void reload();
+          }}
+        />
+      );
     case "catch":
       if (openedCatch) {
         return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onTab={openTab} />;
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
     case "catchHistory":
       if (openedCatch) {
         return (
@@ -159,9 +239,9 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           />
         );
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
     case "catches":
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={() => setScreen("submit")} onTab={openTab} />;
+      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
     case "profile":
       return (
         <Profile

@@ -1,7 +1,8 @@
 // The seam between the submit screens and the backend (SUB-01a → SUB-02). The screens build a
 // CatchDraft and hand it to a CatchSender; they only know the SendResult that comes back.
 //
-// S1 replaces sampleSender.ts with the real sender, which must, for each draft:
+// The real sender is sendCatch.ts (S1; sampleSubmit.ts keeps the prototype's pretend one). It
+// must, for each draft:
 // - before re-encoding, read the first photo's capture time into `captured_at` and every
 //   photo's into `photo_captured_at` (screens.md SUB-01a; R-CAT-C-19);
 // - send every photo through the location strip: re-encode to JPEG, 2560 px long edge, 5 MB
