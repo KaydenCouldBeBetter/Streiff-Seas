@@ -50,6 +50,29 @@ const ENTRIES_CREATE = [
   "@request.body.withdraw_reason:isset = false &&",
   "@request.body.withdrawn_by:isset = false",
 ].join("\n");
+// S1 step 4 (migration 1794695177_entries_withdraw_rule.js): the security.md "entries" Update block.
+const ENTRIES_UPDATE = [
+  '@request.auth.id != "" &&',
+  'event.status != "final" &&',
+  "@request.body.withdrawn:isset = true &&",
+  "@request.body.event:isset = false &&",
+  "@request.body.angler:isset = false &&",
+  "@request.body.display_name:isset = false &&",
+  "@request.body.withdrawn_by:isset = false &&",
+  "(",
+  "  (angler = @request.auth.id &&",
+  "   @request.body.withdraw_reason:isset = false &&",
+  "   ((@request.body.withdrawn = true && withdrawn = false) ||",
+  "    (@request.body.withdrawn = false && withdrawn = true &&",
+  "     withdrawn_by = @request.auth.id &&",
+  '     event.status = "live" && @now <= event.submit_deadline)))',
+  "  ||",
+  '  (@request.auth.role = "organizer" &&',
+  "   (@request.body.withdrawn = false ||",
+  "    angler = @request.auth.id ||",
+  '    @request.body.withdraw_reason != ""))',
+  ")",
+].join("\n");
 // S1 step 2 (migration 1794693724_catches_create_rule.js): the security.md "catches" Create block.
 const CATCHES_CREATE = [
   '@request.auth.id != "" &&',
@@ -103,8 +126,8 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },
   // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line).
   events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
-  // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1).
-  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE },
+  // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1); R-ENT-U-01 to U-14 (withdraw and rejoin, S1 step 4).
+  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE, updateRule: ENTRIES_UPDATE },
   // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2).
   catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ, createRule: CATCHES_CREATE },
   audit_log: { ...LOCKED },

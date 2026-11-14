@@ -2082,3 +2082,12 @@ dd {
   padding: var(--cf-spacing-sm) 0;
   border-bottom: var(--cf-stroke-hairline) solid var(--cf-color-border-divider);
 }
+
+/* EVT-03 Withdraw: what withdrawing does, as a plain bulleted list. */
+.withdraw-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+  padding-left: var(--cf-spacing-lg);
+}

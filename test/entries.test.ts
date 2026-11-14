@@ -10,7 +10,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { REPO_ROOT, usePocketBase } from "./harness/pocketbase";
 import { statusOf } from "./harness/requests";
 import { actAs, actAsAnon, createFixtureUsers, newUser, type FixtureName, type FixtureUsers } from "./harness/users";
-import { seedWorld, type World } from "./harness/world";
+import { entryOf, seedWorld, type World } from "./harness/world";
 
 const pocketbase = usePocketBase();
 
@@ -45,22 +45,24 @@ async function auditRowsFor(targetId: string): Promise<RecordModel[]> {
 const join = (client: PocketBase, eventId: string, anglerId: string, extra: Record<string, unknown> = {}) =>
   client.collection("entries").create({ event: eventId, angler: anglerId, ...extra });
 
-/** The self-join Create rule as docs/security.md writes it. */
-async function documentedCreateRule(): Promise<string> {
+/** A code block under a bold heading in docs/security.md's "### entries" section. */
+async function documentedRule(heading: RegExp): Promise<string> {
   const doc = await readFile(path.join(REPO_ROOT, "docs", "security.md"), "utf8");
   const start = doc.indexOf("\n### entries\n");
   const end = doc.indexOf("\n### ", start + 1);
-  const block = /\*\*Create\*\* \(self-join\)\n```\n([\s\S]*?)\n```/.exec(doc.slice(start, end < 0 ? undefined : end));
-  if (block?.[1] === undefined) throw new Error("security.md ### entries has no Create (self-join) block");
+  const block = new RegExp(`${heading.source}[^\\n]*\\n\`\`\`\\n([\\s\\S]*?)\\n\`\`\``).exec(doc.slice(start, end < 0 ? undefined : end));
+  if (block?.[1] === undefined) throw new Error(`security.md ### entries has no ${heading.source} block`);
   return block[1];
 }
+const documentedCreateRule = () => documentedRule(/\*\*Create\*\* \(self-join\)/);
+const documentedUpdateRule = () => documentedRule(/\*\*Update\*\* \(withdraw and rejoin/);
 
 describe("join", () => {
-  it("stores the create rule exactly as security.md writes it, and leaves update and delete locked", async () => {
+  it("stores the create and update rules exactly as security.md writes them, and leaves delete locked", async () => {
     const stored = await pocketbase().superuser.collections.getOne("entries");
 
     expect(stored.createRule).toBe(await documentedCreateRule());
-    expect(stored.updateRule).toBeNull();
+    expect(stored.updateRule).toBe(await documentedUpdateRule());
     expect(stored.deleteRule).toBeNull();
   });
 
@@ -178,5 +180,244 @@ describe("join", () => {
     const entry = await join(client, world.events.E1.id, user.id);
 
     expect((await client.collection("entries").getOne(entry.id)).display_name).toBe(user.name);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// S1 step 4: withdraw and rejoin (docs/security.md "entries" Update and Hooks). Each test makes
+// the entries it changes, so no test leans on another's state.
+
+/** A rule refusal on update: 404 from the rule, or 400 from the hook's own checks. */
+const REFUSED = [400, 403, 404];
+
+interface Placed {
+  user: RecordModel;
+  client: PocketBase;
+  entry: RecordModel;
+}
+
+/** A new member with an entry in the event, written as the superuser (any state, any event). */
+async function placed(eventId: string, state: { withdrawn?: boolean; by?: "self" | "K"; reason?: string } = {}): Promise<Placed> {
+  const { user, client } = await newMember();
+  const withdrawn = state.withdrawn ?? false;
+  const by = withdrawn ? (state.by === "K" ? users.K.id : user.id) : "";
+  const entry = await pocketbase().superuser.collection("entries").create({
+    event: eventId,
+    angler: user.id,
+    withdrawn,
+    withdrawn_by: by,
+    withdraw_reason: state.reason ?? "",
+  });
+  return { user, client, entry };
+}
+
+const entryNow = (id: string) => pocketbase().superuser.collection("entries").getOne(id);
+const update = (client: PocketBase, id: string, body: Record<string, unknown>) => client.collection("entries").update(id, body);
+
+async function rowsOf(entryId: string, action?: string): Promise<RecordModel[]> {
+  const rows = await auditRowsFor(entryId);
+  return action ? rows.filter((row) => row.action === action) : rows.filter((row) => row.action !== "join");
+}
+
+/** A live event past its submit_deadline, for the rejoin-too-late rows. */
+async function pastDeadlineEvent(): Promise<RecordModel> {
+  const day = 24 * 3600_000;
+  return pocketbase().superuser.collection("events").create({
+    name: "Past Deadline Live",
+    status: "live",
+    starts_at: new Date(Date.now() - 30 * day).toISOString(),
+    ends_at: new Date(Date.now() - 10 * day).toISOString(),
+    deadline_ext_min: 0,
+    submit_deadline: new Date(Date.now() - 9 * day).toISOString(),
+    metric: "weight",
+    best_n: 10,
+    judge: users.K.id,
+    backup_judge: users.N.id,
+    species: [world.species.largemouth.id],
+  });
+}
+
+describe("withdraw and rejoin", () => {
+  it("R-ENT-U-01, R-AUD-H-02, H-05: M withdraws own entry in E1; withdrawn_by = M; one withdraw row with both snapshots", async () => {
+    const { user, client, entry } = await placed(world.events.E1.id);
+
+    const after = await update(client, entry.id, { withdrawn: true });
+
+    expect(after).toMatchObject({ withdrawn: true, withdrawn_by: user.id, withdraw_reason: "" });
+    const rows = await rowsOf(entry.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ action: "withdraw", actor: user.id, event: world.events.E1.id, target_id: entry.id, catch: "" });
+    expect(rows[0]?.before).toEqual({ withdrawn: false, withdraw_reason: "", withdrawn_by: "" });
+    expect(rows[0]?.after).toEqual({ withdrawn: true, withdraw_reason: "", withdrawn_by: user.id });
+  });
+
+  it("R-ENT-U-02: M withdraws own entry in EC (closed)", async () => {
+    const { user, client, entry } = await placed(world.events.EC.id);
+
+    expect(await update(client, entry.id, { withdrawn: true })).toMatchObject({ withdrawn: true, withdrawn_by: user.id });
+    expect(await rowsOf(entry.id, "withdraw")).toHaveLength(1);
+  });
+
+  it("R-ENT-U-03: M rejoins after withdrawing themself, E1 live, before the deadline; withdrawn_by cleared; one rejoin row", async () => {
+    const { user, client, entry } = await placed(world.events.E1.id);
+    await update(client, entry.id, { withdrawn: true });
+
+    const after = await update(client, entry.id, { withdrawn: false });
+
+    expect(after).toMatchObject({ withdrawn: false, withdrawn_by: "" });
+    const rows = await rowsOf(entry.id, "rejoin");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ actor: user.id });
+    expect(rows[0]?.before).toEqual({ withdrawn: true, withdraw_reason: "", withdrawn_by: user.id });
+  });
+
+  it("R-ENT-U-04: W may not undo K's withdrawal", async () => {
+    const w = entryOf(world, "E1.W");
+
+    expect(REFUSED).toContain(await statusOf(update(await as("W"), w.id, { withdrawn: false })));
+    expect(await entryNow(w.id)).toMatchObject({ withdrawn: true, withdrawn_by: users.K.id });
+    expect(await rowsOf(w.id)).toEqual([]);
+  });
+
+  it("R-ENT-U-05: M may not rejoin after submit_deadline, or in EC", async () => {
+    const late = await placed((await pastDeadlineEvent()).id, { withdrawn: true, by: "self" });
+    const closed = await placed(world.events.EC.id, { withdrawn: true, by: "self" });
+
+    for (const { client, entry } of [late, closed]) {
+      expect(REFUSED).toContain(await statusOf(update(client, entry.id, { withdrawn: false })));
+      expect((await entryNow(entry.id)).withdrawn).toBe(true);
+      expect(await rowsOf(entry.id)).toEqual([]);
+    }
+  });
+
+  it("R-ENT-U-06: M may not withdraw Y's entry", async () => {
+    const y = entryOf(world, "E1.Y");
+
+    expect(REFUSED).toContain(await statusOf(update(await as("M"), y.id, { withdrawn: true })));
+    expect((await entryNow(y.id)).withdrawn).toBe(false);
+  });
+
+  it("R-ENT-U-07: K withdraws M with a reason; withdrawn_by = K", async () => {
+    const { entry } = await placed(world.events.E1.id);
+
+    expect(await update(await as("K"), entry.id, { withdrawn: true, withdraw_reason: "Not a club member" })).toMatchObject({
+      withdrawn: true,
+      withdrawn_by: users.K.id,
+      withdraw_reason: "Not a club member",
+    });
+    expect(await rowsOf(entry.id, "withdraw")).toMatchObject([{ actor: users.K.id }]);
+  });
+
+  it.each([
+    ["no reason", {}],
+    ["an empty reason", { withdraw_reason: "" }],
+    ["a reason of spaces", { withdraw_reason: "   " }],
+  ])("R-ENT-U-08: K may not withdraw M with %s", async (_case, body) => {
+    const { entry } = await placed(world.events.E1.id);
+
+    expect(REFUSED).toContain(await statusOf(update(await as("K"), entry.id, { withdrawn: true, ...body })));
+    expect((await entryNow(entry.id)).withdrawn).toBe(false);
+    expect(await rowsOf(entry.id)).toEqual([]);
+  });
+
+  it("R-ENT-U-09: K reinstates a member K withdrew; one rejoin row", async () => {
+    const { entry } = await placed(world.events.E1.id, { withdrawn: true, by: "K", reason: "Paused" });
+
+    expect(await update(await as("K"), entry.id, { withdrawn: false })).toMatchObject({ withdrawn: false, withdrawn_by: "" });
+    expect(await rowsOf(entry.id, "rejoin")).toMatchObject([{ actor: users.K.id }]);
+  });
+
+  it("R-ENT-U-10: no change to an entry in EF, by K or by the angler", async () => {
+    const k = entryOf(world, "EF.K");
+    const n = entryOf(world, "EF.N");
+
+    expect(REFUSED).toContain(await statusOf(update(await as("K"), k.id, { withdrawn: true })));
+    expect(REFUSED).toContain(await statusOf(update(await as("K"), n.id, { withdrawn: true, withdraw_reason: "Late" })));
+    expect(REFUSED).toContain(await statusOf(update(await as("N"), n.id, { withdrawn: true })));
+    expect((await entryNow(k.id)).withdrawn).toBe(false);
+    expect((await entryNow(n.id)).withdrawn).toBe(false);
+  });
+
+  it.each([
+    ["event", () => ({ event: world.events.E2.id })],
+    ["angler", () => ({ angler: users.X.id })],
+    ["display_name", () => ({ display_name: "Someone" })],
+    ["withdrawn_by", () => ({ withdrawn_by: users.K.id })],
+  ])("R-ENT-U-11: a withdraw that also sets %s is refused, for M and for K", async (_field, extra) => {
+    const mine = await placed(world.events.E1.id);
+    const other = await placed(world.events.E1.id);
+
+    expect(REFUSED).toContain(await statusOf(update(mine.client, mine.entry.id, { withdrawn: true, ...extra() })));
+    expect(REFUSED).toContain(await statusOf(update(await as("K"), other.entry.id, { withdrawn: true, withdraw_reason: "x", ...extra() })));
+    for (const id of [mine.entry.id, other.entry.id]) {
+      const now = await entryNow(id);
+      expect(now.withdrawn).toBe(false);
+      expect(now.event).toBe(world.events.E1.id);
+    }
+  });
+
+  it("R-ENT-U-12: S (backup judge, not organizer) may not withdraw M", async () => {
+    const { entry } = await placed(world.events.E1.id);
+
+    expect(REFUSED).toContain(await statusOf(update(await as("S"), entry.id, { withdrawn: true, withdraw_reason: "x" })));
+    expect((await entryNow(entry.id)).withdrawn).toBe(false);
+  });
+
+  it("R-ENT-U-13: K withdraws their own entry without a reason; withdrawn_by = K", async () => {
+    const k = entryOf(world, "E2.K");
+    try {
+      expect(await update(await as("K"), k.id, { withdrawn: true })).toMatchObject({ withdrawn: true, withdrawn_by: users.K.id });
+      expect(await rowsOf(k.id, "withdraw")).toHaveLength(1);
+    } finally {
+      await pocketbase().superuser.collection("entries").update(k.id, { withdrawn: false, withdrawn_by: "" });
+    }
+  });
+
+  it("R-ENT-U-14: in EC, K withdraws M with a reason and reinstates W; one withdraw and one rejoin row", async () => {
+    const m = await placed(world.events.EC.id);
+    const w = await placed(world.events.EC.id, { withdrawn: true, by: "K", reason: "Paused" });
+    const k = await as("K");
+
+    await update(k, m.entry.id, { withdrawn: true, withdraw_reason: "Left the club" });
+    await update(k, w.entry.id, { withdrawn: false });
+
+    expect((await rowsOf(m.entry.id)).map((row) => row.action)).toEqual(["withdraw"]);
+    expect((await rowsOf(w.entry.id)).map((row) => row.action)).toEqual(["rejoin"]);
+  });
+
+  it("R-ENT-D-01: M and K may not delete an entry", async () => {
+    const { client, entry } = await placed(world.events.E1.id);
+
+    expect(REFUSED).toContain(await statusOf(client.collection("entries").delete(entry.id)));
+    expect(REFUSED).toContain(await statusOf((await as("K")).collection("entries").delete(entry.id)));
+    expect((await entryNow(entry.id)).id).toBe(entry.id);
+  });
+
+  it("withdrawing an entry that is already withdrawn changes nothing and writes no row (the rule for the angler, the hook for K)", async () => {
+    const { client, entry } = await placed(world.events.E1.id, { withdrawn: true, by: "self" });
+
+    expect(await statusOf(update(client, entry.id, { withdrawn: true }))).toBe(404);
+    expect(await statusOf(update(await as("K"), entry.id, { withdrawn: true, withdraw_reason: "Again" }))).toBe(400);
+    expect(await entryNow(entry.id)).toMatchObject({ withdrawn_by: entry.withdrawn_by, withdraw_reason: "" });
+    expect(await rowsOf(entry.id)).toEqual([]);
+  });
+
+  it("a member poking at W's hidden withdrawn entry gets the rule's answer, not the hook's (no 400 that says it exists)", async () => {
+    const w = entryOf(world, "E1.W");
+    const m = await as("M");
+
+    expect(await statusOf(update(m, w.id, { withdrawn: true }))).toBe(await statusOf(update(m, "doesnotexist123", { withdrawn: true })));
+  });
+
+  it("R-AUD-H-04: refused withdraws and rejoins write no audit row", async () => {
+    const before = (await pocketbase().superuser.collection("audit_log").getList(1, 1)).totalItems;
+    const { entry } = await placed(world.events.E1.id);
+
+    await statusOf(update(await as("S"), entry.id, { withdrawn: true, withdraw_reason: "x" }));
+    await statusOf(update(await as("W"), entryOf(world, "E1.W").id, { withdrawn: false }));
+    await statusOf(update(actAsAnon(pocketbase()), entry.id, { withdrawn: true }));
+
+    // placed() writes one join row for the entry it makes; nothing else may appear.
+    expect((await pocketbase().superuser.collection("audit_log").getList(1, 1)).totalItems).toBe(before + 1);
   });
 });

@@ -14,6 +14,8 @@ export type TournamentAction =
   | { kind: "submit"; onSubmit: () => void }
   /** EVT-02a: no entry while joining is open. `failed` names what went wrong with the last tap. */
   | { kind: "join"; joining: boolean; failed: "not-sent" | "not-accepted" | null; onJoin: () => void }
+  /** EVT-02h: the viewer withdrew themself and may rejoin until submit_deadline. */
+  | { kind: "rejoin"; rejoining: boolean; failed: "not-sent" | "not-accepted" | null; onRejoin: () => void }
   /** Neither: a short reason, e.g. "You withdrew from this tournament." */
   | { kind: "closed"; title: string; message: string };
 
@@ -25,6 +27,8 @@ interface Props {
   onTab: (tab: MemberTab) => void;
   onMyCatches: () => void;
   onLeaderboard: () => void;
+  /** EVT-03: shown only for an active entry. */
+  onWithdraw: () => void;
 }
 
 const JOIN_FAILED = {
@@ -32,7 +36,7 @@ const JOIN_FAILED = {
   "not-accepted": "Joining isn't open for this tournament any more.",
 } as const;
 
-export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard }: Props) {
+export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
@@ -47,6 +51,13 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
         {action.kind === "join" && action.failed && (
           <Banner tone="danger" title="Not joined">
             {JOIN_FAILED[action.failed]}
+          </Banner>
+        )}
+        {action.kind === "rejoin" && (
+          <Banner tone={action.failed ? "danger" : "neutral"} title={action.failed ? "Not rejoined" : "You withdrew"}>
+            {action.failed
+              ? JOIN_FAILED[action.failed]
+              : "You're not on the leaderboard. Your catches are kept, and pending ones are still judged. Rejoin and your verified fish count again."}
           </Banner>
         )}
         {entry === "active" && (
@@ -93,7 +104,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
 
         {entry === "active" && (
           <div>
-            <Button variant="secondary" todo="EVT-03">
+            <Button variant="secondary" onClick={onWithdraw}>
               Withdraw from tournament…
             </Button>
           </div>
@@ -109,6 +120,13 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
           <AccessoryBar>
             <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={action.onSubmit}>
               Submit a catch
+            </Button>
+          </AccessoryBar>
+        )}
+        {action.kind === "rejoin" && (
+          <AccessoryBar>
+            <Button variant="primary" full loading={action.rejoining} loadingLabel="Rejoining…" onClick={action.onRejoin}>
+              Rejoin tournament
             </Button>
           </AccessoryBar>
         )}

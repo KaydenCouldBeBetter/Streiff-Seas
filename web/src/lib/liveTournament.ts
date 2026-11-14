@@ -108,3 +108,23 @@ export async function joinTournament(pb: PocketBase, eventId: string, userId: st
     return { kind: failureKind(error) };
   }
 }
+
+/** Withdrawing is open on an active entry until the event is final (R-ENT-U-01, U-02, U-10). */
+export function canWithdraw(tournament: LiveTournament): boolean {
+  return tournament.entry.kind === "active";
+}
+
+/** Rejoining is open only after withdrawing yourself, while live and before submit_deadline (R-ENT-U-03 to U-05). */
+export function canRejoin(tournament: LiveTournament, nowMs: number): boolean {
+  return tournament.entry.kind === "withdrawn" && tournament.entry.bySelf && livePhase(tournament, nowMs) !== "over";
+}
+
+/** Sets the member's own entry withdrawn (true) or back in (false): R-ENT-U-01, U-03. */
+export async function setWithdrawn(pb: PocketBase, entryId: string, withdrawn: boolean): Promise<{ kind: "done" } | { kind: FailureKind }> {
+  try {
+    await pb.collection("entries").update(entryId, { withdrawn });
+    return { kind: "done" };
+  } catch (error) {
+    return { kind: failureKind(error) };
+  }
+}

@@ -8,7 +8,7 @@ import path from "node:path";
 import PocketBase, { ClientResponseError } from "pocketbase";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { CatchDraft } from "../web/src/lib/catchSender";
-import { canJoin, canSubmit, joinTournament, livePhase, loadLiveTournament, rulesLine, type LiveTournament } from "../web/src/lib/liveTournament";
+import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, rulesLine, setWithdrawn, type LiveTournament } from "../web/src/lib/liveTournament";
 import { catchBody, createCatchSender, failureKind, type PreparedPhoto } from "../web/src/lib/sendCatch";
 import { REPO_ROOT, usePocketBase } from "./harness/pocketbase";
 import { actAs, createFixtureUsers, newUser, type FixtureName, type FixtureUsers } from "./harness/users";
@@ -237,5 +237,34 @@ describe("tournament rules (pure)", () => {
   it("the rules line lists species the way the Figma frame does", () => {
     expect(rulesLine("weight", 10, ["largemouth bass", "smallmouth bass"])).toBe("Weight · best 10 · Largemouth and smallmouth");
     expect(rulesLine("length", 5, ["walleye"])).toBe("Length · best 5 · Walleye");
+  });
+});
+
+describe("setWithdrawn, canWithdraw and canRejoin", () => {
+  it("R-ENT-U-01, U-03: a member withdraws, can then rejoin, and rejoins", async () => {
+    const user = await pocketbase().superuser.collection("users").create(newUser({ name: "Comes And Goes", emailVisibility: false, verified: true }));
+    const client = await actAs(pocketbase(), user);
+    const joined = await joinTournament(client, world.events.E1.id, user.id);
+    const entryId = joined.kind === "joined" ? joined.id : "";
+
+    expect(canWithdraw((await loadLiveTournament(client, user.id))!)).toBe(true);
+    expect((await setWithdrawn(client, entryId, true)).kind).toBe("done");
+
+    const out = (await loadLiveTournament(client, user.id))!;
+    expect(out.entry).toEqual({ kind: "withdrawn", id: entryId, bySelf: true, reason: "" });
+    expect(canWithdraw(out)).toBe(false);
+    expect(canRejoin(out, Date.now())).toBe(true);
+    expect(canSubmit(out, Date.now())).toBe(false);
+
+    expect((await setWithdrawn(client, entryId, false)).kind).toBe("done");
+    expect((await loadLiveTournament(client, user.id))!.entry).toEqual({ kind: "active", id: entryId });
+  });
+
+  it("R-ENT-U-04: W, withdrawn by K, can't rejoin: canRejoin is false and the server refuses (not-accepted)", async () => {
+    const client = await as("W");
+    const live = (await loadLiveTournament(client, users.W.id))!;
+
+    expect(canRejoin(live, Date.now())).toBe(false);
+    expect((await setWithdrawn(client, entryOf(world, "E1.W").id, false)).kind).toBe("not-accepted");
   });
 });

@@ -18,7 +18,7 @@ import { SAMPLE_MY_CATCH_HISTORY } from "../lib/sampleMyCatchHistory";
 import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { canJoin, canSubmit, joinTournament, livePhase, loadLiveTournament, type LiveTournament } from "../lib/liveTournament";
+import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
 import { preparePhoto } from "../lib/photoPrepare";
 import { unitsOf } from "../lib/profile";
 import { createCatchSender } from "../lib/sendCatch";
@@ -33,10 +33,11 @@ import { MyCatchHistory } from "./MyCatchHistory";
 import { MyCatches } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
+import { Withdraw } from "./Withdraw";
 
-type Screen = "tournament" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
+type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
 
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
   catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
   catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
@@ -61,6 +62,9 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   const [live, setLive] = useState<Live>({ state: "loading" });
   const [joining, setJoining] = useState(false);
   const [joinFailed, setJoinFailed] = useState<"not-sent" | "not-accepted" | null>(null);
+  // Withdraw (EVT-03) and rejoin (EVT-02h): one request in flight at a time, and what the last one said.
+  const [entryBusy, setEntryBusy] = useState(false);
+  const [entryFailed, setEntryFailed] = useState<"not-sent" | "not-accepted" | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -94,7 +98,12 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
     const angler = `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}`;
-    const title = screen === "angler" ? angler : screen === "anglerCatch" ? `Catch · ${angler}` : screen === "tournament" ? (ready ? view.name : "Tournament") : TITLES[screen];
+    const title =
+      screen === "angler" ? angler
+      : screen === "anglerCatch" ? `Catch · ${angler}`
+      : screen === "tournament" ? (ready ? view.name : "Tournament")
+      : screen === "withdraw" ? "Withdraw"
+      : TITLES[screen];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
   }, [screen, anglerRow, ready, view.name]);
@@ -115,10 +124,27 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     if (result.kind !== "not-sent") await reload();
   }
 
+  /** Withdraw (true) or rejoin (false) the member's own entry, then reload. Back to Tournament once it lands. */
+  async function changeEntry(withdrawn: boolean) {
+    if (!ready || entryBusy || ready.entry.kind === "none") return;
+    setEntryBusy(true);
+    setEntryFailed(null);
+    const result = await setWithdrawn(pb, ready.entry.id, withdrawn);
+    setEntryBusy(false);
+    if (result.kind === "done") {
+      await reload();
+      setScreen("tournament");
+      return;
+    }
+    setEntryFailed(result.kind);
+    if (result.kind === "not-accepted") await reload();
+  }
+
   function tournamentAction(tournament: LiveTournament): TournamentAction {
     const now = serverNowMs();
     if (canSubmit(tournament, now)) return { kind: "submit", onSubmit: openSubmit };
     if (canJoin(tournament, now)) return { kind: "join", joining, failed: joinFailed, onJoin: () => void join() };
+    if (canRejoin(tournament, now)) return { kind: "rejoin", rejoining: entryBusy, failed: entryFailed, onRejoin: () => void changeEntry(false) };
     const { entry } = tournament;
     if (entry.kind === "withdrawn") {
       return entry.bySelf
@@ -141,6 +167,10 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
         onTab={openTab}
         onMyCatches={() => setScreen("catches")}
         onLeaderboard={() => setScreen("leaderboard")}
+        onWithdraw={() => {
+          setEntryFailed(null);
+          setScreen("withdraw");
+        }}
       />
     );
   }
@@ -172,6 +202,18 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   switch (screen) {
     case "tournament":
       return home();
+    case "withdraw":
+      if (!ready || !canWithdraw(ready)) return home();
+      return (
+        <Withdraw
+          tournamentName={ready.submit.name}
+          rejoinUntil={livePhase(ready, serverNowMs()) === "over" ? null : ready.submit.submitDeadline}
+          sending={entryBusy}
+          failed={entryFailed}
+          onConfirm={() => void changeEntry(true)}
+          onCancel={() => setScreen("tournament")}
+        />
+      );
     case "leaderboard":
       return <Leaderboard leaderboard={SAMPLE_LEADERBOARD} onTab={openTab} onSubmit={openSubmit} onOpenRow={openAngler} />;
     case "angler":
