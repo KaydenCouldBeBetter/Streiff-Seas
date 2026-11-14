@@ -39,6 +39,17 @@ const ENTRIES_READ = [
   " (event.backup_judge = @request.auth.id && angler = event.judge) ||",
   ' @request.auth.role = "organizer")',
 ].join("\n");
+// S1 step 1 (migration 1794693360_entries_join_rule.js): the security.md "entries" Create block.
+const ENTRIES_CREATE = [
+  '@request.auth.id != "" &&',
+  "@request.body.angler = @request.auth.id &&",
+  'event.status = "live" &&',
+  "@now <= event.submit_deadline &&",
+  "@request.body.display_name:isset = false &&",
+  "@request.body.withdrawn:isset = false &&",
+  "@request.body.withdraw_reason:isset = false &&",
+  "@request.body.withdrawn_by:isset = false",
+].join("\n");
 const CATCHES_READ = [
   '@request.auth.id != "" &&',
   "(",
@@ -74,8 +85,8 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },
   // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line).
   events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
-  // R-ENT-L-01 to L-06.
-  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ },
+  // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1).
+  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE },
   // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01.
   catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ },
   audit_log: { ...LOCKED },
