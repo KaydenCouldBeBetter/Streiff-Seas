@@ -114,7 +114,7 @@
       "A judge's correction of a verified catch re-culls: A goes from 28.05 to 27.60 (scoring.md example 21)",
       "npm run check output shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-06-infra",
