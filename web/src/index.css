@@ -1320,9 +1320,37 @@ dd {
 .still-needed img {
   flex: none;
 }
+/*
+ * Wide windows: the submit form fills the window, so Send and the "To send, add…" line sit at
+ * the bottom of the screen however short the form is (a tournament without a code word makes it
+ * shorter), and stick there while a long form scrolls, as on a phone. The Build footer sits
+ * behind the bar, as on tab screens, so it doesn't push the bar up.
+ */
 @media (min-width: 600px) {
+  .screen:has(.submit-bottom),
+  .screen:has(.submit-bottom) .screen-content {
+    flex: 1;
+  }
   .submit-bottom {
-    position: static;
+    position: sticky;
+    bottom: 0;
+  }
+  .submit-bottom .action-bar {
+    border-top: 1px solid var(--cf-color-border-divider);
+    padding-top: var(--cf-spacing-md);
+  }
+  /* The page scrolls here: a focused field never ends up under the bar (WCAG 2.4.11). */
+  html:has(.submit-bottom) {
+    scroll-padding-bottom: 160px;
+  }
+  #root:has(.submit-bottom) {
+    position: relative;
+    isolation: isolate;
+  }
+  #root:has(.submit-bottom) footer {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: -1;
   }
 }
 /* A text button under the action bar's primary is centered (Figma Action bar, Stacked). */
