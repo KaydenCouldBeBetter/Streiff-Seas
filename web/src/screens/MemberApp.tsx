@@ -4,7 +4,8 @@
 // tournament's leaderboard (LB-01), two or more on the Tournaments list (EVT-01d), anyone
 // else on Tournaments (EVT-01a). Until EVT-01 exists, every sign-in lands on the first live
 // tournament (liveTournament.ts): Join, Submit a catch, the real sender and My catches with its
-// history are real (S1); the standing, leaderboard and Profile stats are still sample data.
+// history, edit, add photos and retract are real (S1); the standing, leaderboard and Profile
+// stats are still sample data.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
@@ -18,13 +19,18 @@ import { SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
 import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
+import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
+import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
 import { preparePhoto } from "../lib/photoPrepare";
 import { unitsOf } from "../lib/profile";
 import { createCatchSender } from "../lib/sendCatch";
 import { serverNowMs } from "../lib/serverClock";
+import { OFFLINE_ICONS, usePreloadedIcons } from "../components/ui";
 import { AnglerCatch } from "./AnglerCatch";
+import { AddPhotos } from "./AddPhotos";
 import { AnglerCatches } from "./AnglerCatches";
+import { EditCatch } from "./EditCatch";
 import type { MemberTab } from "./memberTabs";
 import { NoTournament, Tournament, type TournamentAction } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
@@ -32,10 +38,11 @@ import { MyCatch } from "./MyCatch";
 import { MyCatchHistory } from "./MyCatchHistory";
 import { MyCatches, MyCatchesStatus } from "./MyCatches";
 import { Profile } from "./Profile";
+import { RetractSheet } from "./RetractSheet";
 import { SubmitFlow } from "./SubmitFlow";
 import { Withdraw } from "./Withdraw";
 
-type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
+type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "editCatch" | "addPhotos" | "profile" | "submit";
 
 /** The page title's first part; the screens named after the live tournament add its name. */
 const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
@@ -43,11 +50,13 @@ const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tour
   catches: "My catches",
   catch: "Catch",
   catchHistory: "History",
+  editCatch: "Edit catch",
+  addPhotos: "Add photos",
   profile: "Profile",
 };
 
 /** The screens whose title names the live tournament, and that show the member's own catches. */
-const MY_CATCH_SCREENS: readonly Screen[] = ["catches", "catch", "catchHistory"];
+const MY_CATCH_SCREENS: readonly Screen[] = ["catches", "catch", "catchHistory", "editCatch", "addPhotos"];
 
 type Live = { state: "loading" } | { state: "none" } | { state: "error" } | { state: "ready"; tournament: LiveTournament };
 
@@ -67,11 +76,19 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
   const [anglerCatchId, setAnglerCatchId] = useState<string | null>(null);
   const [live, setLive] = useState<Live>({ state: "loading" });
+  // NOT SENT shows when the network is gone: its icons are fetched now, while it is there.
+  usePreloadedIcons(OFFLINE_ICONS);
   const [joining, setJoining] = useState(false);
   const [joinFailed, setJoinFailed] = useState<"not-sent" | "not-accepted" | null>(null);
   // Withdraw (EVT-03) and rejoin (EVT-02h): one request in flight at a time, and what the last one said.
   const [entryBusy, setEntryBusy] = useState(false);
   const [entryFailed, setEntryFailed] = useState<"not-sent" | "not-accepted" | null>(null);
+  // MY-05: the retract sheet over My catch; and what My catch says after a change came back.
+  const [retracting, setRetracting] = useState(false);
+  const [notice, setNotice] = useState<ChangeNotice | null>(null);
+  // The catch as it was when Edit, Add photos or Retract opened. Frozen there, so a refresh in
+  // the meantime can't slip the newer rev under the change: it is refused and explained (MY-03b).
+  const [changeBase, setChangeBase] = useState<CatchBase | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -235,6 +252,31 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
 
   const myData = mine.state === "ready" ? mine.data : null;
   const openedCatch = myData?.catches.find((c) => c.id === catchId);
+  const openedBase = catchId ? myData?.bases[catchId] : undefined;
+
+  function startChange(next: "editCatch" | "addPhotos" | "retract") {
+    if (!openedBase) return;
+    setChangeBase(openedBase);
+    setNotice(null);
+    if (next === "retract") setRetracting(true);
+    else setScreen(next);
+  }
+
+  // The notice belongs to the My catch it was shown on; any other screen drops it.
+  useEffect(() => {
+    if (screen !== "catch") setNotice(null);
+  }, [screen]);
+
+  /** Sends one change to the opened catch with the rev it was loaded with; Retry reloads first. */
+  const changeSender = (base: CatchBase) => (change: Change, retry: boolean) => (retry ? retryChange : sendChange)(pb, base, change, serverNowMs());
+
+  /** Saved, already saved or refused: reload, then My catch, saying why when it didn't save. */
+  async function changeDone(action: ChangeAction, result: ChangeResult, photos = 0) {
+    await loadMine();
+    setRetracting(false);
+    setNotice(changeNotice(action, result, photos));
+    setScreen("catch");
+  }
 
   /** My catches, or what stands in for it before the tournament and the first read have landed. */
   function myCatches() {
@@ -310,7 +352,26 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
       );
     case "catch":
       if (myData && openedCatch) {
-        return <MyCatch key={openedCatch.id} context={myData.context} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onSubmit={openSubmit} onTab={openTab} />;
+        return (
+          <MyCatch
+            key={openedCatch.id}
+            context={myData.context}
+            item={openedCatch}
+            notice={notice}
+            onBack={() => setScreen("catches")}
+            onHistory={() => setScreen("catchHistory")}
+            onSubmit={openSubmit}
+            onEdit={() => startChange("editCatch")}
+            onAddPhotos={() => startChange("addPhotos")}
+            onRetract={() => startChange("retract")}
+            sheet={
+              retracting && changeBase ? (
+                <RetractSheet item={openedCatch} send={changeSender(changeBase)} onDone={(result) => void changeDone("retract", result)} onCancel={() => setRetracting(false)} />
+              ) : null
+            }
+            onTab={openTab}
+          />
+        );
       }
       return myCatches();
     case "catchHistory":
@@ -323,6 +384,38 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
             history={myData.history[openedCatch.id] ?? []}
             onBack={() => setScreen("catch")}
             onTab={openTab}
+          />
+        );
+      }
+      return myCatches();
+    case "editCatch":
+      if (ready && myData && changeBase) {
+        return (
+          <EditCatch
+            key={changeBase.id}
+            context={myData.context}
+            base={changeBase}
+            species={ready.submit.species}
+            units={units}
+            send={changeSender(changeBase)}
+            onDone={(result) => void changeDone("edit", result)}
+            onCancel={() => setScreen("catch")}
+          />
+        );
+      }
+      return myCatches();
+    case "addPhotos":
+      if (myData && openedCatch && changeBase) {
+        return (
+          <AddPhotos
+            key={changeBase.id}
+            item={openedCatch}
+            base={changeBase}
+            metric={myData.context.metric}
+            prepare={preparePhoto}
+            send={changeSender(changeBase)}
+            onDone={(result, photos) => void changeDone("photos", result, photos)}
+            onCancel={() => setScreen("catch")}
           />
         );
       }

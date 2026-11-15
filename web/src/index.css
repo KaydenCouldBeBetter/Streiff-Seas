@@ -60,6 +60,8 @@
   --cf-radius-sm: 6px;
   --cf-radius-md: 10px;
   --cf-radius-lg: 14px;
+  /* Sheets (Figma radius/xl). */
+  --cf-radius-xl: 20px;
   --cf-radius-full: 999px;
   --cf-stroke-hairline: 1px;
   --cf-stroke-field: 1.5px;
@@ -68,6 +70,8 @@
   --cf-size-control-lg: 56px;
   /* Focus = 2 px white gap + 3 px ring (Figma Button and Text field notes). */
   --cf-focus-ring: 0 0 0 2px var(--cf-color-bg-default), 0 0 0 5px var(--cf-color-border-focus);
+  /* Figma Elevation/Sheet: 0 -4 24, ink/900 at 18%. */
+  --cf-shadow-sheet: 0 -4px 24px #0b1a262e;
 
   color-scheme: light;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -453,6 +457,10 @@ dd {
 }
 .button-secondary:active:not([aria-busy="true"]) {
   background: var(--cf-color-bg-selected);
+}
+.button-destructive {
+  background: var(--cf-color-bg-danger-strong);
+  color: var(--cf-color-text-on-primary);
 }
 .button-text {
   align-self: flex-start;
@@ -1424,6 +1432,13 @@ dd {
 .banner-danger .banner-title {
   color: var(--cf-color-text-danger);
 }
+.banner-warning {
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-warning);
+  background: var(--cf-color-bg-warning);
+}
+.banner-warning .banner-title {
+  color: var(--cf-color-text-warning);
+}
 .banner-info {
   border: var(--cf-stroke-hairline) solid var(--cf-color-border-selected);
   background: var(--cf-color-bg-selected);
@@ -2118,4 +2133,111 @@ dd {
   gap: var(--cf-spacing-sm);
   margin: 0;
   padding-left: var(--cf-spacing-lg);
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Locked field and Sheet (Figma 83:5698, Sheet / Retract this catch?). Tokens only.
+ * ------------------------------------------------------------------------------------------ */
+.locked-field {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.locked-field-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+.locked-field > img {
+  flex: none;
+}
+
+.sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--cf-color-bg-backdrop);
+}
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(var(--cf-spacing-lg), calc(env(safe-area-inset-bottom) + var(--cf-spacing-xs)));
+  border-radius: var(--cf-radius-xl) var(--cf-radius-xl) 0 0;
+  background: var(--cf-color-bg-default);
+  box-shadow: var(--cf-shadow-sheet);
+}
+.sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 5px;
+  margin: var(--cf-spacing-sm) auto var(--cf-spacing-xs);
+  border-radius: 3px;
+  background: var(--cf-color-border-default);
+}
+.sheet-header {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--cf-spacing-sm);
+}
+.sheet-header h2 {
+  flex: 1;
+  text-align: center;
+}
+.sheet-cancel {
+  flex: none;
+  width: 90px;
+}
+.sheet-header .button-text {
+  align-self: center;
+  justify-content: center;
+}
+.sheet-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-lg);
+}
+.sheet-footer {
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-xs);
+}
+
+/* MY-05a: the retract sheet's four points. */
+.sheet-warning {
+  color: var(--cf-color-text-danger);
+}
+.sheet-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+}
+.sheet-points img {
+  flex: none;
+  margin-top: 1px;
 }

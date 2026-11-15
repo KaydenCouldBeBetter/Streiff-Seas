@@ -10,6 +10,7 @@
 
 import type PocketBase from "pocketbase";
 import type { RecordModel } from "pocketbase";
+import { catchBaseOf, type CatchBase } from "./changeCatch";
 import { changeSummary, type AuditAction, type AuditActor, type AuditSnapshot, type CatchAuditRow } from "./catchTimeline";
 import { displayMeasurement } from "./displayWeight";
 import { parsePbDate } from "./liveBoard";
@@ -24,6 +25,8 @@ export interface MyCatchesData {
   catches: MyCatchView[];
   /** Each catch's audit rows, oldest first, by catch id. */
   history: Record<string, CatchAuditRow[]>;
+  /** Each catch as stored, by id: what Edit, Add photos and Retract start from (rev included). */
+  bases: Record<string, CatchBase>;
 }
 
 /** Who the IDs on a catch's audit rows belong to. */
@@ -140,6 +143,7 @@ export function myCatchesFromRecords(input: MyCatchRecords): MyCatchesData {
   const shaping: Shaping = { metric, units, species };
 
   const history: Record<string, CatchAuditRow[]> = {};
+  const bases: Record<string, CatchBase> = {};
   const byCatch = new Map<string, RecordModel[]>();
   for (const record of input.audit) {
     const list = byCatch.get(String(record.catch)) ?? [];
@@ -165,6 +169,7 @@ export function myCatchesFromRecords(input: MyCatchRecords): MyCatchesData {
   const catches = input.catches.map((record): MyCatchView => {
     const rows = auditRows(byCatch.get(record.id) ?? [], people, shaping);
     history[record.id] = rows;
+    bases[record.id] = catchBaseOf(record);
     const decision = rows.filter((row) => DECISIONS.includes(row.action)).at(-1);
     const correction = rows.filter((row) => row.action === "correct").at(-1);
     const retract = rows.filter((row) => row.action === "retract").at(-1);
@@ -187,7 +192,7 @@ export function myCatchesFromRecords(input: MyCatchRecords): MyCatchesData {
     };
   });
 
-  return { context, catches, history };
+  return { context, catches, history, bases };
 }
 
 /**

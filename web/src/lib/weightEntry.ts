@@ -83,6 +83,26 @@ export function switchWeightFormat(entry: WeightEntry, format: WeightFormat): We
   return next;
 }
 
+/**
+ * A stored weight as an entry to edit (MY-03a), in the angler's display format when the value is
+ * exact there, else in the format it is exact in (every entered weight is exact in one). Only
+ * exact fields are filled, so an untouched entry reads back as the same weight_hoz: 5,500
+ * (3 lb 7.0 oz) is never shown as 3.44 lb, which would read back as 5,504.
+ */
+export function weightEntryFromHoz(hoz: number, preferred: WeightFormat): WeightEntry {
+  const exactLb = hoz % 16 === 0;
+  const exactLbOz = hoz % 10 === 0;
+  const hundredths = hoz / 16;
+  const tenths = (hoz % HOZ_PER_POUND) / 10;
+  const format: WeightFormat = preferred === "lb" ? (exactLb || !exactLbOz ? "lb" : "lb_oz") : exactLbOz || !exactLb ? "lb_oz" : "lb";
+  return {
+    format,
+    pounds: exactLb ? `${Math.floor(hundredths / 100)}.${String(hundredths % 100).padStart(2, "0")}` : "",
+    wholePounds: exactLbOz ? String(Math.floor(hoz / HOZ_PER_POUND)) : "",
+    ounces: exactLbOz ? `${Math.floor(tenths / 10)}.${tenths % 10}` : "",
+  };
+}
+
 /** The weight as the angler typed it, for "Catch as entered": "3.44 lb", "3 lb 7.0 oz". */
 export function enteredWeightText(entry: WeightEntry): string {
   if (entry.format === "lb") return `${clean(entry.pounds)} lb`;
