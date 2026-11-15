@@ -146,6 +146,23 @@ function createFlags(captured, photoTimes, startsAt, endsAt, receivedAt) {
   return flags
 }
 
+// The flags after an angler adds photos (security.md "Flag codes"): the stored codes, plus
+// photo_added, plus per added photo extra_photo_no_time (no time) or extra_photo_far (more than
+// 24 h from captured_at, only when both exist). Codes are only ever added, never removed.
+function addedPhotoFlags(current, captured, addedTimes) {
+  const flags = (current || []).slice()
+  const add = (code) => {
+    if (flags.indexOf(code) < 0) flags.push(code)
+  }
+  add("photo_added")
+  for (let i = 0; i < addedTimes.length; i++) {
+    const t = addedTimes[i]
+    if (t === null) add("extra_photo_no_time")
+    else if (captured !== null && Math.abs(t - captured) > DAY_MS) add("extra_photo_far")
+  }
+  return flags
+}
+
 // The fixed catch snapshot every audit row holds (docs/security.md "Audit snapshots").
 function catchSnapshot(record) {
   return {
@@ -168,5 +185,6 @@ module.exports = {
   dateMs,
   capturedList,
   createFlags,
+  addedPhotoFlags,
   catchSnapshot,
 }

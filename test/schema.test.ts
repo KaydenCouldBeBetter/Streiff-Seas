@@ -91,6 +91,54 @@ const CATCHES_CREATE = [
   "@request.body.flags:isset = false &&",
   "@request.body.rev:isset = false",
 ].join("\n");
+// S1 step 5 (migration 1794696648_catches_update_rule.js): the security.md "catches" Update block.
+const CATCHES_UPDATE = [
+  '@request.auth.id != "" &&',
+  "@request.body.entry:isset = false &&",
+  "@request.body.captured_at:isset = false &&",
+  "@request.body.client_uuid:isset = false &&",
+  "@request.body.judged_by:isset = false &&",
+  "@request.body.flags:isset = false &&",
+  "(@request.body.species:isset = false || entry.event.species.id ?= @request.body.species) &&",
+  '(@request.body.weight_hoz:isset = false || (entry.event.metric = "weight" && @request.body.weight_hoz > 0)) &&',
+  '(@request.body.length_q:isset = false || (entry.event.metric = "length" && @request.body.length_q > 0)) &&',
+  "(",
+  "  (entry.angler = @request.auth.id &&",
+  '   status = "pending" &&',
+  "   entry.withdrawn = false &&",
+  '   entry.event.status = "live" &&',
+  "   @now <= entry.event.submit_deadline &&",
+  '   (@request.body.status:isset = false || @request.body.status = "retracted") &&',
+  "   @request.body.reason:isset = false &&",
+  "   @request.body.rev:isset = true &&",
+  "   @request.body.rev = rev)",
+  "  ||",
+  "  (entry.angler != @request.auth.id &&",
+  "   (entry.event.judge = @request.auth.id ||",
+  "    (entry.event.backup_judge = @request.auth.id && entry.angler = entry.event.judge)) &&",
+  '   (entry.event.status = "live" || entry.event.status = "closed") &&',
+  '   status != "retracted" &&',
+  "   @request.body.photo:isset = false &&",
+  "   @request.body.photo_captured_at:isset = false &&",
+  "   @request.body.rev:isset = true &&",
+  "   @request.body.rev = rev &&",
+  "   (@request.body.status:isset = true ||",
+  "    @request.body.species:isset = true ||",
+  "    @request.body.weight_hoz:isset = true ||",
+  "    @request.body.length_q:isset = true) &&",
+  "   (@request.body.status:isset = false ||",
+  '    @request.body.status = "verified" || @request.body.status = "rejected") &&',
+  '   (@request.body.status != "rejected" || @request.body.reason != "") &&',
+  '   (@request.body.status != "rejected" ||',
+  "    (@request.body.species:isset = false &&",
+  "     @request.body.weight_hoz:isset = false &&",
+  "     @request.body.length_q:isset = false)) &&",
+  '   (status = "pending" ||',
+  "    @request.body.status:isset = false ||",
+  "    @request.body.status = status ||",
+  '    @request.body.reason != ""))',
+  ")",
+].join("\n");
 const CATCHES_READ = [
   '@request.auth.id != "" &&',
   "(",
@@ -128,8 +176,9 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
   // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1); R-ENT-U-01 to U-14 (withdraw and rejoin, S1 step 4).
   entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE, updateRule: ENTRIES_UPDATE },
-  // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2).
-  catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ, createRule: CATCHES_CREATE },
+  // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2);
+  // R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40 (angler edit, add photo, retract, S1 step 5).
+  catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ, createRule: CATCHES_CREATE, updateRule: CATCHES_UPDATE },
   audit_log: { ...LOCKED },
 };
 

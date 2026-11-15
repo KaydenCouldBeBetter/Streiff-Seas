@@ -142,11 +142,11 @@ async function documentedCreateRule(): Promise<string> {
 }
 
 describe("submit: the rule", () => {
-  it("stores the create rule exactly as security.md writes it, and leaves update and delete locked", async () => {
+  // The update rule is checked against security.md in test/catchUpdate.test.ts (S1 step 5).
+  it("stores the create rule exactly as security.md writes it, and leaves delete locked", async () => {
     const stored = await pocketbase().superuser.collections.getOne("catches");
 
     expect(stored.createRule).toBe(await documentedCreateRule());
-    expect(stored.updateRule).toBeNull();
     expect(stored.deleteRule).toBeNull();
   });
 
