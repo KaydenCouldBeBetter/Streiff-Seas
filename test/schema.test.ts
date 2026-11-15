@@ -149,6 +149,17 @@ const CATCHES_READ = [
   '  @request.auth.role = "organizer"',
   ")",
 ].join("\n");
+const AUDIT_READ = [
+  '@request.auth.id != "" &&',
+  '(@request.auth.role = "organizer" ||',
+  " catch.entry.event.judge = @request.auth.id ||",
+  " catch.entry.angler = @request.auth.id ||",
+  " (catch.entry.event.backup_judge = @request.auth.id &&",
+  "  catch.entry.angler = catch.entry.event.judge) ||",
+  ' (catch != "" &&',
+  '  catch.status != "rejected" && catch.status != "retracted" &&',
+  "  catch.entry.withdrawn = false))",
+].join("\n");
 
 /**
  * Every API rule of every collection, in one table. null means superuser only.
@@ -179,7 +190,8 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2);
   // R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40 (angler edit, add photo, retract, S1 step 5).
   catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ, createRule: CATCHES_CREATE, updateRule: CATCHES_UPDATE },
-  audit_log: { ...LOCKED },
+  // R-AUD-L-01 to L-09 (security.md text, line for line; opened in S1 for My catch's history).
+  audit_log: { ...LOCKED, listRule: AUDIT_READ, viewRule: AUDIT_READ },
 };
 
 /** A field as the collections API returns it, less what the specs below don't state. */
