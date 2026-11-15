@@ -122,6 +122,13 @@ function changedFields(before: AuditSnapshot, after: AuditSnapshot, metricLabel:
   return lines;
 }
 
+/** What a correction changed, as one line for MY-02f's banner: "Weight 4.20 → 4.02 lb". */
+export function changeSummary(before: AuditSnapshot, after: AuditSnapshot, metric: "weight" | "length"): string {
+  return changedFields(before, after, metric === "weight" ? "Weight" : "Length")
+    .map((line) => line.text)
+    .join("; ");
+}
+
 function describe(row: CatchAuditRow, metricLabel: string): { kind: TimelineKind; tone: TimelineTone; detail: TimelineLine[] } {
   const { before, after } = row;
   switch (row.action) {

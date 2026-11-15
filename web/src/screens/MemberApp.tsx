@@ -3,8 +3,8 @@
 // Landing (decisions.md 2026-10-03 "Home screen and landing"): one live entry lands on that
 // tournament's leaderboard (LB-01), two or more on the Tournaments list (EVT-01d), anyone
 // else on Tournaments (EVT-01a). Until EVT-01 exists, every sign-in lands on the first live
-// tournament (liveTournament.ts): Join, Submit a catch and the real sender are live (S1); the
-// standing, leaderboard, My catches and Profile stats are still sample data.
+// tournament (liveTournament.ts): Join, Submit a catch, the real sender and My catches with its
+// history are real (S1); the standing, leaderboard and Profile stats are still sample data.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
@@ -14,11 +14,11 @@ import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampl
 import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
 import { SAMPLE_CATCH_HISTORY } from "../lib/sampleCatchHistory";
 import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
-import { SAMPLE_MY_CATCH_HISTORY } from "../lib/sampleMyCatchHistory";
-import { SAMPLE_MY_CATCHES, SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
+import { SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
 import { SAMPLE_TOURNAMENT } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
 import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
+import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
 import { preparePhoto } from "../lib/photoPrepare";
 import { unitsOf } from "../lib/profile";
 import { createCatchSender } from "../lib/sendCatch";
@@ -30,22 +30,29 @@ import { NoTournament, Tournament, type TournamentAction } from "./Tournament";
 import { Leaderboard } from "./Leaderboard";
 import { MyCatch } from "./MyCatch";
 import { MyCatchHistory } from "./MyCatchHistory";
-import { MyCatches } from "./MyCatches";
+import { MyCatches, MyCatchesStatus } from "./MyCatches";
 import { Profile } from "./Profile";
 import { SubmitFlow } from "./SubmitFlow";
 import { Withdraw } from "./Withdraw";
 
 type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "profile" | "submit";
 
+/** The page title's first part; the screens named after the live tournament add its name. */
 const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
   leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
-  catches: `My catches · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
-  catch: `Catch · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
-  catchHistory: `History · ${SAMPLE_MY_CATCHES_CONTEXT.eventName}`,
+  catches: "My catches",
+  catch: "Catch",
+  catchHistory: "History",
   profile: "Profile",
 };
 
+/** The screens whose title names the live tournament, and that show the member's own catches. */
+const MY_CATCH_SCREENS: readonly Screen[] = ["catches", "catch", "catchHistory"];
+
 type Live = { state: "loading" } | { state: "none" } | { state: "error" } | { state: "ready"; tournament: LiveTournament };
+
+/** My catches: read when it opens and when the app comes back to the foreground (Gap 25). */
+type Mine = { state: "loading" } | { state: "error" } | { state: "ready"; data: MyCatchesData };
 
 interface Props {
   user: RecordModel;
@@ -90,6 +97,34 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     ? { ...SAMPLE_TOURNAMENT, name: ready.submit.name, rulesLine: ready.rulesLine, endsAt: ready.submit.endsAt, submitDeadline: ready.submit.submitDeadline }
     : SAMPLE_TOURNAMENT;
 
+  const [mine, setMine] = useState<Mine>({ state: "loading" });
+  const onMyCatchScreen = MY_CATCH_SCREENS.includes(screen);
+
+  const loadMine = useCallback(async () => {
+    if (!ready) return;
+    try {
+      const data = await loadMyCatches(pb, ready, user.id, units, serverNowMs());
+      setMine({ state: "ready", data });
+    } catch {
+      // A failed refresh keeps the list already shown; only a first read that fails says so.
+      setMine((previous) => (previous.state === "ready" ? previous : { state: "error" }));
+    }
+  }, [ready, user.id, units]);
+
+  // Each time My catches opens (not on every move within it), and whenever the tournament reloads.
+  useEffect(() => {
+    if (screen === "catches") void loadMine();
+  }, [screen, loadMine]);
+
+  useEffect(() => {
+    if (!onMyCatchScreen) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadMine();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [onMyCatchScreen, loadMine]);
+
   const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
   const anglerCatches = anglerRow ? (SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []) : [];
   const anglerCatch = anglerCatches.find((c) => c.id === anglerCatchId);
@@ -103,6 +138,7 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
       : screen === "anglerCatch" ? `Catch · ${angler}`
       : screen === "tournament" ? (ready ? view.name : "Tournament")
       : screen === "withdraw" ? "Withdraw"
+      : MY_CATCH_SCREENS.includes(screen) && ready ? `${TITLES[screen]} · ${view.name}`
       : TITLES[screen];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
@@ -197,7 +233,16 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     setScreen("catch");
   }
 
-  const openedCatch = SAMPLE_MY_CATCHES.find((c) => c.id === catchId);
+  const myData = mine.state === "ready" ? mine.data : null;
+  const openedCatch = myData?.catches.find((c) => c.id === catchId);
+
+  /** My catches, or what stands in for it before the tournament and the first read have landed. */
+  function myCatches() {
+    // Without a live tournament there's nothing to read; the tab still stays My catches.
+    if (!ready) return <MyCatchesStatus state={live.state === "ready" ? "loading" : live.state} onRetry={() => void reload()} onTab={openTab} />;
+    if (!myData) return <MyCatchesStatus state={mine.state === "error" ? "error" : "loading"} onRetry={() => void loadMine()} onTab={openTab} />;
+    return <MyCatches context={myData.context} catches={myData.catches} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
+  }
 
   switch (screen) {
     case "tournament":
@@ -264,26 +309,26 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
         />
       );
     case "catch":
-      if (openedCatch) {
-        return <MyCatch key={openedCatch.id} context={SAMPLE_MY_CATCHES_CONTEXT} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onTab={openTab} />;
+      if (myData && openedCatch) {
+        return <MyCatch key={openedCatch.id} context={myData.context} item={openedCatch} onBack={() => setScreen("catches")} onHistory={() => setScreen("catchHistory")} onSubmit={openSubmit} onTab={openTab} />;
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
+      return myCatches();
     case "catchHistory":
-      if (openedCatch) {
+      if (myData && openedCatch) {
         return (
           <MyCatchHistory
             key={openedCatch.id}
             item={openedCatch}
-            metric={SAMPLE_MY_CATCHES_CONTEXT.metric}
-            history={SAMPLE_MY_CATCH_HISTORY[openedCatch.id] ?? []}
+            metric={myData.context.metric}
+            history={myData.history[openedCatch.id] ?? []}
             onBack={() => setScreen("catch")}
             onTab={openTab}
           />
         );
       }
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
+      return myCatches();
     case "catches":
-      return <MyCatches context={SAMPLE_MY_CATCHES_CONTEXT} catches={SAMPLE_MY_CATCHES} onOpen={openCatch} onSubmit={openSubmit} onTab={openTab} />;
+      return myCatches();
     case "profile":
       return (
         <Profile

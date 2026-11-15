@@ -11,8 +11,8 @@ import type PocketBase from "pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
 import type { CatchDraft, CatchSender, ReceivedCatch } from "./catchSender";
 import type { Metric } from "./catchForm";
-import { displayWeight } from "./displayWeight";
-import { lengthText, parsePbDate } from "./liveBoard";
+import { displayMeasurement } from "./displayWeight";
+import { parsePbDate } from "./liveBoard";
 import type { DisplayUnits } from "./profile";
 
 export interface PreparedPhoto {
@@ -52,10 +52,7 @@ function isDuplicateUuid(error: unknown): boolean {
 
 export function receivedCatch(record: RecordModel, metric: Metric, units: DisplayUnits): ReceivedCatch {
   const species = (record.expand?.species as RecordModel | undefined)?.name;
-  const measurement =
-    metric === "length"
-      ? { value: lengthText(Number(record.length_q)).replace(/ in$/, ""), unit: "in" }
-      : displayWeight(Number(record.weight_hoz), units);
+  const measurement = displayMeasurement(metric, units, record);
   return {
     id: record.id,
     created: parsePbDate(String(record.created)),

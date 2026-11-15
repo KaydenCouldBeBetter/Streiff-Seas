@@ -18,10 +18,12 @@ interface Props {
   onBack: () => void;
   /** The nav bar's History link (MY-06a). */
   onHistory: () => void;
+  /** Submit a new catch (MY-02g) opens SUB-01 (SubmitFlow). */
+  onSubmit: () => void;
   onTab: (tab: MemberTab) => void;
 }
 
-export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
+export function MyCatch({ context, item, onBack, onHistory, onSubmit, onTab }: Props) {
   const state = myCatchState(item, context);
   const note = noteFor(state, context);
   return (
@@ -92,7 +94,7 @@ export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
       <div className="tab-screen-bottom">
         {state.canSubmitNew && (
           <div className="action-bar-above-tabs">
-            <Button variant="primary" large todo="SUB-01">
+            <Button variant="primary" large onClick={onSubmit}>
               Submit a new catch
             </Button>
           </div>
