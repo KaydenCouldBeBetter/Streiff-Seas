@@ -4,6 +4,7 @@ import { App } from "./App";
 import { initTheme } from "./lib/themeStore";
 import { AuthFlow } from "./screens/AuthFlow";
 import "./index.css";
+import "./responsive.css";
 
 initTheme();
 

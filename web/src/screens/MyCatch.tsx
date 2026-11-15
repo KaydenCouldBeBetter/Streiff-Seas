@@ -6,8 +6,9 @@
 // Never shown here: delete, remove or replace a photo, change the photo time, approve own
 // (R-CAT-D-01, U-26, U-28, U-06), or flag codes.
 
-import { CatchStatusChip, InBestMarker, PhotoViewer } from "../components/catch";
+import { CatchStatusChip, CatchTimeline, InBestMarker, PhotoViewer } from "../components/catch";
 import { Banner, Button, NavBar, TabBar } from "../components/ui";
+import { timelineEntries, type CatchAuditRow } from "../lib/catchTimeline";
 import { formatClubTime } from "../lib/format";
 import { MAX_PHOTOS, myCatchState, type MyCatchesContext, type MyCatchState, type MyCatchView } from "../lib/myCatches";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
@@ -23,70 +24,11 @@ interface Props {
 
 export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
   const state = myCatchState(item, context);
-  const note = noteFor(state, context);
   return (
     <div className="screen tab-screen">
       <NavBar title="Catch" backLabel="My catches" backName="Back to My catches" onBack={onBack} trailing={{ label: "History", onClick: onHistory }} />
       <div className="screen-content catch-detail">
-        <PhotoViewer photos={item.photos} archived={state.photosArchived} />
-
-        <div className="catch-summary">
-          <p className="measurement">
-            <span className="t-number-display">{item.measurement.value}</span>
-            <span className="t-title-section t-secondary">{item.measurement.unit}</span>
-          </p>
-          <p className="t-headline">{item.species}</p>
-          <p className="chips">
-            <CatchStatusChip status={item.status} />
-            {item.status === "verified" && item.inBest && <InBestMarker bestN={context.bestN} />}
-          </p>
-        </div>
-
-        {state.statusRow === "MY-02f" && item.correction && (
-          <Banner tone="info" icon="/icons/edit-link.svg" title="Corrected by the judge">
-            {item.correction.change}.{item.reason && ` Reason: “${item.reason}”`} See History for every step.
-          </Banner>
-        )}
-
-        {state.statusRow === "MY-02g" && (
-          <section className="reason-box" aria-labelledby="reason-heading">
-            <h2 id="reason-heading" className="t-headline">
-              Why the judge rejected it
-            </h2>
-            <p className="t-body">“{item.reason}”</p>
-            {item.decision && <p className="t-footnote t-secondary">{decidedBy(item.decision)}</p>}
-          </section>
-        )}
-
-        {state.statusRow === "MY-02h" && (
-          <Banner tone="neutral" icon="/icons/undo-neutral.svg" title="You retracted this catch">
-            It never scores and other members can't see it. It stays on record. To replace it, submit a new catch.
-          </Banner>
-        )}
-
-        <Facts state={state} item={item} />
-
-        {(state.canEdit || state.canAddPhotos || state.canRetract) && (
-          <div className="catch-actions">
-            {state.canEdit && (
-              <Button variant="secondary" full icon="/icons/edit-link.svg" todo="MY-03">
-                Edit species or {context.metric}
-              </Button>
-            )}
-            {state.canAddPhotos && (
-              <Button variant="secondary" full icon="/icons/plus.svg" todo="MY-04">
-                Add photos ({item.photos.length} of {MAX_PHOTOS} used)
-              </Button>
-            )}
-            {state.canRetract && (
-              <Button variant="text" icon="/icons/undo-link.svg" todo="MY-05">
-                Retract this catch…
-              </Button>
-            )}
-          </div>
-        )}
-
-        {note && <p className={state.statusRow === "MY-02g" ? "t-callout t-secondary" : "t-footnote t-secondary"}>{note}</p>}
+        <MyCatchBody context={context} item={item} />
       </div>
 
       <div className="tab-screen-bottom">
@@ -100,6 +42,92 @@ export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
         <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
       </div>
     </div>
+  );
+}
+
+/** The detail pane beside the list on a wide window: the catch, then its History (MY-02 and MY-06 in one view). */
+export function MyCatchPane({ context, item, history }: { context: MyCatchesContext; item: MyCatchView; history: readonly CatchAuditRow[] }) {
+  const entries = timelineEntries(history, context.metric);
+  return (
+    <>
+      <MyCatchBody context={context} item={item} />
+      <h2 id="pane-history-heading" className="t-title-section">
+        History
+      </h2>
+      <CatchTimeline entries={entries} labelledBy="pane-history-heading" />
+    </>
+  );
+}
+
+/**
+ * The catch itself: photos, summary, the state's banner, facts, what can still be done and the
+ * note. Shared by the pushed page and by the detail pane beside the list on a wide window.
+ */
+export function MyCatchBody({ context, item }: { context: MyCatchesContext; item: MyCatchView }) {
+  const state = myCatchState(item, context);
+  const note = noteFor(state, context);
+  return (
+    <>
+      <PhotoViewer photos={item.photos} archived={state.photosArchived} />
+
+      <div className="catch-summary">
+        <p className="measurement">
+          <span className="t-number-display">{item.measurement.value}</span>
+          <span className="t-title-section t-secondary">{item.measurement.unit}</span>
+        </p>
+        <p className="t-headline">{item.species}</p>
+        <p className="chips">
+          <CatchStatusChip status={item.status} />
+          {item.status === "verified" && item.inBest && <InBestMarker bestN={context.bestN} />}
+        </p>
+      </div>
+
+      {state.statusRow === "MY-02f" && item.correction && (
+        <Banner tone="info" icon="/icons/edit-link.svg" title="Corrected by the judge">
+          {item.correction.change}.{item.reason && ` Reason: “${item.reason}”`} See History for every step.
+        </Banner>
+      )}
+
+      {state.statusRow === "MY-02g" && (
+        <section className="reason-box" aria-labelledby="reason-heading">
+          <h2 id="reason-heading" className="t-headline">
+            Why the judge rejected it
+          </h2>
+          <p className="t-body">“{item.reason}”</p>
+          {item.decision && <p className="t-footnote t-secondary">{decidedBy(item.decision)}</p>}
+        </section>
+      )}
+
+      {state.statusRow === "MY-02h" && (
+        <Banner tone="neutral" icon="/icons/undo-neutral.svg" title="You retracted this catch">
+          It never scores and other members can't see it. It stays on record. To replace it, submit a new catch.
+        </Banner>
+      )}
+
+      <Facts state={state} item={item} />
+
+      {(state.canEdit || state.canAddPhotos || state.canRetract) && (
+        <div className="catch-actions">
+          {state.canEdit && (
+            <Button variant="secondary" full icon="/icons/edit-link.svg" todo="MY-03">
+              Edit species or {context.metric}
+            </Button>
+          )}
+          {state.canAddPhotos && (
+            <Button variant="secondary" full icon="/icons/plus.svg" todo="MY-04">
+              Add photos ({item.photos.length} of {MAX_PHOTOS} used)
+            </Button>
+          )}
+          {state.canRetract && (
+            <Button variant="text" icon="/icons/undo-link.svg" todo="MY-05">
+              Retract this catch…
+            </Button>
+          )}
+        </div>
+      )}
+
+      {note && <p className={state.statusRow === "MY-02g" ? "t-callout t-secondary" : "t-footnote t-secondary"}>{note}</p>}
+    </>
   );
 }
 

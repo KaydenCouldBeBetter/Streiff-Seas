@@ -1,0 +1,676 @@
+/*
+ * Desktop and responsive layout (Figma "Desktop & responsive", 13 Nov 2026; navigation option A).
+ * Compact (under 37.5em, a phone) is index.css unchanged. Medium (37.5em to under 64em) gets the
+ * icon rail and one column, 720 wide. Expanded (64em and up) gets the sidebar, the two-column
+ * pages, the leaderboard table and the lists with their detail beside them. Em, not px (spec
+ * build note 1): a member who enlarges the text gets the simpler layout sooner, and nothing
+ * scrolls sideways. lib/breakpoints.ts holds the same two numbers (test/breakpoints.test.ts).
+ * Tokens only, as in index.css: no colour literal (test/darkTokens.test.ts), so Dark follows.
+ */
+
+/* ---- Utilities ------------------------------------------------------------------------------ */
+
+/* Shown from the expanded size up; the element keeps its own display there. */
+@media (max-width: 63.9375em) {
+  .wide-only {
+    display: none !important;
+  }
+}
+/* Replaced by something else from the expanded size up (the facts card by a subtitle). */
+@media (min-width: 64em) {
+  .hide-wide {
+    display: none !important;
+  }
+}
+
+/* ---- Compact: no shell chrome, the page is index.css as it was ------------------------------ */
+
+@media (max-width: 37.4375em) {
+  .shell,
+  .shell-content {
+    display: contents;
+  }
+  .side-nav,
+  .skip-link {
+    display: none;
+  }
+}
+
+/* ---- Medium and up: the shell ---------------------------------------------------------------- */
+
+@media (min-width: 37.5em) {
+  /* The Build footer sits at the bottom of the page behind the content, as on a phone. */
+  #root:has(.shell) {
+    position: relative;
+    isolation: isolate;
+  }
+  #root:has(.shell) footer {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: -1;
+  }
+
+  .shell {
+    position: relative;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* A phone's tab bar and pinned Submit are replaced by the rail and sidebar. */
+  .shell .tab-screen-bottom {
+    display: none;
+  }
+
+  .skip-link {
+    position: absolute;
+    top: -6rem;
+    left: var(--cf-spacing-sm);
+    z-index: 10;
+    padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+    border-radius: var(--cf-radius-md);
+    background: var(--cf-color-bg-primary);
+    color: var(--cf-color-text-on-primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .skip-link:focus {
+    top: var(--cf-spacing-sm);
+    outline: none;
+    box-shadow: var(--cf-focus-ring);
+  }
+
+  /* Rail: icon over label, Submit first. */
+  .side-nav {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-lg);
+    height: 100dvh;
+    padding: var(--cf-spacing-lg) var(--cf-spacing-sm);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 1px solid var(--cf-color-border-divider);
+    background: var(--cf-color-bg-sunken);
+  }
+  .side-nav-brand,
+  .side-nav-user,
+  .side-nav-long {
+    display: none;
+  }
+  .side-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-2xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .side-nav-foot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-2xs);
+    margin-top: auto;
+  }
+
+  .side-nav .side-nav-submit {
+    flex-direction: column;
+    gap: var(--cf-spacing-xs);
+    height: auto;
+    padding: 0;
+    background: none;
+    color: var(--cf-color-text-default);
+    font-size: 0.6875rem;
+    line-height: 0.8125rem;
+    font-weight: 700;
+  }
+  .side-nav-submit img {
+    box-sizing: content-box;
+    padding: var(--cf-spacing-lg);
+    border-radius: var(--cf-radius-lg);
+    background: var(--cf-color-bg-primary);
+  }
+  .side-nav-submit:active img {
+    background: var(--cf-color-bg-primary-pressed);
+  }
+
+  .side-nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--cf-spacing-xs);
+    width: 100%;
+    min-height: 48px;
+    padding: var(--cf-spacing-xs) 0;
+    border: none;
+    border-radius: var(--cf-radius-md);
+    background: none;
+    color: var(--cf-color-text-secondary);
+    font: inherit;
+    font-size: 0.6875rem;
+    line-height: 0.8125rem;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* The rail draws the selected state as a pill behind the icon. */
+  .side-nav-item img {
+    box-sizing: content-box;
+    padding: var(--cf-spacing-xs) var(--cf-spacing-lg);
+    border-radius: var(--cf-radius-full);
+  }
+  .side-nav-item[aria-current="page"] {
+    color: var(--cf-color-text-link);
+    font-weight: 700;
+  }
+  .side-nav-item[aria-current="page"] img {
+    background: var(--cf-color-bg-selected);
+  }
+  /* Hover only adds a tint (spec build note 6). */
+  .side-nav-item:hover:not([aria-current="page"]) img {
+    background: color-mix(in srgb, var(--cf-color-bg-selected) 55%, transparent);
+  }
+  .side-nav-item:focus-visible {
+    outline: none;
+    box-shadow: var(--cf-focus-ring);
+  }
+  .side-nav .todo-tag {
+    display: none;
+  }
+
+  /* The page: one column, 720 wide, 24 px of padding. */
+  .shell-content {
+    min-width: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    /* Room for the Build footer behind the page, so it never sits under the content. */
+    padding-bottom: 1.5rem;
+  }
+  .shell-content:focus {
+    outline: none;
+  }
+  .shell-content .screen {
+    flex: 1;
+    max-width: calc(45rem + 2 * var(--cf-spacing-2xl));
+    padding: var(--cf-spacing-2xl) var(--cf-spacing-2xl) 0;
+  }
+  .shell-content .screen-content {
+    padding: var(--cf-spacing-md) 0 var(--cf-spacing-lg);
+  }
+  .shell-content .nav-bar-large {
+    padding: 0 0 var(--cf-spacing-md);
+  }
+
+  /* Push screens: the back link above a large left-aligned title, History on the right. */
+  .shell-content .nav-bar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "back trailing"
+      "title title";
+    row-gap: var(--cf-spacing-sm);
+    min-height: 0;
+    padding: 0 0 var(--cf-spacing-md);
+    background: none;
+  }
+  .shell-content .nav-bar-back {
+    grid-area: back;
+    justify-self: start;
+    width: auto;
+    padding-right: var(--cf-spacing-sm);
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    font-weight: 600;
+  }
+  .shell-content .nav-bar-title {
+    grid-area: title;
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    text-align: left;
+  }
+  .shell-content .nav-bar-trailing {
+    grid-area: trailing;
+    width: auto;
+  }
+
+  /* The leaderboard's rows sit in a rounded card, not edge to edge. */
+  .shell-content .leaderboard-content {
+    padding: var(--cf-spacing-xs) 0 var(--cf-spacing-lg);
+  }
+  .shell-content .leaderboard-columns {
+    display: none;
+  }
+  .shell-content .leaderboard-rows {
+    overflow: hidden;
+    border: 1px solid var(--cf-color-border-divider);
+    border-radius: var(--cf-radius-lg);
+  }
+  .shell-content .leaderboard-rows li:last-child .leaderboard-row {
+    border-bottom: none;
+  }
+
+  /* Lists of links are a bordered card. */
+  .shell-content .list-links {
+    padding: 0 var(--cf-spacing-sm);
+    border: 1px solid var(--cf-color-border-divider);
+    border-radius: var(--cf-radius-lg);
+  }
+  .shell-content .list-link:last-child {
+    border-bottom: none;
+  }
+
+  /* Confirmations, forms and statuses read as one 720 column; their bar is part of the page. */
+  .shell-content .action-bar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--cf-spacing-xs) 0 var(--cf-spacing-lg);
+  }
+  .shell-content .action-bar .button-large {
+    width: auto;
+  }
+  .shell-content .submit-bottom {
+    position: static;
+  }
+  .shell-content .still-needed {
+    border-radius: var(--cf-radius-md);
+  }
+  /* The Send button on its own fills the column. */
+  .shell-content .action-bar > .button-large:only-child {
+    width: 100%;
+  }
+  .shell-content .photo-viewer-photo {
+    height: 280px;
+  }
+}
+
+/* ---- Expanded: the sidebar and the side-by-side pages --------------------------------------- */
+
+@media (min-width: 64em) {
+  .shell {
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+  }
+
+  .side-nav {
+    gap: var(--cf-spacing-xl);
+    padding: var(--cf-spacing-2xl) var(--cf-spacing-lg);
+  }
+  .side-nav-brand {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-2xs);
+    padding: 0 var(--cf-spacing-md);
+  }
+  .side-nav-short {
+    display: none;
+  }
+  .side-nav-long {
+    display: inline;
+  }
+  .side-nav-user {
+    display: block;
+    padding: var(--cf-spacing-sm) var(--cf-spacing-md) 0;
+  }
+
+  .side-nav .side-nav-submit {
+    flex-direction: row;
+    height: var(--cf-size-control-lg);
+    background: var(--cf-color-bg-primary);
+    color: var(--cf-color-text-on-primary);
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+    font-weight: 600;
+  }
+  .side-nav-submit img {
+    padding: 0;
+    background: none;
+  }
+  .side-nav .side-nav-submit:active {
+    background: var(--cf-color-bg-primary-pressed);
+  }
+  .side-nav-submit:active img {
+    background: none;
+  }
+
+  .side-nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--cf-spacing-md);
+    min-height: 48px;
+    padding: var(--cf-spacing-sm) var(--cf-spacing-md);
+    color: var(--cf-color-text-default);
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    font-weight: 400;
+    text-align: left;
+  }
+  .side-nav-item img {
+    padding: 0;
+    border-radius: 0;
+  }
+  .side-nav-item[aria-current="page"] {
+    background: var(--cf-color-bg-selected);
+    font-weight: 600;
+  }
+  .side-nav-item[aria-current="page"] img {
+    background: none;
+  }
+  .side-nav-item:hover:not([aria-current="page"]) {
+    background: color-mix(in srgb, var(--cf-color-bg-selected) 55%, transparent);
+  }
+  .side-nav-item:hover:not([aria-current="page"]) img {
+    background: none;
+  }
+
+  .shell-content .screen {
+    padding: var(--cf-spacing-3xl) var(--cf-spacing-3xl) 0;
+    max-width: calc(45rem + 2 * var(--cf-spacing-3xl));
+  }
+  /* Pages with two columns or a table use the full 1120. */
+  .shell-content .screen-wide {
+    max-width: calc(70rem + 2 * var(--cf-spacing-3xl));
+  }
+  /* The Live badge sits next to a tournament's title, and at the far right of the leaderboard's. */
+  .nav-bar-large-title:has(.event-status) h1 {
+    flex: none;
+  }
+
+  /* Tournament: what you do on the left, the fixed facts on the right (360). */
+  .tournament-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22.5rem;
+    grid-template-columns: minmax(0, 1fr) 22.5rem;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "standing facts"
+      "links facts"
+      "withdraw facts";
+    align-items: start;
+    gap: var(--cf-spacing-2xl);
+  }
+  .tournament-standing {
+    grid-area: standing;
+  }
+  .tournament-facts {
+    grid-area: facts;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-md);
+  }
+  .tournament-links {
+    grid-area: links;
+  }
+  .tournament-withdraw {
+    grid-area: withdraw;
+  }
+  .tournament-standing-action {
+    padding-top: var(--cf-spacing-sm);
+  }
+
+  /* Leaderboard: your place, the dates and Club rules across the top, then a table. */
+  .leaderboard-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: var(--cf-spacing-lg);
+  }
+  .leaderboard-summary .card {
+    justify-content: center;
+  }
+  .leaderboard-rules {
+    display: flex;
+    align-items: flex-start;
+  }
+  .leaderboard-table-wrap {
+    overflow: hidden;
+    border: 1px solid var(--cf-color-border-divider);
+    border-radius: var(--cf-radius-lg);
+  }
+  .leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 0 var(--cf-spacing-md);
+    text-align: left;
+    vertical-align: middle;
+  }
+  .leaderboard-table thead th {
+    padding-block: var(--cf-spacing-md);
+    background: var(--cf-color-bg-sunken);
+  }
+  .leaderboard-table tbody tr {
+    height: 64px;
+    border-top: 1px solid var(--cf-color-border-divider);
+    cursor: pointer;
+  }
+  .leaderboard-table tbody tr:hover {
+    background: color-mix(in srgb, var(--cf-color-bg-selected) 55%, transparent);
+  }
+  /* The viewer's row: tint + a 4 px left bar + "(you)", never colour alone. */
+  .leaderboard-table tbody tr.is-you {
+    background: var(--cf-color-bg-selected);
+    box-shadow: inset 4px 0 0 var(--cf-color-border-selected);
+  }
+  .leaderboard-table th:first-child,
+  .leaderboard-table td:first-child {
+    padding-left: var(--cf-spacing-2xl);
+  }
+  .leaderboard-table-place .leaderboard-row-place {
+    flex-direction: row;
+    justify-content: flex-start;
+    width: auto;
+  }
+  .leaderboard-table-angler {
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .leaderboard-table-angler .role-tag {
+    margin-left: var(--cf-spacing-sm);
+  }
+  .leaderboard-table .table-link {
+    padding: 0;
+    border: none;
+    border-radius: var(--cf-radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .leaderboard-table .table-link:focus-visible {
+    outline: none;
+    box-shadow: var(--cf-focus-ring);
+  }
+  .leaderboard-table-total {
+    text-align: right !important;
+    white-space: nowrap;
+  }
+  .leaderboard-table-chevron {
+    width: 3rem;
+    padding-right: var(--cf-spacing-lg) !important;
+  }
+
+  /* Split pages use the room a big window has: the list stays at one edge and the detail fills out to the other. */
+  .shell-content .screen-wide:has(.catch-split) {
+    max-width: calc(90rem + 2 * var(--cf-spacing-3xl));
+  }
+
+  /* A list with its detail beside it: the list is 400 wide and scrolls on its own. */
+  .catch-split {
+    display: grid;
+    grid-template-columns: 25rem minmax(0, 1fr);
+    align-items: start;
+    column-gap: 3rem;
+    row-gap: var(--cf-spacing-md);
+  }
+  .catch-split > .banner,
+  .catch-split > .angler-subtitle {
+    grid-column: 1 / -1;
+  }
+  .catch-split-list {
+    position: sticky;
+    top: var(--cf-spacing-2xl);
+    max-height: calc(100dvh - 9rem);
+    /* Room inside the scroller for the focus ring and the selected card's border. */
+    margin: calc(-1 * var(--cf-spacing-xs));
+    padding: var(--cf-spacing-xs);
+    overflow-y: auto;
+    /* A slim scrollbar in the tokens' colours, with a gutter so it never touches the cards. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--cf-color-border-default) transparent;
+    scrollbar-gutter: stable;
+    padding-right: var(--cf-spacing-md);
+  }
+  .catch-split-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-lg);
+    min-width: 0;
+    padding: var(--cf-spacing-2xl);
+    border: 1px solid var(--cf-color-border-divider);
+    border-radius: var(--cf-radius-lg);
+  }
+  /* The selected card: a 2 px border and a tint (and aria-current), not colour alone. */
+  .catch-card.is-selected {
+    padding: calc(var(--cf-spacing-md) - 1px);
+    border: var(--cf-stroke-selected) solid var(--cf-color-border-selected);
+    background: var(--cf-color-bg-selected);
+  }
+  .catch-split-detail .photo-viewer-photo {
+    height: 380px;
+  }
+  .catch-split-detail .catch-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "measure chips"
+      "name name";
+    align-items: start;
+  }
+  .catch-split-detail .catch-summary .measurement {
+    grid-area: measure;
+  }
+  .catch-split-detail .catch-summary .chips {
+    grid-area: chips;
+    justify-content: flex-end;
+    padding-top: 0;
+  }
+  .catch-split-detail .catch-summary .t-headline {
+    grid-area: name;
+  }
+  .catch-split-detail .catch-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .catch-split-detail .button-medium.button-full {
+    width: auto;
+  }
+
+  /* Submit a catch: photos on the left, species, weight and Send on the right. */
+  .submit-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 25rem;
+    grid-template-areas:
+      "head head"
+      "photos form";
+    align-items: start;
+    column-gap: 6rem;
+    row-gap: var(--cf-spacing-xl);
+  }
+  .submit-columns-head {
+    grid-area: head;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-md);
+  }
+  .submit-columns-photos {
+    grid-area: photos;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--cf-spacing-md);
+    min-width: 0;
+  }
+  .submit-columns-photos .section-heading,
+  .submit-columns-photos .photo-slots {
+    align-self: stretch;
+  }
+  .submit-columns-photos .photo-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .submit-columns-form {
+    grid-area: form;
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-xl);
+    min-width: 0;
+  }
+  .submit-columns-send {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cf-spacing-sm);
+  }
+  .submit-columns-send .action-bar {
+    padding: 0;
+  }
+  .submit-columns-send .still-needed {
+    padding: 0;
+    background: none;
+    font-weight: 400;
+  }
+
+  .drop-zone {
+    align-items: center;
+    justify-content: center;
+    min-height: 248px;
+    padding: var(--cf-spacing-lg);
+    border: var(--cf-stroke-field) dashed var(--cf-color-border-default);
+    border-radius: var(--cf-radius-lg);
+    background: var(--cf-color-bg-sunken);
+    text-align: center;
+  }
+  /* Dragging over: the border and tint change, and the words say so. */
+  .drop-zone.is-over {
+    border-style: solid;
+    border-color: var(--cf-color-border-selected);
+    background: var(--cf-color-bg-selected);
+  }
+}
+
+/* ---- Signed out: sign-in and the code step are a centered card, 480 wide at most ------------ */
+
+@media (min-width: 37.5em) {
+  #root:has(main > .screen) {
+    background: var(--cf-color-bg-sunken);
+  }
+  main > .screen {
+    flex: none;
+    max-width: 30rem;
+    margin: 12vh auto auto;
+    padding: var(--cf-spacing-3xl);
+    border-radius: var(--cf-radius-lg);
+    background: var(--cf-color-bg-default);
+  }
+  main > .screen .screen-content {
+    padding: 0;
+  }
+  main > .screen .action-bar {
+    padding: var(--cf-spacing-lg) 0 0;
+  }
+  main > .screen .brand {
+    align-items: center;
+    padding-top: 0;
+    text-align: center;
+  }
+}

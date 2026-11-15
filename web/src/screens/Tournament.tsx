@@ -19,10 +19,10 @@ export function Tournament({ tournament, onTab, onMyCatches, onLeaderboard, onSu
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
-    <div className="screen tab-screen">
+    <div className="screen tab-screen screen-wide">
       <LargeNavBar title={tournament.name} badge={<EventStatus status={tournament.status} />} subtitle={tournament.rulesLine} />
-      <div className="screen-content">
-        <section className="card card-selected" aria-labelledby="standing-heading">
+      <div className="screen-content tournament-grid">
+        <section className="card card-selected tournament-standing" aria-labelledby="standing-heading">
           <h2 id="standing-heading" className="t-footnote-strong t-secondary">
             Your standing
           </h2>
@@ -36,20 +36,61 @@ export function Tournament({ tournament, onTab, onMyCatches, onLeaderboard, onSu
           <p className="t-callout">
             {standing.counted} of {standing.bestN} counted · {catches.pending} pending · {catches.rejected} rejected
           </p>
+          {/* On a wide window the standing card carries its own way to the board (Figma 220:951). */}
+          <div className="tournament-standing-action wide-only">
+            <Button variant="secondary" icon="/icons/leaderboard.svg" onClick={onLeaderboard}>
+              Open leaderboard
+            </Button>
+          </div>
         </section>
 
-        <dl className="card card-sunken t-callout">
-          <div className="fact">
-            <dt className="t-secondary">Window closes</dt>
-            <dd className="t-callout-strong">{formatClubTime(tournament.endsAt)}</dd>
+        <div className="tournament-facts">
+          <h2 className="t-title-section wide-only">
+            Dates and rules
+          </h2>
+          <dl className="card card-sunken t-callout">
+            <div className="fact wide-only">
+              <dt className="t-secondary">Window opens</dt>
+              <dd className="t-callout-strong">{formatClubTime(tournament.startsAt)}</dd>
+            </div>
+            <div className="fact">
+              <dt className="t-secondary">Window closes</dt>
+              <dd className="t-callout-strong">{formatClubTime(tournament.endsAt)}</dd>
+            </div>
+            <div className="fact">
+              <dt className="t-secondary">Submit by</dt>
+              <dd className="t-callout-strong">{formatClubTime(tournament.submitDeadline)}</dd>
+            </div>
+            <div className="fact wide-only">
+              <dt className="t-secondary">Scoring</dt>
+              <dd className="t-callout-strong">{tournament.rules.scoring}</dd>
+            </div>
+            <div className="fact wide-only">
+              <dt className="t-secondary">Species</dt>
+              <dd className="t-callout-strong">{tournament.rules.species}</dd>
+            </div>
+            <div className="fact wide-only">
+              <dt className="t-secondary">Judge</dt>
+              <dd className="t-callout-strong">{tournament.rules.judge}</dd>
+            </div>
+            <div className="fact wide-only">
+              <dt className="t-secondary">Backup judge</dt>
+              <dd className="t-callout-strong">{tournament.rules.backupJudge}</dd>
+            </div>
+            <div className="fact wide-only">
+              <dt className="t-secondary">Code word</dt>
+              <dd className="t-callout-strong">{tournament.rules.codeWord}</dd>
+            </div>
+          </dl>
+          <p className="t-footnote t-secondary wide-only">All times Eastern.</p>
+          <div className="wide-only">
+            <Button variant="text" todo="RULES-01a">
+              Club rules for this tournament
+            </Button>
           </div>
-          <div className="fact">
-            <dt className="t-secondary">Submit by</dt>
-            <dd className="t-callout-strong">{formatClubTime(tournament.submitDeadline)}</dd>
-          </div>
-        </dl>
+        </div>
 
-        <div className="list-links">
+        <div className="list-links tournament-links">
           <ListLink
             icon="/icons/list.svg"
             title="My catches"
@@ -60,15 +101,17 @@ export function Tournament({ tournament, onTab, onMyCatches, onLeaderboard, onSu
           <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={`You're ${place}`} onClick={onLeaderboard} />
         </div>
 
-        <div>
+        <div className="tournament-withdraw">
           <Button variant="secondary" todo="EVT-03">
             Withdraw from tournament…
           </Button>
         </div>
 
-        <Button variant="text" todo="RULES-01a">
-          Club rules
-        </Button>
+        <div className="tournament-rules hide-wide">
+          <Button variant="text" todo="RULES-01a">
+            Club rules
+          </Button>
+        </div>
       </div>
 
       <div className="tab-screen-bottom">

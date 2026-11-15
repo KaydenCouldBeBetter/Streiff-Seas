@@ -5,6 +5,7 @@
 // The list refreshes on open and when the app returns to the foreground; it is not live
 // (Gap 25, settled 2026-10-05).
 
+import type { ReactNode } from "react";
 import { CatchCard } from "../components/catch";
 import { AccessoryBar, Banner, Button, EmptyState, LargeNavBar, TabBar } from "../components/ui";
 import { formatClubTime } from "../lib/format";
@@ -18,15 +19,20 @@ interface Props {
   /** Submit a catch opens SUB-01 (SubmitFlow). */
   onSubmit: () => void;
   onTab: (tab: MemberTab) => void;
+  /**
+   * From 1024 px the list and the selected catch share the page (MY-01, MY-02 and MY-06 in one
+   * view, Figma 222:1408): `detail` is the catch pane and `selectedId` marks its card.
+   */
+  split?: { selectedId: string; detail: ReactNode };
 }
 
-export function MyCatches({ context, catches, onOpen, onSubmit, onTab }: Props) {
+export function MyCatches({ context, catches, onOpen, onSubmit, onTab, split }: Props) {
   const row = myCatchesRow(context, catches.length);
   const canSubmit = submittingOpen(context);
   return (
-    <div className="screen tab-screen">
+    <div className="screen tab-screen screen-wide">
       <LargeNavBar title="My catches" subtitle={myCatchesSubtitle(context, catches)} />
-      <div className="screen-content catch-list">
+      <div className={`screen-content catch-list${split && row !== "MY-01a" ? " catch-split" : ""}`}>
         {row === "MY-01a" ? (
           <EmptyState
             icon="/icons/list-large.svg"
@@ -47,10 +53,11 @@ export function MyCatches({ context, catches, onOpen, onSubmit, onTab }: Props) 
                 Results are final. Photos are archived and nothing can change.
               </Banner>
             )}
-            <ul className="catch-list-items">
+            <ul className="catch-list-items catch-split-list" aria-label="Your catches">
               {newestFirst(catches).map((item) => (
                 <li key={item.id}>
                   <CatchCard
+                    selected={split?.selectedId === item.id}
                     thumbnailUrl={item.photos[0]?.url ?? null}
                     archived={row === "MY-01c"}
                     value={item.measurement.value}
@@ -65,6 +72,7 @@ export function MyCatches({ context, catches, onOpen, onSubmit, onTab }: Props) 
                 </li>
               ))}
             </ul>
+            {split && <section className="catch-split-detail" aria-label="Selected catch">{split.detail}</section>}
           </>
         )}
       </div>

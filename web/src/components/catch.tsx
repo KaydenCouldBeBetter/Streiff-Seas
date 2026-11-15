@@ -49,10 +49,13 @@ interface PhotoSlotProps {
   /** "Required", "Optional", "Sent"… Failed always says the photo is still in the camera roll. */
   note: string;
   state: PhotoSlotState;
+  /** On a wide window an empty slot is a drop zone with "Choose file" (Figma Photo drop zone). */
+  dropZone?: boolean;
 }
 
 /** One proof-photo slot. Append-only: no remove, replace or reorder control in any state (R-CAT-U-26). */
-export function PhotoSlot({ label, name, note, state }: PhotoSlotProps) {
+export function PhotoSlot({ label, name, note, state, dropZone = false }: PhotoSlotProps) {
+  if (state.kind === "empty" && dropZone) return <DropZone label={label} name={name} note={note} onPick={state.onPick} />;
   return (
     <div className="photo-slot">
       {state.kind === "empty" ? <EmptyImage name={name} onPick={state.onPick} /> : <FilledImage name={name} state={state} />}
@@ -62,6 +65,47 @@ export function PhotoSlot({ label, name, note, state }: PhotoSlotProps) {
       ) : (
         <p className="t-footnote t-secondary">{note}</p>
       )}
+    </div>
+  );
+}
+
+/**
+ * The empty slot on a wide window: a dashed zone that takes a dropped photo, and always a
+ * "Choose file" button, so dragging is an extra and never the only way (WCAG 2.5.7). It takes
+ * one image file; anything else is ignored, and the picker's own limits apply after that.
+ */
+function DropZone({ label, name, note, onPick }: { label: string; name: string; note: string; onPick: (file: File) => void }) {
+  const picker = usePhotoPicker(onPick);
+  const [over, setOver] = useState(false);
+  return (
+    <div
+      className={`photo-slot drop-zone${over ? " is-over" : ""}`}
+      role="group"
+      aria-label={`${name}, empty`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setOver(false);
+        const file = [...event.dataTransfer.files].find((f) => f.type.startsWith("image/"));
+        if (file) onPick(file);
+      }}
+    >
+      <Icon src="/icons/upload-link.svg" size={24} />
+      <p className="t-headline">{label}</p>
+      <p className="t-footnote t-secondary">{note}</p>
+      <p className="t-callout t-secondary" aria-hidden="true">
+        {over ? "Drop to add this photo" : "Drag a photo here, or"}
+      </p>
+      <button type="button" className="button button-secondary button-medium" onClick={picker.open}>
+        Choose file
+      </button>
+      {picker.input}
     </div>
   );
 }
@@ -231,13 +275,15 @@ interface CatchCardProps {
   reason?: string;
   /** The screens.md row the card opens while it isn't built (MY-02). */
   todo?: string;
+  /** The catch shown beside the list on a wide window: a 2 px border and a tint, and aria-current. */
+  selected?: boolean;
   onClick?: () => void;
 }
 
 /** One catch; the whole card is one button. Members never see flag codes. */
-export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, time, status, inBestN, reason, todo, onClick }: CatchCardProps) {
+export function CatchCard({ thumbnailUrl, archived = false, value, unit, title, time, status, inBestN, reason, todo, selected = false, onClick }: CatchCardProps) {
   return (
-    <button type="button" className="catch-card" onClick={onClick}>
+    <button type="button" className={`catch-card${selected ? " is-selected" : ""}`} aria-current={selected ? "true" : undefined} onClick={onClick}>
       <span className="catch-card-thumb">
         {thumbnailUrl && !archived ? (
           <img className="photo-slot-preview" src={thumbnailUrl} alt="" />
