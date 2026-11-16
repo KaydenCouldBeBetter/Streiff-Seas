@@ -1,7 +1,8 @@
 // The seam between the submit screens and the backend (SUB-01a → SUB-02). The screens build a
 // CatchDraft and hand it to a CatchSender; they only know the SendResult that comes back.
 //
-// S1 replaces sampleSender.ts with the real sender, which must, for each draft:
+// The real sender is sendCatch.ts (S1; sampleSubmit.ts keeps the prototype's pretend one). It
+// must, for each draft:
 // - before re-encoding, read the first photo's capture time into `captured_at` and every
 //   photo's into `photo_captured_at` (screens.md SUB-01a; R-CAT-C-19);
 // - send every photo through the location strip: re-encode to JPEG, 2560 px long edge, 5 MB
@@ -29,10 +30,12 @@ export interface CatchDraft {
   eventId: string;
   species: SpeciesChoice;
   /** Hundredths of an ounce (scoring.md §4); weight events only (R-CAT-C-12). */
-  weightHoz: number;
+  weightHoz?: number;
+  /** Quarter inches, rounded down (scoring.md §4, example 6); length events only (R-CAT-C-13). */
+  lengthQ?: number;
   /** In slot order: holding the fish, on the scale, then up to 2 extras. */
   photos: readonly PickedPhoto[];
-  /** What the angler typed ("3.44 lb"), shown as "Catch as entered" on SUB-02a and SUB-02c. */
+  /** What the angler typed ("3.44 lb", "17 5/8 in"), shown as "Catch as entered" on SUB-02a and SUB-02c. */
   enteredMeasurement: string;
 }
 

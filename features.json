@@ -184,7 +184,7 @@
       "Users: anon sees none, M sees only own record and can't view X's, K sees all (R-USR-L-01, R-USR-L-02, R-USR-L-03, R-USR-V-01, R-USR-V-02)",
       "Profile: M changes own name and display units but not role, email, verified or anyone else's record; K can't change roles; nobody deletes a user (R-USR-U-01, R-USR-U-02, R-USR-U-03, R-USR-U-04, R-USR-U-05, R-USR-D-01)",
       "A signed-in member lists species and non-draft events; anon sees none; M can't view a draft (R-SPC-L-01, R-SPC-L-02, R-SPC-L-03, R-EVT-L-01, R-EVT-L-02, R-EVT-V-01)",
-      "Join: X joins E1 and gets display_name and a join audit row; joining as someone else, twice, in ED/EC/EF, after submit_deadline, anonymously, or with server-only fields is refused (R-ENT-C-01 to R-ENT-C-07, R-AUD-H-02); K and S were entered when E1 was created, so joining again fails and leaves one entry each (R-ENT-C-08, R-EVT-C-08)",
+      "Join: X joins E1 and gets display_name and a join audit row; joining as someone else, twice, in ED/EC/EF, after submit_deadline, anonymously, or with server-only fields is refused (R-ENT-C-01 to R-ENT-C-07, R-AUD-H-02); K and S were entered when E1 was created, so joining again fails and leaves one entry each (R-ENT-C-08; the automatic entries themselves, R-EVT-C-08, are S4-finalize step 1, Kayden's call 2026-11-16)",
       "Entries list: anon none; M sees non-withdrawn entries and not W's; W sees own withdrawn entry (R-ENT-L-01, R-ENT-L-02, R-ENT-L-03, R-ENT-L-04)",
       "Withdraw and rejoin self: allowed in E1 and EC with a withdraw row; rejoin only after self-withdrawal, while E1 is live and before the deadline; W can't undo K's withdrawal; M can't touch X's entry or change event, angler, display_name or withdrawn_by; nobody deletes an entry (R-ENT-U-01 to R-ENT-U-06, R-ENT-U-11, R-ENT-D-01)",
       "Submit: M picks a species from E1's list, enters 3 lb 7 oz and attaches the two required photos (holding the fish; on the scale) with photo_captured_at; the record is pending with rev 1, weight_hoz 5500 and a create audit row with the fixed snapshot; one photo or none is refused, and photo_captured_at must have one entry per file with the first equal to captured_at (R-CAT-C-01, R-CAT-C-19, R-CAT-C-21, R-AUD-H-01, R-AUD-H-05; scoring.md examples 5, 24); K and S submit to their own entries the same way (R-CAT-C-18)",
@@ -204,7 +204,7 @@
       "Submit, edit and Join screens checked at 390 px wide, primary buttons about 48 px tall, light high-contrast theme",
       "npm run check output shown; /security-review run on the rules, hooks and upload code"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "S2b-leaderboard",
@@ -213,7 +213,7 @@
       "Leaderboard rows show total, counted fish, biggest fish and pending count; only anglers with at least one pending or verified catch on a non-withdrawn entry appear (R-CAT-L-02, R-CAT-L-07, R-ENT-L-03)",
       "Display units: decimal pounds and pounds-and-ounces views match scoring.md examples 5 and 16, and switching changes no score or ranking (R-USR-U-01)",
       "Name sync: M's name change updates display_name in live and closed events but not in final ones (R-USR-U-06)",
-      "Realtime: a member subscribed to catches gets no event for another angler's rejected catch (R-CAT-L-09); the board refetches on PB_CONNECT and when the tab becomes visible, shows Live / Reconnecting / last updated, and polls every 30 s after 150 s of silence",
+      "Realtime: a member subscribed to catches gets no event for another angler's rejected catch (R-CAT-L-09); the board refetches on PB_CONNECT and when the tab becomes visible, shows Live / Reconnecting / last updated, and polls every 30 s after 150 s of silence; after repeated network failures it does a full page reload so an expired Access session can prompt (screens.md LB-01b, SYS-04a; moved from S1 on 2026-11-16, Kayden's call; checked through real Access in the M0-07 soak)",
       "Leaderboard checked at 390 px wide; npm run check output shown"
     ],
     "passes": false

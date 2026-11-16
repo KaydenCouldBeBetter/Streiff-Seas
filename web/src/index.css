@@ -60,6 +60,8 @@
   --cf-radius-sm: 6px;
   --cf-radius-md: 10px;
   --cf-radius-lg: 14px;
+  /* Sheets (Figma radius/xl). */
+  --cf-radius-xl: 20px;
   --cf-radius-full: 999px;
   --cf-stroke-hairline: 1px;
   --cf-stroke-field: 1.5px;
@@ -68,6 +70,8 @@
   --cf-size-control-lg: 56px;
   /* Focus = 2 px white gap + 3 px ring (Figma Button and Text field notes). */
   --cf-focus-ring: 0 0 0 2px var(--cf-color-bg-default), 0 0 0 5px var(--cf-color-border-focus);
+  /* Figma Elevation/Sheet: 0 -4 24, ink/900 at 18%. */
+  --cf-shadow-sheet: 0 -4px 24px #0b1a262e;
 
   color-scheme: light;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -454,6 +458,10 @@ dd {
 .button-secondary:active:not([aria-busy="true"]) {
   background: var(--cf-color-bg-selected);
 }
+.button-destructive {
+  background: var(--cf-color-bg-danger-strong);
+  color: var(--cf-color-text-on-primary);
+}
 .button-text {
   align-self: flex-start;
   height: var(--cf-size-control-md);
@@ -579,6 +587,34 @@ dd {
   flex: 1;
   min-width: 0;
   text-align: right;
+}
+
+/* RULES-01a Club rules (Figma 120:9278): numbered sections of bulleted lines. */
+.tab-screen .screen-content.club-rules {
+  gap: var(--cf-spacing-md);
+}
+.club-rules-section,
+.club-rules-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.club-rules-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.club-rules-items li {
+  display: flex;
+  gap: var(--cf-spacing-sm);
+}
+.club-rules-items li::before {
+  content: "•";
+  flex: none;
+  color: var(--cf-color-text-secondary);
+}
+.club-rules-note {
+  display: block;
 }
 
 /* List link: the whole row is one 56 px button. */
@@ -1320,9 +1356,37 @@ dd {
 .still-needed img {
   flex: none;
 }
+/*
+ * Wide windows: the submit form fills the window, so Send and the "To send, add…" line sit at
+ * the bottom of the screen however short the form is (a tournament without a code word makes it
+ * shorter), and stick there while a long form scrolls, as on a phone. The Build footer sits
+ * behind the bar, as on tab screens, so it doesn't push the bar up.
+ */
 @media (min-width: 600px) {
+  .screen:has(.submit-bottom),
+  .screen:has(.submit-bottom) .screen-content {
+    flex: 1;
+  }
   .submit-bottom {
-    position: static;
+    position: sticky;
+    bottom: 0;
+  }
+  .submit-bottom .action-bar {
+    border-top: 1px solid var(--cf-color-border-divider);
+    padding-top: var(--cf-spacing-md);
+  }
+  /* The page scrolls here: a focused field never ends up under the bar (WCAG 2.4.11). */
+  html:has(.submit-bottom) {
+    scroll-padding-bottom: 160px;
+  }
+  #root:has(.submit-bottom) {
+    position: relative;
+    isolation: isolate;
+  }
+  #root:has(.submit-bottom) footer {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: -1;
   }
 }
 /* A text button under the action bar's primary is centered (Figma Action bar, Stacked). */
@@ -1395,6 +1459,13 @@ dd {
 }
 .banner-danger .banner-title {
   color: var(--cf-color-text-danger);
+}
+.banner-warning {
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-warning);
+  background: var(--cf-color-bg-warning);
+}
+.banner-warning .banner-title {
+  color: var(--cf-color-text-warning);
 }
 .banner-info {
   border: var(--cf-stroke-hairline) solid var(--cf-color-border-selected);
@@ -2081,4 +2152,169 @@ dd {
   flex-direction: column;
   padding: var(--cf-spacing-sm) 0;
   border-bottom: var(--cf-stroke-hairline) solid var(--cf-color-border-divider);
+}
+
+/* EVT-03 Withdraw: what withdrawing does, as a plain bulleted list. */
+.withdraw-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+  padding-left: var(--cf-spacing-lg);
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Locked field and Sheet (Figma 83:5698, Sheet / Retract this catch?). Tokens only.
+ * ------------------------------------------------------------------------------------------ */
+.locked-field {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.locked-field-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+}
+.locked-field > img {
+  flex: none;
+}
+
+.sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--cf-color-bg-backdrop);
+}
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(var(--cf-spacing-lg), calc(env(safe-area-inset-bottom) + var(--cf-spacing-xs)));
+  border-radius: var(--cf-radius-xl) var(--cf-radius-xl) 0 0;
+  background: var(--cf-color-bg-default);
+  box-shadow: var(--cf-shadow-sheet);
+}
+.sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 5px;
+  margin: var(--cf-spacing-sm) auto var(--cf-spacing-xs);
+  border-radius: 3px;
+  background: var(--cf-color-border-default);
+}
+.sheet-header {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--cf-spacing-sm);
+}
+.sheet-header h2 {
+  flex: 1;
+  text-align: center;
+}
+.sheet-cancel {
+  flex: none;
+  width: 90px;
+}
+.sheet-header .button-text {
+  align-self: center;
+  justify-content: center;
+}
+.sheet-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-lg);
+}
+.sheet-footer {
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-xs);
+}
+
+/* MY-05a: the retract sheet's four points. */
+.sheet-warning {
+  color: var(--cf-color-text-danger);
+}
+.sheet-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
+}
+.sheet-points img {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Length input (Figma 28:132; SUB-01b, MY-03a): whole inches, the eighths selector and the
+ * rounded-down preview. Tokens only.
+ * ------------------------------------------------------------------------------------------ */
+.length-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.eighths-button {
+  padding: 0 var(--cf-spacing-md) 0 var(--cf-spacing-lg);
+  color: var(--cf-color-text-default);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.eighths-button > span {
+  flex: 1;
+}
+.eighths-button > img {
+  flex: none;
+}
+.eighths-button:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+/* Kept in the page while empty, so the live region is there when the preview arrives. */
+.length-preview:not(:empty) {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-md);
+  background: var(--cf-color-bg-sunken);
+}
+.length-preview img {
+  flex: none;
+}
+.eighths-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }

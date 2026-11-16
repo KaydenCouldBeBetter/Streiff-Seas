@@ -1,13 +1,17 @@
 // MY-02 My catch: one own catch, its state, photos and what can still be done (Figma 47:1774
 // pending, 102:7297 four photos, 102:7401 past the deadline, 102:7499 withdrawn, 47:1882
 // verified, 48:1828 corrected, 48:1917 rejected, 48:1977 retracted, 102:7597 final).
-// lib/myCatches.ts picks the row; controls whose screens aren't built yet carry a TodoTag.
-// History opens MY-06a (MyCatchHistory.tsx) from every row.
+// lib/myCatches.ts picks the row. Edit opens MY-03 (EditCatch.tsx), Add photos MY-04
+// (AddPhotos.tsx), Retract the MY-05 sheet (RetractSheet.tsx, passed in as `sheet`). After a
+// refused change (MY-03b, MY-04c, MY-05b) this screen shows the reloaded catch under a notice
+// saying why (lib/changeCopy.ts). History opens MY-06a (MyCatchHistory.tsx) from every row.
 // Never shown here: delete, remove or replace a photo, change the photo time, approve own
 // (R-CAT-D-01, U-26, U-28, U-06), or flag codes.
 
+import type { ReactNode } from "react";
 import { CatchStatusChip, InBestMarker, PhotoViewer } from "../components/catch";
 import { Banner, Button, NavBar, TabBar } from "../components/ui";
+import type { ChangeNotice } from "../lib/changeCopy";
 import { formatClubTime } from "../lib/format";
 import { MAX_PHOTOS, myCatchState, type MyCatchesContext, type MyCatchState, type MyCatchView } from "../lib/myCatches";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
@@ -18,16 +22,30 @@ interface Props {
   onBack: () => void;
   /** The nav bar's History link (MY-06a). */
   onHistory: () => void;
+  /** Submit a new catch (MY-02g) opens SUB-01 (SubmitFlow). */
+  onSubmit: () => void;
+  onEdit: () => void;
+  onAddPhotos: () => void;
+  onRetract: () => void;
+  /** Why the last change didn't save, or that a Retry found it saved. */
+  notice?: ChangeNotice | null;
+  /** The retract sheet, over the screen while it's open. */
+  sheet?: ReactNode;
   onTab: (tab: MemberTab) => void;
 }
 
-export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
+export function MyCatch({ context, item, onBack, onHistory, onSubmit, onEdit, onAddPhotos, onRetract, notice, sheet, onTab }: Props) {
   const state = myCatchState(item, context);
   const note = noteFor(state, context);
   return (
     <div className="screen tab-screen">
       <NavBar title="Catch" backLabel="My catches" backName="Back to My catches" onBack={onBack} trailing={{ label: "History", onClick: onHistory }} />
       <div className="screen-content catch-detail">
+        {notice && (
+          <Banner tone={notice.tone} title={notice.title}>
+            {notice.message}
+          </Banner>
+        )}
         <PhotoViewer photos={item.photos} archived={state.photosArchived} />
 
         <div className="catch-summary">
@@ -69,17 +87,17 @@ export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
         {(state.canEdit || state.canAddPhotos || state.canRetract) && (
           <div className="catch-actions">
             {state.canEdit && (
-              <Button variant="secondary" full icon="/icons/edit-link.svg" todo="MY-03">
+              <Button variant="secondary" full icon="/icons/edit-link.svg" onClick={onEdit}>
                 Edit species or {context.metric}
               </Button>
             )}
             {state.canAddPhotos && (
-              <Button variant="secondary" full icon="/icons/plus.svg" todo="MY-04">
+              <Button variant="secondary" full icon="/icons/plus.svg" onClick={onAddPhotos}>
                 Add photos ({item.photos.length} of {MAX_PHOTOS} used)
               </Button>
             )}
             {state.canRetract && (
-              <Button variant="text" icon="/icons/undo-link.svg" todo="MY-05">
+              <Button variant="text" icon="/icons/undo-link.svg" onClick={onRetract}>
                 Retract this catch…
               </Button>
             )}
@@ -92,13 +110,14 @@ export function MyCatch({ context, item, onBack, onHistory, onTab }: Props) {
       <div className="tab-screen-bottom">
         {state.canSubmitNew && (
           <div className="action-bar-above-tabs">
-            <Button variant="primary" large todo="SUB-01">
+            <Button variant="primary" large onClick={onSubmit}>
               Submit a new catch
             </Button>
           </div>
         )}
         <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
       </div>
+      {sheet}
     </div>
   );
 }

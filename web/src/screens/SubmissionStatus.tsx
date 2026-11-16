@@ -3,7 +3,7 @@
 // catch and View only). Not accepted (SUB-02e) is a placeholder until the refusal reason can be
 // inferred from a reload of the event and entry (decisions.md 2026-10-05, Gap 16).
 
-import { ActionBar, Banner, Button, Icon, NavBar, TodoTag } from "../components/ui";
+import { ActionBar, Banner, Button, Icon, NavBar } from "../components/ui";
 import { CatchCard, PhotoSlot, type PhotoSlotState } from "../components/catch";
 import { photoSlotLabel, photoSlotName, type Metric } from "../lib/catchForm";
 import type { CatchDraft, ReceivedCatch, SendProgress } from "../lib/catchSender";
@@ -184,9 +184,9 @@ export function NotAccepted({ onBack }: { onBack: () => void }) {
         <Banner tone="danger" title="Not accepted">
           The club didn't accept this catch.
         </Banner>
-        <p className="t-callout t-secondary todo-host">
-          Why it wasn't accepted (deadline passed, tournament closed or entry withdrawn) comes next.
-          <TodoTag row="SUB-02e" />
+        {/* decisions.md 2026-10-05 "Refusals are explained by reloading": the tournament page reloads on Back and says why. */}
+        <p className="t-callout t-secondary">
+          The tournament page shows why: the deadline may have passed, the tournament may have closed, or your entry may have been withdrawn.
         </p>
       </div>
       <ActionBar>

@@ -1,9 +1,9 @@
 // The Figma components the screens use: Brand, Nav bar (Push and Large title), Event status,
 // Live badge, Text field, Button (Large, Medium and Text), Action bar (Single and Accessory),
-// List link, Tab bar, Banner, Empty state, Status chip, Segmented toggle and Switch row. Their
-// usage notes in Figma are followed here.
+// List link, Tab bar, Banner, Empty state, Status chip, Segmented toggle, Switch row, Locked field
+// and Sheet. Their usage notes in Figma are followed here.
 
-import type { ChangeEvent, InputHTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef, type ChangeEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { iconSrc } from "../lib/theme";
 import { useTheme } from "../lib/themeStore";
 
@@ -15,6 +15,34 @@ export function Icon({ src, size, className }: { src: string | undefined; size: 
   const theme = useTheme();
   if (src === undefined) return null;
   return <img className={className} src={iconSrc(src, theme)} width={size} height={size} alt="" aria-hidden="true" />;
+}
+
+/**
+ * The icons a screen shows when the network is gone (NOT SENT banners, locked fields, failed
+ * photo chips), fetched while it is still there. The browser keeps a loaded image for the rest of
+ * the page's life, so they draw offline instead of as broken images. Both themes, since the
+ * theme can change while offline.
+ */
+export const OFFLINE_ICONS: readonly string[] = [
+  "/icons/alert-danger-24.svg",
+  "/icons/lock-secondary.svg",
+  "/icons/lock-secondary-24.svg",
+  "/icons/close-danger.svg",
+  "/icons/refresh-on-primary.svg",
+  "/icons/refresh-link.svg",
+];
+
+export function usePreloadedIcons(paths: readonly string[]): void {
+  const held = useRef<HTMLImageElement[]>([]);
+  useEffect(() => {
+    held.current = paths.flatMap((path) =>
+      (["light", "dark"] as const).map((theme) => {
+        const image = new Image();
+        image.src = iconSrc(path, theme);
+        return image;
+      }),
+    );
+  }, [paths]);
 }
 
 export function Brand() {
@@ -97,7 +125,8 @@ export function TextField({ id, label, help, error, value, onValueChange, ...inp
 
 interface ButtonProps {
   children: ReactNode;
-  variant: "primary" | "secondary" | "text";
+  /** Destructive: withdraw, retract, reject, always behind a confirm sheet (Figma Button notes). */
+  variant: "primary" | "secondary" | "text" | "destructive";
   /** Large is the 56 px action-bar size; the others are 48 px. */
   large?: boolean;
   /** A 48 px primary or secondary as wide as its container (the Accessory action bar). */
@@ -116,7 +145,7 @@ interface ButtonProps {
 }
 
 export function Button({ children, variant, large = false, full = false, icon, type = "button", loading = false, loadingLabel = "Sending…", disabled = false, todo, onClick }: ButtonProps) {
-  const spinner = variant === "primary" ? "/icons/refresh-on-primary.svg" : "/icons/refresh-link.svg";
+  const spinner = variant === "primary" || variant === "destructive" ? "/icons/refresh-on-primary.svg" : "/icons/refresh-link.svg";
   const size = large ? " button-large" : variant === "text" ? "" : ` button-medium${full ? " button-full" : ""}`;
   return (
     <button
@@ -304,16 +333,19 @@ export function StatusChip({ tone, icon, label, spoken }: StatusChipProps) {
   );
 }
 
-export type BannerTone = "success" | "danger" | "info" | "neutral";
+export type BannerTone = "success" | "danger" | "warning" | "info" | "neutral";
 
 const BANNER_ICON: Partial<Record<BannerTone, string>> = {
   success: "/icons/check-success-24.svg",
   danger: "/icons/alert-danger-24.svg",
+  // A deadline (EVT-02e, MY-04c).
+  warning: "/icons/clock-warning-24.svg",
+  info: "/icons/info-link.svg",
 };
 
 interface BannerProps {
   tone: BannerTone;
-  /** A 24 px icon drawn in the tone's color; success and danger have their own. */
+  /** A 24 px icon drawn in the tone's color; success, danger, warning and info have their own. */
   icon?: string;
   title: string;
   children: ReactNode;
@@ -433,5 +465,77 @@ export function SwitchRow({ id, label, detail, checked, disabled = false, onChan
         <span className="switch-knob" />
       </span>
     </button>
+  );
+}
+
+/**
+ * A field that can't be changed in this state, shown rather than hidden: sunken fill, a lock and
+ * a one-line reason (Figma Locked field). Not a control: no focus, no tap; the lock is decorative.
+ */
+export function LockedField({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="locked-field">
+      <div className="locked-field-text">
+        <p className="t-footnote-strong t-secondary">{label}</p>
+        <p className="t-body">{value}</p>
+        {note && <p className="t-footnote t-secondary">{note}</p>}
+      </div>
+      <Icon src="/icons/lock-secondary-24.svg" size={24} />
+    </div>
+  );
+}
+
+interface SheetProps {
+  /** The header's title, and the dialog's accessible name. */
+  title: string;
+  /** Cancel in the header, Escape and a tap on the backdrop. Absent while a request is in flight. */
+  onCancel?: () => void;
+  children: ReactNode;
+  /** The sheet's one action (Figma: a 56 px button); none on a picker, where choosing closes it. */
+  footer?: ReactNode;
+}
+
+/**
+ * A bottom sheet over the screen (Figma Sheet: MY-05a, MY-05c): grabber, a header with Cancel,
+ * the content, then the action, above the home-indicator inset. A modal dialog: focus moves
+ * into it and goes back to where it was when it closes.
+ */
+export function Sheet({ title, onCancel, children, footer }: SheetProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    ref.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+    return () => before?.focus();
+  }, []);
+  useEffect(() => {
+    if (!onCancel) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div className="sheet-layer">
+      <div className="sheet-backdrop" aria-hidden="true" onClick={onCancel} />
+      <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+        <div className="sheet-grabber" aria-hidden="true" />
+        <div className="sheet-header">
+          {onCancel ? (
+            <button type="button" className="button button-text sheet-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+          ) : (
+            <span className="sheet-cancel" aria-hidden="true" />
+          )}
+          <h2 id="sheet-title" className="t-headline">
+            {title}
+          </h2>
+          <span className="sheet-cancel" aria-hidden="true" />
+        </div>
+        <div className="sheet-content">{children}</div>
+        {footer && <div className="sheet-footer">{footer}</div>}
+      </div>
+    </div>
   );
 }

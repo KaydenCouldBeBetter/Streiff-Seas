@@ -1,6 +1,6 @@
 // MY-06a Catch history: the audit trail of one own catch, newest first, read only (Figma
 // 49:2287). Opened by the History link on MY-02 (every MY-02 row offers it, final included).
-// A UI skeleton on sample data (lib/sampleMyCatchHistory.ts); the same Timeline item as LB-03.
+// The rows come from lib/loadMyCatches.ts with the catch; the same Timeline item as LB-03.
 // Never shown here: event and entry rows (R-AUD-L-03), flag codes, or any action.
 
 import { CatchTimeline } from "../components/catch";

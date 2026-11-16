@@ -1,9 +1,8 @@
 // MY-01 My catches: the angler's own catches in one tournament, every status, newest first
-// (Figma 47:1448 empty, 47:1536 list, 102:6949 final). A UI skeleton on sample data:
-// controls whose screens aren't built yet carry a TodoTag with the screens.md row they open.
+// (Figma 47:1448 empty, 47:1536 list, 102:6949 final), read by lib/loadMyCatches.ts.
 // Submit a catch opens SUB-01 (SubmitFlow).
 // The list refreshes on open and when the app returns to the foreground; it is not live
-// (Gap 25, settled 2026-10-05).
+// (Gap 25, settled 2026-10-05). MyCatchesStatus stands in when there's no list to show.
 
 import { CatchCard } from "../components/catch";
 import { AccessoryBar, Banner, Button, EmptyState, LargeNavBar, TabBar } from "../components/ui";
@@ -77,6 +76,39 @@ export function MyCatches({ context, catches, onOpen, onSubmit, onTab }: Props) 
             </Button>
           </AccessoryBar>
         )}
+        <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
+      </div>
+    </div>
+  );
+}
+
+const STATUS_COPY = {
+  loading: { title: "Loading…", message: "Getting your catches." },
+  none: { title: "No live tournament", message: "When the organizer opens a tournament and you join it, your catches show here." },
+  error: { title: "Couldn't load your catches", message: "Check your signal and try again." },
+};
+
+/** My catches with no list to show: still loading, no live tournament, or the read failed. Stays on its own tab. */
+export function MyCatchesStatus({ state, onRetry, onTab }: { state: "loading" | "none" | "error"; onRetry: () => void; onTab: (tab: MemberTab) => void }) {
+  const copy = STATUS_COPY[state];
+  return (
+    <div className="screen tab-screen">
+      <LargeNavBar title="My catches" />
+      <div className="screen-content">
+        <EmptyState
+          icon="/icons/list-large.svg"
+          title={copy.title}
+          message={copy.message}
+          action={
+            state === "error" ? (
+              <Button variant="secondary" onClick={onRetry}>
+                Try again
+              </Button>
+            ) : undefined
+          }
+        />
+      </div>
+      <div className="tab-screen-bottom">
         <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
       </div>
     </div>
