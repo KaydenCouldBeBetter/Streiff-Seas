@@ -1,6 +1,8 @@
 # Security: Fishing Scoreboard
 
-**Status:** Draft v0.13, 13 Nov 2026. v0.13 implements the list and view rules of `events`, `entries`, `catches` and `species`, exactly as written since v0.9 (R-EVT-L-01 to L-03, V-01, R-ENT-L-01 to L-06, R-CAT-L-01 to L-08, L-10 to L-12, V-01, R-SPC-L-01 to L-03; no row changed): migration `1794602178_open_live_reads.js`, tests in `test/rules.test.ts` (including one that the stored rules equal the code blocks on this page), `RULES` in `test/schema.test.ts`. Found on v0.40.4: R-ENT-L-05 expects "All" for K, but the rule's first clause, `event.status != "draft"`, holds for the organizer too, so K can't list a draft's entries (the judge's and backup judge's automatic ones). The rule is unchanged; the test reads the row as "all entries outside a draft" (`decisions.md` 2026-11-13, M0-03 row). The row's wording is left for Kayden.
+**Status:** Draft v0.14, 16 Nov 2026. v0.14 adds R-USR-U-08 (`decisions.md` Open item 19, settled by Kayden): the `users` update rule now refuses `emailVisibility`, as create does, before the users read rule lets organizers read every record; migration `1794843182_users_refuse_email_visibility.js`, test in `test/rules.test.ts`, `RULES.users.updateRule` in `test/schema.test.ts`. It also records the S1-submit rules built since v0.13, each the block on this page line for line with no row changed: `entries` create (R-ENT-C-01 to C-08, `1794693360_entries_join_rule.js`) and update (R-ENT-U-01 to U-14, `1794695177_entries_withdraw_rule.js`), tested in `test/entries.test.ts`; `catches` create (R-CAT-C-01 to C-23, `1794693724_catches_create_rule.js`, `test/catches.test.ts`) and the angler branch of update (R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40, `1794696648_catches_update_rule.js`, `test/catchUpdate.test.ts`; judge requests are refused until S3); `audit_log` list and view (R-AUD-L-01 to L-09, `1794779708_audit_log_read_rule.js`, `test/rules.test.ts`). Found on v0.40.4: an update rule is checked before `onRecordUpdateRequest`, a create rule after `onRecordCreateRequest`, so the create hooks are model hooks that run only once the rule has passed.
+
+v0.13 (13 Nov 2026) implements the list and view rules of `events`, `entries`, `catches` and `species`, exactly as written since v0.9 (R-EVT-L-01 to L-03, V-01, R-ENT-L-01 to L-06, R-CAT-L-01 to L-08, L-10 to L-12, V-01, R-SPC-L-01 to L-03; no row changed): migration `1794602178_open_live_reads.js`, tests in `test/rules.test.ts` (including one that the stored rules equal the code blocks on this page), `RULES` in `test/schema.test.ts`. Found on v0.40.4: R-ENT-L-05 expects "All" for K, but the rule's first clause, `event.status != "draft"`, holds for the organizer too, so K can't list a draft's entries (the judge's and backup judge's automatic ones). The rule is unchanged; the test reads the row as "all entries outside a draft" (`decisions.md` 2026-11-13, M0-03 row). The row's wording is left for Kayden.
 
 v0.12 (12 Nov 2026) implements the `users` update rule and the name-sync hook (R-USR-U-01 to U-07, no row changed): migration `1794520253_users_own_update.js`, `pb_hooks/users_name_sync.pb.js`, tests in `test/rules.test.ts`, `RULES.users.updateRule` in `test/schema.test.ts`. Found while testing on v0.40.4: a member's update may also set `emailVisibility` (create refuses it; no row says either way, see `decisions.md` Open item 19) and sends of `tokenKey` are accepted but ignored; a password change is refused.
 
@@ -97,7 +99,8 @@ Events: **E1** live (largemouth bass, smallmouth bass; weight; judge K, backup S
 id = @request.auth.id &&
 @request.body.role:changed = false &&
 @request.body.email:isset = false &&
-@request.body.verified:isset = false
+@request.body.verified:isset = false &&
+@request.body.emailVisibility:isset = false
 ```
 **Delete:** `null`. **manageRule:** `null`.
 
@@ -128,6 +131,7 @@ id = @request.auth.id &&
 | R-USR-U-05 | K | Change M's `role` | Deny (roles change only by superuser) | rule |
 | R-USR-U-06 | M | Change own `name` | Allow; `display_name` updates on M's entries in live and closed events, not in final ones | rule, hook |
 | R-USR-U-07 | M | Change own `name` to empty, only spaces, or a name with leading, trailing or doubled spaces | Deny | schema |
+| R-USR-U-08 | M | Send own `emailVisibility` (true or false) | Deny; the record unchanged (organizers read every `users` record, R-USR-L-03, so a visible email would show to them) | rule |
 | R-USR-D-01 | M, K | Delete a user, including self | Deny | rule |
 | R-USR-A-01 | anon | Password sign-in with a real member's email | Refused | settings |
 | R-USR-A-02 | anon | Request an OTP for an unlisted email | Answered like any other (an otpId); no email sent, no user created | settings |

@@ -176,10 +176,11 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
       '@request.auth.id = "" && @request.body.role = "member" && ' +
       "@request.body.verified:isset = false && @request.body.emailVisibility:isset = false",
     // R-USR-U-01 to U-07 (security.md v0.12): a member updates their own record, never role,
-    // email or verified.
+    // email or verified; R-USR-U-08 (v0.14, Open item 19): nor emailVisibility.
     updateRule:
       '@request.auth.id != "" && id = @request.auth.id && @request.body.role:changed = false && ' +
-      "@request.body.email:isset = false && @request.body.verified:isset = false",
+      "@request.body.email:isset = false && @request.body.verified:isset = false && " +
+      "@request.body.emailVisibility:isset = false",
   },
   // R-SPC-L-01 to L-03 (security.md v0.9 text; opened by M0-03, Kayden's call 2026-11-13).
   species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },

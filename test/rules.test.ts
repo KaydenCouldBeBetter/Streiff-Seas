@@ -108,6 +108,17 @@ describe("users update", () => {
     expect(await pocketbase().superuser.collection("users").getOne(member.id)).toEqual(before);
   });
 
+  it.each([true, false])("R-USR-U-08: a member may not send emailVisibility %s", async (emailVisibility) => {
+    const member = await ownMember();
+    const before = await pocketbase().superuser.collection("users").getOne(member.id);
+
+    expect(
+      await statusOf((await actAs(pocketbase(), member)).collection("users").update(member.id, { name: "Changed Name", emailVisibility })),
+    ).toBe(404);
+    // Refused whole, as for U-02 and U-03: not even the name moved.
+    expect(await pocketbase().superuser.collection("users").getOne(member.id)).toEqual(before);
+  });
+
   it("R-USR-U-04: a member may not update another member's record", async () => {
     const mine = await ownMember();
     const theirs = await ownMember("Other Member");
