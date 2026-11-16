@@ -484,6 +484,56 @@ describe("live reads (M0-03)", () => {
       expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.rejected")))).toBe(404);
       expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.verified")))).toBe("allowed");
     });
+
+    // The delete rule is null: PocketBase answers 403 before it looks the record up (and
+    // pb_hooks/no_deletes.pb.js would refuse it after, R-ALL-D-02).
+    it.each([
+      ["M", "E1.M.pending"],
+      ["K", "E1.Y.pending"],
+      ["S", "E1.K.pending"],
+    ] as const)("R-CAT-D-01: %s may not delete %s", async (who, key) => {
+      expect(await statusOf((await as(who)).collection("catches").delete(catchId(key)))).toBe(403);
+      expect((await pocketbase().superuser.collection("catches").getOne(catchId(key))).id).toBe(catchId(key));
+    });
+  });
+
+  // The photo field is protected: a file loads only with a short-lived file token, and only when
+  // the token's user may view the catch (security.md "catches", R-CAT-F-01 to F-03).
+  describe("photo files", () => {
+    /** The URL of the catch's first photo, with the token when one is given. */
+    const photoUrl = (client: PocketBase, key: CatchKey, token?: string) => {
+      const record = catchOf(world, key);
+      return client.files.getURL(record, String((record.photo as string[])[0]), token === undefined ? {} : { token });
+    };
+
+    it("R-CAT-F-01: without a file token no one loads a photo, and anon can't get a token", async () => {
+      const anon = actAsAnon(pocketbase());
+      const m = await as("M");
+
+      expect((await fetch(photoUrl(anon, "E1.Y.verified"))).status).toBe(404);
+      // A signed-in member's own photo is no different: an image URL carries no auth header.
+      expect((await fetch(photoUrl(m, "E1.M.pending"))).status).toBe(404);
+      expect(await statusOf(anon.files.getToken())).toBe(401);
+    });
+
+    it("R-CAT-F-02: with a file token, M loads the photos of catches M can see", async () => {
+      const m = await as("M");
+      const token = await m.files.getToken();
+
+      for (const key of ["E1.M.pending", "E1.Y.verified", "E1.Y.pending"] as const) {
+        const response = await fetch(photoUrl(m, key, token));
+        expect(response.status, key).toBe(200);
+        expect(response.headers.get("content-type"), key).toBe("image/jpeg");
+      }
+    });
+
+    it("R-CAT-F-03: with a file token, M may not load another angler's rejected photo", async () => {
+      const m = await as("M");
+      const token = await m.files.getToken();
+
+      expect((await fetch(photoUrl(m, "E1.Y.rejected", token))).status).toBe(404);
+      expect((await fetch(photoUrl(m, "E1.Y.retracted", token))).status).toBe(404);
+    });
   });
 
   describe("species", () => {
