@@ -1,6 +1,6 @@
 # Architecture: Fishing Scoreboard
 
-**Status:** Draft v0.6, 7 Oct 2026. Section 5 redrawn for the 2026-10-07 pipeline (`decisions.md` L3): a bundle built on every push to `main`, a staging container that deploys it automatically, and a tag that promotes the same bundle to prod; restic for the offsite backups. v0.5 (6 Oct) was brought in line with `security.md` v0.9, `scoring.md` v0.6.1 and `decisions.md` through 2026-10-06 (Node 24, public catch history, two required photos, `photo_captured_at`, fixed flag codes and audit snapshots, `rev` echoed by anglers too, judge must be an organizer with automatic entries, judge step-down, live and closed event edits, Open preconditions, code word history on the event). v0.4 (1 Oct) matched `security.md` v0.3. Regenerate at milestones (M0, M1, off-season), not on every change.
+**Status:** Draft v0.7, 16 Nov 2026. §3 brought in line with the migrations (users create and read, nothing deleted), §4 with the `rev` compare-and-swap, "What the Phase 2 work must confirm" with the spike result; CI, the pre-push hook and the staging pipeline are marked not built. v0.6 (7 Oct 2026): Section 5 redrawn for the 2026-10-07 pipeline (`decisions.md` L3): a bundle built on every push to `main`, a staging container that deploys it automatically, and a tag that promotes the same bundle to prod; restic for the offsite backups. v0.5 (6 Oct) was brought in line with `security.md` v0.9, `scoring.md` v0.6.1 and `decisions.md` through 2026-10-06 (Node 24, public catch history, two required photos, `photo_captured_at`, fixed flag codes and audit snapshots, `rev` echoed by anglers too, judge must be an organizer with automatic entries, judge step-down, live and closed event edits, Open preconditions, code word history on the event). v0.4 (1 Oct) matched `security.md` v0.3. Regenerate at milestones (M0, M1, off-season), not on every change.
 **Sources of truth:** `SPEC.md` (scope, roles, invariants), `scoring.md` (rules), `security.md` (API rules and test IDs), `decisions.md` (choices). This page only draws them; where it disagrees with any of them, they win and this page gets fixed. `pb_migrations/` is the source of truth for the schema once it exists.
 
 ## What changed from the guide's diagrams
@@ -168,22 +168,22 @@ Every collection starts with all five rules `null` (superuser only). A cell open
 
 | Collection | List / view | Create | Update | Delete |
 |---|---|---|---|---|
-| `users` | Own record; organizer sees all (R-USR-L, V) | `null`: invite via admin UI, name always set (R-USR-C) | Own record; never `role`, `email` or `verified` (R-USR-U) | `null` |
+| `users` | Own record; organizer sees all (R-USR-L, V) | Anyone not signed in, as `role = member` only; no `verified`, `emailVisibility` or organizer role; name always set (R-USR-C-01, C-04 to C-09; `decisions.md` 2026-10-25) | Own record; never `role`, `email`, `verified` or `emailVisibility` (R-USR-U) | `null` |
 | `events` | Signed-in members; drafts organizer only (R-EVT-L, V) | Organizer, as `draft` only, judge an organizer and different from the backup judge, no hook-set fields; hook enters the judge and backup judge (R-EVT-C) | Organizer, never once `final`; `metric`, `best_n`, `species`, `starts_at` and `judge` locked once live; only `backup_judge` once closed; hook enforces draft → live → closed → final, the Open checklist, later-only `ends_at`, the growing extension and the code word history. Judge step-down is a superuser request the hook allows (R-EVT-U) | `null` |
 | `species` | Signed-in members (R-SPC-L) | Organizer (R-SPC-C) | `null` | `null` |
 | `entries` | Signed-in members; a withdrawn entry only to its angler, the judge, the organizer, and the backup judge for the judge's own entry (R-ENT-L) | Self-join while live, before `submit_deadline` (R-ENT-C) | Withdraw or rejoin: the angler on their own entry, the organizer on anyone's; never once `final` (R-ENT-U) | `null` |
 | `catches` | Signed-in members; rejected and retracted only to the angler and the judges; `photo` is a protected file (R-CAT-L, V, F) | Own non-withdrawn entry, live event, in window, allowed species, at least 2 photos, no server-only fields (R-CAT-C) | Angler: edit, add photos or retract own pending catch, echoing `rev`. Judge: approve, reject, correct or re-judge someone else's, echoing `rev`, setting a status or changing the species or measurement (R-CAT-U) | `null` |
 | `audit_log` | Organizer: all rows. Everyone else: every row of each catch they can see, plus their own rejected and retracted catches; the judge (including one who stepped up without the organizer role) every row of the catches they judge; the backup judge every row of the judge's catches. Event and entry rows: organizer only (R-AUD-L) | `null`: hooks only | `null` | `null` |
 
-Cells with no dedicated row are covered by the `R-ALL-*` sweeps in `security.md`.
+Cells with no dedicated row are covered by the `R-ALL-*` sweeps in `security.md`. Every Delete cell is `null`, and `pb_hooks/no_deletes.pb.js` also refuses every delete from the superuser and the admin UI (R-ALL-D-02; `decisions.md` 2026-11-16).
 
 **Why photos are protected even though everyone can see them.** PocketBase serves an unprotected file to anyone who has its URL, with no sign-in. Access normally stands in front, but invariant 8 says the app must hold up with Access absent. As a protected file, a photo needs a short-lived file token, which only a signed-in user who passes the `catches` view rule can get (`pb.files.getToken()` in the React app). The result is the same for members (everyone sees every angler's visible photos), and a leaked link stops working within minutes.
 
-**Why photos are append-only.** PocketBase deletes a file that is removed from or replaced in a file field, which would destroy evidence. The angler update hook refuses any request whose new `photo` list drops or reorders an existing file, or changes an existing `photo_captured_at` entry, checked before save so a refused request deletes nothing. The photo spike must confirm that ordering on the pinned version; if it can't, adding photos is turned off and anglers retract and resubmit instead.
+**Why photos are append-only.** PocketBase deletes a file that is removed from or replaced in a file field, which would destroy evidence. The angler update hook refuses any request whose new `photo` list drops or reorders an existing file, or changes an existing `photo_captured_at` entry, checked before save so a refused request deletes nothing. Confirmed on v0.40.4 by the photo spike (`decisions.md` 2026-11-13).
 
 **Why catch history is public.** The `reason` on a catch says why it was rejected, but not what a correction changed; the audit row's `before` and `after` do. The club chose to let every member read the history of any catch they can see, so the judge's decisions are open to everyone (`decisions.md` 2026-10-01 "Catch history is public to members"). The `audit_log` list rule mirrors the `catches` list rule, so a catch that is now rejected or retracted, or sits on a withdrawn entry, keeps its rows hidden from other members. Event and entry rows (open, close, finalize, event_edit, join, withdraw) have no `catch`, so they stay organizer-only; the hashed audit CSV at finalize makes the full log checkable by the club.
 
-**Why `rev`.** Anglers can edit a pending catch, so a judge could otherwise approve a value that changed after they loaded it. Every judge request echoes the `rev` it saw; if the angler edited in between, the update rule refuses it and the queue reloads (R-CAT-U-13). Anglers echo `rev` too, so a retried photo upload whose first attempt already landed is refused instead of adding the photo twice (R-CAT-U-39). The rule reads `rev` before the save, so the hook re-reads it inside the save transaction and refuses if it moved (R-CAT-U-40).
+**Why `rev`.** Anglers can edit a pending catch, so a judge could otherwise approve a value that changed after they loaded it. Every judge request echoes the `rev` it saw; if the angler edited in between, the update rule refuses it and the queue reloads (R-CAT-U-13). Anglers echo `rev` too, so a retried photo upload whose first attempt already landed is refused instead of adding the photo twice (R-CAT-U-39). The rule reads `rev` before the save, so the hook compare-and-swaps it in `onRecordUpdateExecute` and refuses if it moved (R-CAT-U-40).
 
 **Why the code word history lives on the event.** The backup judge, and a judge who stepped up without the organizer role, can't read event audit rows, but must see the same two words as the judge. The hook keeps `code_word_prev` and `code_word_changed_at` on the event, which every member who can read the event can read (`decisions.md` 2026-10-05).
 
@@ -225,7 +225,7 @@ sequenceDiagram
   opt Angler fixes the catch while it is pending
     A->>PB: PATCH own catch with the rev it loaded - edit species or measurement, add a photo, or set retracted
     PB->>PB: updateRule angler branch - own pending catch, entry not withdrawn, event live, before submit_deadline, rev matches
-    PB->>PB: Hook - rev re-read in the transaction, existing photos and capture times kept, strip added photo, flag it, rev plus 1
+    PB->>PB: Hook - existing photos and capture times kept, exiftool strip of the added photo, flag it; rev compare-and-swap in onRecordUpdateExecute (rev plus 1)
     PB->>DB: Update catch, write edit or retract audit row
     PB--)M: SSE catches update to those who can still see it. Other boards drop a retracted catch at their next heartbeat refetch
   end
@@ -301,6 +301,8 @@ Notes on the archive step:
 
 ## 5. Deployment, build and network map
 
+**Not built as of 16 Nov 2026:** `ci.yml`, the pre-push hook, the bundle artifact, `deploy.sh` and the staging container (M0-05a/b, M0-06; skipped for the deadline). The diagram is the target; the prod and staging containers also need exiftool.
+
 PocketBase listens only on localhost inside unprivileged containers on isolated VLANs with no inbound ports. Prod and staging both **pull** a CI-built bundle; nothing pushes into either. Dashed means pushed by the host. The pipeline is `decisions.md` L3; the commands are in `ops.md` §5.
 
 ```mermaid
@@ -368,12 +370,10 @@ flowchart LR
 
 ---
 
-## What the Phase 2 work must confirm
+## Phase 2 results
 
-- **Photo spike** (`decisions.md` L2): reading `DateTimeOriginal` before re-encoding on iPhone Safari and Android Chrome, HEIC decoding outside Safari, which server-side approach (exiftool via `$os.cmd`, or fail closed) the catch hooks use on create and on added photos, that the append-only check runs before PocketBase deletes a file, and a two-photo create.
-- **On the pinned binary** (`security.md` open item 7): that `judge.role` resolves against the submitted body in the events create rule; that `@request.body.photo:length` counts uploaded files in a multipart create; and that the update hook can re-read `rev` inside the save transaction.
-- **Soak test:** that the heartbeat keeps the SSE stream alive through the named tunnel for 15 idle minutes (X-ACC-05).
-
-If the append-only check can't run before PocketBase deletes a file, the "add a photo" path in section 4 goes away and anglers retract and resubmit instead.
+- **Photo spike:** done 2026-11-13 (`decisions.md` photo-spike row). Option A: exiftool `-all=` through `$os.cmd`, then a scan of the cleaned bytes, fail closed. iPhone Safari run twice; **Android Chrome untested**. The append-only check runs before PocketBase deletes a file.
+- **On the pinned binary:** `judge.role` resolves against the submitted body, `@request.body.photo:length` counts uploads, and `rev` is a compare-and-swap in `onRecordUpdateExecute`, not a read inside a transaction (no record update hook runs in one).
+- **Soak test (X-ACC-05):** not done (M0-07, skipped for the deadline).
 
 **Settled since v0.4, now in `decisions.md`:** public catch history, two required photos, capture time per photo, flag codes, photo limits, the outage extension in whole hours, `rev` echoed by anglers, correction approves, reasons on changed decisions, fixed audit snapshots, judge must be an organizer with automatic entries, the backup judge sees the judge's withdrawn entry, judge step-down, live and closed event edits, later-only `ends_at`, Open preconditions, code word history on the event, a judge update must change something.
