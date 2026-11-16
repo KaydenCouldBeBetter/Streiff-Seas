@@ -548,9 +548,11 @@ describe("species", () => {
       expect(await refusedFields(species.create({ name })), JSON.stringify(name)).toEqual({ name: "validation_invalid_format" });
     }
 
-    // One space between words is a name. Removed again: the tests below count the species.
-    const made = await species.create({ name: "white bass" });
-    await species.delete(made.id);
+    // One space between words is a name. Tried as a rename put straight back, not a new species:
+    // nothing can be deleted (R-ALL-D-02), and the tests below count the species.
+    const largemouth = await species.getFirstListItem('name = "largemouth bass"');
+    expect((await species.update(largemouth.id, { name: "white bass" })).name).toBe("white bass");
+    await species.update(largemouth.id, { name: "largemouth bass" });
   });
 });
 

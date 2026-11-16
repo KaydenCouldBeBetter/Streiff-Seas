@@ -16,9 +16,10 @@ Roles are a `users.role` (`member` or `organizer`) plus two per-tournament field
 | Submit a catch to own entry, in window; edit, add photos to or retract it while pending | No | Yes | Yes | Yes | Not used |
 | Approve / reject / correct / re-judge a catch | No | No | Anyone's except own | **Only the judge's** | Break-glass only |
 | Create, open, close, finalize a tournament | No | No | Organizer role only | No | Break-glass only |
-| Add a species (for future tournaments) | No | No | Organizer role only | No | Rename or remove: break-glass only |
+| Add a species (for future tournaments) | No | No | Organizer role only | No | Rename: break-glass only (never removed, `decisions.md` 2026-11-16) |
 | Change own name and display units | No | Yes | Yes | Yes | — |
-| Change any role, delete anything | No | No | No | No | Admin UI, logged in `ops.md` |
+| Change any role | No | No | No | No | Admin UI, logged in `ops.md` |
+| Delete anything | No | No | No | No | No: a hook refuses it (`decisions.md` 2026-11-16) |
 
 ## Must do (MVP: four slices)
 1. **Submit:** sign-in (Access + PocketBase OTP); Join on the tournament page; one fish per submission with the two required photos (holding the fish; on the scale or board) and up to 2 more, species chosen from the tournament's list only; weight or length per the tournament's metric; capture time read, then all metadata stripped; unique `client_uuid`; Sending / Received / NOT SENT + Retry. While the catch is pending, the angler can **edit** species and measurement (until judged or the final deadline), **add photos** up to 4 in total (append-only: never removed or replaced; flagged for the judge), or **retract** it (hidden from others, never scores, kept on record). Withdraw and rejoin.
@@ -35,7 +36,7 @@ Public spectator board · "Most impressive catch" vote · AI photo checker (M2, 
 3. No one changes the status of a catch on their own entry, except retracting it while pending. The backup judge can act only on the judge's catches, only in that tournament.
 4. No location data is stored anywhere: original, added photos, thumbnails, backups, archive.
 5. Every catch create or change writes an `audit_log` row; the audit log has no update or delete rule.
-6. Nothing is deleted through the API. Rejected and retracted catches stay, with their reason; withdrawn entries stay; photos are append-only.
+6. Nothing is deleted through the API, not even by the superuser (`decisions.md` 2026-11-16). Rejected and retracted catches stay, with their reason; withdrawn entries stay; photos are append-only.
 7. Once a tournament is `final`, no catch or entry in it can change through the API.
 8. Every read requires a signed-in member, even though Access sits in front (tests run as if Access did not exist).
 9. The server's receive time is authoritative for the 24-hour and final deadlines; capture time is only a flag.
