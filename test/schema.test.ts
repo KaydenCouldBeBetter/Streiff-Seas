@@ -29,6 +29,8 @@ const LOCKED: Record<RuleName, null> = {
 // The M0-03 read rules (migration 1794602178_open_live_reads.js): the security.md code blocks,
 // line breaks and indentation included.
 const SPECIES_READ = '@request.auth.id != ""';
+// S1 (migration 1794843247_users_read_rule.js): the security.md "users" List / view block.
+const USERS_READ = ['@request.auth.id != "" &&', '(id = @request.auth.id || @request.auth.role = "organizer")'].join("\n");
 const EVENTS_READ = ['@request.auth.id != "" &&', '(status != "draft" || @request.auth.role = "organizer")'].join("\n");
 const ENTRIES_READ = [
   '@request.auth.id != "" &&',
@@ -171,6 +173,9 @@ const AUDIT_READ = [
 const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   users: {
     ...LOCKED,
+    // R-USR-L-01 to L-03, R-USR-V-01, V-02 (security.md v0.14, S1): own record; organizers all.
+    listRule: USERS_READ,
+    viewRule: USERS_READ,
     // R-USR-C-01 (security.md v0.11): anon may sign up, as a member only.
     createRule:
       '@request.auth.id = "" && @request.body.role = "member" && ' +

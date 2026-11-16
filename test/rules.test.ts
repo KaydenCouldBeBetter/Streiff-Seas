@@ -183,6 +183,71 @@ describe("users update", () => {
   });
 });
 
+// S1: the users list and view rule (R-USR-L-01 to L-03, V-01, V-02). Other tests in this file
+// add users of their own, so each list is compared with what the superuser lists at the time.
+describe("users list and view", () => {
+  it("stores the list and view rule exactly as security.md writes it", async () => {
+    const stored = await pocketbase().superuser.collections.getOne("users");
+    const documented = await documentedListRule("users");
+
+    expect(stored.listRule).toBe(documented);
+    expect(stored.viewRule).toBe(documented);
+  });
+
+  it("R-USR-L-01: anon lists no users", async () => {
+    const response = await fetch(`${pocketbase().url}/api/collections/users/records`);
+
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { totalItems: number }).totalItems).toBe(0);
+  });
+
+  it("R-USR-L-02: a member lists only their own record", async () => {
+    const client = await actAs(pocketbase(), users.M);
+
+    expect(idsOf(await client.collection("users").getFullList())).toEqual([users.M.id]);
+  });
+
+  it.each(["K", "O"] as const)("R-USR-L-03: organizer %s lists and views every user, and sees no one else's email", async (who) => {
+    const client = await actAs(pocketbase(), users[who]);
+    const listed = await client.collection("users").getFullList();
+
+    expect(idsOf(listed)).toEqual(idsOf(await pocketbase().superuser.collection("users").getFullList()));
+    for (const record of listed) {
+      expect(record.email ?? "", record.id).toBe(record.id === users[who].id ? users[who].email : "");
+    }
+    expect((await client.collection("users").getOne(users.X.id)).name).toBe("Angler X");
+  });
+
+  it("R-USR-V-01: a member may not view another member's record", async () => {
+    expect(await statusOf((await actAs(pocketbase(), users.M)).collection("users").getOne(users.X.id))).toBe(404);
+  });
+
+  it("R-USR-V-02: a member views their own record, email included", async () => {
+    const own = await (await actAs(pocketbase(), users.M)).collection("users").getOne(users.M.id);
+
+    expect(own).toMatchObject({ id: users.M.id, name: "Angler M", email: users.M.email });
+  });
+});
+
+describe("users delete", () => {
+  /** An organizer of its own, so a delete that wrongly went through can't take K or O. */
+  const ownOrganizer = () =>
+    pocketbase().superuser.collection("users").create(newUser({ name: "Test Organizer", role: "organizer", emailVisibility: false, verified: true }));
+
+  it.each([
+    ["a member deletes their own record", "member", "self"],
+    ["an organizer deletes their own record", "organizer", "self"],
+    ["an organizer deletes a member", "organizer", "member"],
+  ] as const)("R-USR-D-01: %s; refused", async (_case, callerRole, target) => {
+    const caller = callerRole === "organizer" ? await ownOrganizer() : await ownMember();
+    const victim = target === "self" ? caller : await ownMember("Other Member");
+
+    // The delete rule is null: PocketBase answers 403 before it looks the record up.
+    expect(await statusOf((await actAs(pocketbase(), caller)).collection("users").delete(victim.id))).toBe(403);
+    expect((await pocketbase().superuser.collection("users").getOne(victim.id)).id).toBe(victim.id);
+  });
+});
+
 // ---------------------------------------------------------------------------------------------
 // M0-03: the list and view rules of events, entries, catches and species (security.md v0.9 text),
 // read against the security.md fixture world. Other tests in this file add events and entries
