@@ -589,6 +589,34 @@ dd {
   text-align: right;
 }
 
+/* RULES-01a Club rules (Figma 120:9278): numbered sections of bulleted lines. */
+.tab-screen .screen-content.club-rules {
+  gap: var(--cf-spacing-md);
+}
+.club-rules-section,
+.club-rules-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-xs);
+}
+.club-rules-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.club-rules-items li {
+  display: flex;
+  gap: var(--cf-spacing-sm);
+}
+.club-rules-items li::before {
+  content: "•";
+  flex: none;
+  color: var(--cf-color-text-secondary);
+}
+.club-rules-note {
+  display: block;
+}
+
 /* List link: the whole row is one 56 px button. */
 .list-links {
   display: flex;

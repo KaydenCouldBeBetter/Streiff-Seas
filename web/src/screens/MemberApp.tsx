@@ -7,9 +7,10 @@
 // history, edit, add photos and retract are real (S1); the standing, leaderboard and Profile
 // stats are still sample data.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { pb } from "../lib/pb";
+import { checkSession } from "../lib/auth";
 import { retrySave, saveProfile } from "../lib/profile";
 import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampleProfile";
 import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
@@ -41,8 +42,10 @@ import { Profile } from "./Profile";
 import { RetractSheet } from "./RetractSheet";
 import { SubmitFlow } from "./SubmitFlow";
 import { Withdraw } from "./Withdraw";
+import { ClubRules } from "./ClubRules";
+import { thisTournament } from "../lib/clubRules";
 
-type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "editCatch" | "addPhotos" | "profile" | "submit";
+type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "editCatch" | "addPhotos" | "profile" | "submit" | "clubRules";
 
 /** The page title's first part; the screens named after the live tournament add its name. */
 const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
@@ -53,6 +56,7 @@ const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tour
   editCatch: "Edit catch",
   addPhotos: "Add photos",
   profile: "Profile",
+  clubRules: "Club rules",
 };
 
 /** The screens whose title names the live tournament, and that show the member's own catches. */
@@ -68,10 +72,17 @@ interface Props {
   /** The member's record after a Profile save, so every screen shows the new name and units. */
   onUserChange: (user: RecordModel) => void;
   onSignOut: () => void;
+  /** SYS-04a: the session expired or was refused while the app was in the background. */
+  onSessionEnded: (email: string) => void;
 }
 
-export function MemberApp({ user, onUserChange, onSignOut }: Props) {
+/** How often coming back to the app re-checks the session (lib/auth.ts checkSession). */
+const SESSION_RECHECK_MS = 10 * 60 * 1000;
+
+export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Props) {
   const [screen, setScreen] = useState<Screen>("tournament");
+  /** Where Club rules (RULES-01a) was opened: a tournament page adds that tournament's section (Gap 37). */
+  const [rulesFrom, setRulesFrom] = useState<"tournament" | "profile">("tournament");
   const [catchId, setCatchId] = useState<string | null>(null);
   const [anglerEntryId, setAnglerEntryId] = useState<string | null>(null);
   const [anglerCatchId, setAnglerCatchId] = useState<string | null>(null);
@@ -142,6 +153,23 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [onMyCatchScreen, loadMine]);
 
+  // A phone keeps the app in memory for days, so coming back to it counts as opening it: the
+  // token is refreshed (decisions.md 2026-10-07), and one that has ended shows SYS-04a. AuthFlow
+  // has just checked on open; no signal keeps the session (checkSession).
+  const sessionCheckedAt = useRef(Date.now());
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - sessionCheckedAt.current < SESSION_RECHECK_MS) return;
+      sessionCheckedAt.current = Date.now();
+      void checkSession(pb).then((session) => {
+        if (session.kind === "ended") onSessionEnded(session.email);
+        else if (session.kind === "active") onUserChange(session.user);
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [onSessionEnded, onUserChange]);
+
   const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
   const anglerCatches = anglerRow ? (SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []) : [];
   const anglerCatch = anglerCatches.find((c) => c.id === anglerCatchId);
@@ -211,7 +239,9 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
   }
 
   function home() {
-    if (!ready) return <NoTournament state={live.state === "ready" ? "loading" : live.state} onRetry={() => void reload()} onTab={openTab} />;
+    if (!ready) {
+      return <NoTournament state={live.state === "ready" ? "loading" : live.state} onRetry={() => void reload()} onTab={openTab} onClubRules={() => openClubRules("tournament")} />;
+    }
     return (
       <Tournament
         tournament={view}
@@ -224,8 +254,14 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           setEntryFailed(null);
           setScreen("withdraw");
         }}
+        onClubRules={() => openClubRules("tournament")}
       />
     );
+  }
+
+  function openClubRules(from: "tournament" | "profile") {
+    setRulesFrom(from);
+    setScreen("clubRules");
   }
 
   function openTab(tab: MemberTab) {
@@ -435,6 +471,18 @@ export function MemberApp({ user, onUserChange, onSignOut }: Props) {
           onUserChange={onUserChange}
           onTab={openTab}
           onSignOut={onSignOut}
+          onClubRules={() => openClubRules("profile")}
+        />
+      );
+    case "clubRules":
+      return (
+        <ClubRules
+          // The tournament's name rarely fits the back button, so it reads "Back" (decisions.md 2026-10-03).
+          back={rulesFrom === "profile" ? { label: "Profile", name: "Back to Profile" } : { label: "Back", name: `Back to ${ready ? view.name : "Tournament"}` }}
+          tournament={rulesFrom === "tournament" && ready ? thisTournament(ready) : null}
+          tab={rulesFrom === "profile" ? "profile" : "home"}
+          onBack={() => setScreen(rulesFrom === "profile" ? "profile" : "tournament")}
+          onTab={openTab}
         />
       );
   }

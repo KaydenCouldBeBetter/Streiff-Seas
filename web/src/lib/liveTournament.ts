@@ -28,6 +28,11 @@ export interface LiveTournament {
   /** "Weight · best 10 · Largemouth and smallmouth". */
   rulesLine: string;
   entry: EntryState;
+  /**
+   * `deadline_ext_min`: how far the final deadline was moved after an outage (screens.md Gap 28).
+   * loadLiveTournament always sets it; optional so a tournament built by hand reads as not extended.
+   */
+  deadlineExtMin?: number;
 }
 
 /** "largemouth bass" → "Largemouth bass": species names are stored lower case. */
@@ -96,6 +101,7 @@ export async function loadLiveTournament(pb: PocketBase, userId: string): Promis
     bestN,
     rulesLine: rulesLine(metric, bestN, speciesRecords.map((record) => String(record.name))),
     entry: entryState(entries.items[0], userId),
+    deadlineExtMin: Number(event.deadline_ext_min) || 0,
   };
 }
 

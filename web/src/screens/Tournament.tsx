@@ -1,7 +1,7 @@
 // EVT-02 Tournament (Figma 66:5726 is EVT-02d: live, fishing window open, the viewer's entry
 // active). The name, rules line and dates are the live event's; the standing is still sample
-// data until the leaderboard (S2b). Controls whose screens aren't built yet carry a TodoTag with
-// the screens.md row they open. The bottom action depends on the viewer's entry (`action`):
+// data until the leaderboard (S2b). Club rules opens RULES-01a with this tournament's section.
+// The bottom action depends on the viewer's entry (`action`):
 // Submit a catch (EVT-02d → SUB-01), Join (EVT-02a), or why neither is open (EVT-02h, 02j).
 
 import type { TournamentView } from "../lib/sampleTournament";
@@ -29,6 +29,8 @@ interface Props {
   onLeaderboard: () => void;
   /** EVT-03: shown only for an active entry. */
   onWithdraw: () => void;
+  /** RULES-01a, with this tournament's section. */
+  onClubRules: () => void;
 }
 
 const JOIN_FAILED = {
@@ -36,7 +38,7 @@ const JOIN_FAILED = {
   "not-accepted": "Joining isn't open for this tournament any more.",
 } as const;
 
-export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw }: Props) {
+export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules }: Props) {
   const { standing, catches } = tournament;
   const place = placeLabel(standing.place, standing.tied);
   return (
@@ -110,7 +112,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
           </div>
         )}
 
-        <Button variant="text" todo="RULES-01a">
+        <Button variant="text" onClick={onClubRules}>
           Club rules
         </Button>
       </div>
@@ -148,10 +150,12 @@ interface NoTournamentProps {
   state: "loading" | "none" | "error";
   onRetry: () => void;
   onTab: (tab: MemberTab) => void;
+  /** RULES-01a, club-wide only: there is no tournament to add (Gap 37). */
+  onClubRules: () => void;
 }
 
 /** Home when there is no live tournament to show (until the Tournaments list, EVT-01a, exists). */
-export function NoTournament({ state, onRetry, onTab }: NoTournamentProps) {
+export function NoTournament({ state, onRetry, onTab, onClubRules }: NoTournamentProps) {
   const copy = {
     loading: { title: "Loading…", message: "Getting the live tournament." },
     none: { title: "No live tournament", message: "When the organizer opens a tournament, it shows here and you can join it." },
@@ -173,6 +177,9 @@ export function NoTournament({ state, onRetry, onTab }: NoTournamentProps) {
             ) : undefined
           }
         />
+        <Button variant="text" onClick={onClubRules}>
+          Club rules
+        </Button>
       </div>
       <div className="tab-screen-bottom">
         <TabBar tabs={MEMBER_TABS} selected="home" onSelect={onTab} />
