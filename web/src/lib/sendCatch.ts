@@ -77,7 +77,9 @@ export function catchBody(draft: CatchDraft, entryId: string, metric: Metric, ph
   const body = new FormData();
   body.set("entry", entryId);
   body.set("species", draft.species.id);
-  if (metric === "weight") body.set("weight_hoz", String(draft.weightHoz));
+  // One measurement, the event's: a length event refuses weight_hoz and the other way round (R-CAT-C-12, C-13).
+  if (metric === "weight") body.set("weight_hoz", String(draft.weightHoz ?? 0));
+  else body.set("length_q", String(draft.lengthQ ?? 0));
   body.set("client_uuid", draft.clientUuid);
   body.set("captured_at", times[0] ?? "");
   body.set("photo_captured_at", JSON.stringify(times));

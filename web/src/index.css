@@ -2241,3 +2241,52 @@ dd {
   flex: none;
   margin-top: 1px;
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Length input (Figma 28:132; SUB-01b, MY-03a): whole inches, the eighths selector and the
+ * rounded-down preview. Tokens only.
+ * ------------------------------------------------------------------------------------------ */
+.length-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+}
+.eighths-button {
+  padding: 0 var(--cf-spacing-md) 0 var(--cf-spacing-lg);
+  color: var(--cf-color-text-default);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.eighths-button > span {
+  flex: 1;
+}
+.eighths-button > img {
+  flex: none;
+}
+.eighths-button:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+/* Kept in the page while empty, so the live region is there when the preview arrives. */
+.length-preview:not(:empty) {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-md);
+  background: var(--cf-color-bg-sunken);
+}
+.length-preview img {
+  flex: none;
+}
+.eighths-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

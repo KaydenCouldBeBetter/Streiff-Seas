@@ -30,10 +30,12 @@ export interface CatchDraft {
   eventId: string;
   species: SpeciesChoice;
   /** Hundredths of an ounce (scoring.md §4); weight events only (R-CAT-C-12). */
-  weightHoz: number;
+  weightHoz?: number;
+  /** Quarter inches, rounded down (scoring.md §4, example 6); length events only (R-CAT-C-13). */
+  lengthQ?: number;
   /** In slot order: holding the fish, on the scale, then up to 2 extras. */
   photos: readonly PickedPhoto[];
-  /** What the angler typed ("3.44 lb"), shown as "Catch as entered" on SUB-02a and SUB-02c. */
+  /** What the angler typed ("3.44 lb", "17 5/8 in"), shown as "Catch as entered" on SUB-02a and SUB-02c. */
   enteredMeasurement: string;
 }
 

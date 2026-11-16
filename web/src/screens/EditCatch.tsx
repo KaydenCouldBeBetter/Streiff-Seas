@@ -1,15 +1,16 @@
 // MY-03 Edit pending catch (Figma 48:2062) and its NOT SENT state MY-03c (131:9361): species and
-// weight, prefilled, while the catch is pending. Save sends only what changed, with the loaded
-// rev (lib/changeCatch.ts). A refusal (MY-03b) is shown on My catch, reloaded, so it isn't here.
-// Length entry is S1 step 6: until then a length event edits the species only.
+// weight or length, prefilled, while the catch is pending. Save sends only what changed, with the
+// loaded rev (lib/changeCatch.ts). A refusal (MY-03b) is shown on My catch, reloaded, so it isn't
+// here. Both prefills are exact, so an untouched measurement is never sent.
 
 import { useEffect, useRef, useState } from "react";
-import { SpeciesPicker, WeightInput } from "../components/catch";
-import { ActionBar, Banner, Button, LockedField, NavBar, TodoTag } from "../components/ui";
+import { LengthInput, SpeciesPicker, WeightInput } from "../components/catch";
+import { ActionBar, Banner, Button, LockedField, NavBar } from "../components/ui";
 import { editFields, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import type { SpeciesChoice } from "../lib/catchSender";
 import { notSentMessage } from "../lib/changeCopy";
 import { formatClubTime } from "../lib/format";
+import { enteredLengthText, lengthEntryFromQ, parseLength } from "../lib/lengthEntry";
 import type { MyCatchesContext } from "../lib/myCatches";
 import type { DisplayUnits } from "../lib/profile";
 import { enteredWeightText, parseWeight, weightEntryFromHoz } from "../lib/weightEntry";
@@ -31,6 +32,7 @@ interface Props {
 export function EditCatch({ context, base, species, units, send, onDone, onCancel }: Props) {
   const [speciesId, setSpeciesId] = useState(base.speciesId);
   const [weight, setWeight] = useState(() => weightEntryFromHoz(base.weightHoz, units));
+  const [length, setLength] = useState(() => lengthEntryFromQ(base.lengthQ));
   const [phase, setPhase] = useState<"form" | "sending" | "not-sent">("form");
   const [sent, setSent] = useState<Change | null>(null);
   const live = useRef(true);
@@ -42,8 +44,8 @@ export function EditCatch({ context, base, species, units, send, onDone, onCance
   );
 
   const metric = context.metric;
-  const parsed = metric === "weight" ? parseWeight(weight) : null;
-  const measurement = metric === "weight" ? (parsed?.ok ? parsed.hoz : null) : base.lengthQ;
+  const parsed = metric === "weight" ? parseWeight(weight) : parseLength(length);
+  const measurement = parsed.ok ? ("hoz" in parsed ? parsed.hoz : parsed.q) : null;
   const fields = measurement === null ? null : editFields(base, metric, speciesId, measurement);
   const speciesName = species.find((option) => option.id === speciesId)?.name ?? "";
 
@@ -68,9 +70,11 @@ export function EditCatch({ context, base, species, units, send, onDone, onCance
             </Banner>
           )}
           <LockedField label="Species" value={speciesName} />
-          {metric === "weight" && (
-            <LockedField label="Weight" value={enteredWeightText(weight)} note="Locked until sent. Retry checks the catch first, so it is never changed twice." />
-          )}
+          <LockedField
+            label={metric === "weight" ? "Weight" : "Length"}
+            value={metric === "weight" ? enteredWeightText(weight) : enteredLengthText(length)}
+            note="Locked until sent. Retry checks the catch first, so it is never changed twice."
+          />
         </div>
         <ActionBar>
           <Button variant="primary" large loading={phase === "sending"} loadingLabel="Saving…" onClick={() => void go(sent, true)}>
@@ -86,11 +90,11 @@ export function EditCatch({ context, base, species, units, send, onDone, onCance
 
   const why =
     measurement === null
-      ? parsed && !parsed.ok && parsed.problem === "missing"
-        ? "Enter the weight to save."
+      ? !parsed.ok && parsed.problem === "missing"
+        ? `Enter the ${metric} to save.`
         : null
       : fields === null
-        ? `Change the species${metric === "weight" ? " or weight" : ""} to save.`
+        ? `Change the species or ${metric} to save.`
         : null;
 
   return (
@@ -105,10 +109,7 @@ export function EditCatch({ context, base, species, units, send, onDone, onCance
         {metric === "weight" ? (
           <WeightInput id="edit-weight" value={weight} onChange={setWeight} />
         ) : (
-          <p className="t-callout t-secondary todo-host">
-            Length entry comes next.
-            <TodoTag row="SUB-01b" />
-          </p>
+          <LengthInput id="edit-length" value={length} onChange={setLength} />
         )}
       </div>
       <ActionBar>

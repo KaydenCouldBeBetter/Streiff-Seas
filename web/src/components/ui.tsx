@@ -491,8 +491,8 @@ interface SheetProps {
   /** Cancel in the header, Escape and a tap on the backdrop. Absent while a request is in flight. */
   onCancel?: () => void;
   children: ReactNode;
-  /** The sheet's one action (Figma: a 56 px button). */
-  footer: ReactNode;
+  /** The sheet's one action (Figma: a 56 px button); none on a picker, where choosing closes it. */
+  footer?: ReactNode;
 }
 
 /**
@@ -534,7 +534,7 @@ export function Sheet({ title, onCancel, children, footer }: SheetProps) {
           <span className="sheet-cancel" aria-hidden="true" />
         </div>
         <div className="sheet-content">{children}</div>
-        <div className="sheet-footer">{footer}</div>
+        {footer && <div className="sheet-footer">{footer}</div>}
       </div>
     </div>
   );

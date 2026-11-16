@@ -1,6 +1,7 @@
 // The submit form's rules that don't need a screen (SUB-01a, SUB-01d): photo slot labels and
 // what's still missing before Send. Pure: no DOM, no PocketBase.
 
+import type { LengthResult } from "./lengthEntry";
 import type { WeightResult } from "./weightEntry";
 
 export type Metric = "weight" | "length";
@@ -30,7 +31,8 @@ export interface FormInputs {
   /** Which of the two required slots hold a photo. */
   requiredFilled: readonly [boolean, boolean];
   speciesChosen: boolean;
-  measurement: WeightResult;
+  /** The parsed weight or length; only whether it is valid matters here. */
+  measurement: WeightResult | LengthResult;
 }
 
 /** Everything that still stops Send, in screen order. An invalid measurement counts as missing. */
