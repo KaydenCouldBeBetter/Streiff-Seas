@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# Seeds a fresh staging PocketBase with the docs/security.md fixture users and one live event
+# (decisions.md 2026-10-07: staging holds seed data only, never prod data). Kayden runs it once,
+# on the staging container:
+#
+#   seed-staging --superuser <staging superuser email> --email-pattern 'you+{k}@example.com'
+#
+# {k} becomes each fixture's letter (k, o, s, n, m, w, x, y), so every fixture user can receive its
+# sign-in code; add each address to the staging Access app's email list too. The superuser
+# password (and, with MFA on, the emailed code) is read from the terminal, never from argv.
+# It talks to PocketBase on 127.0.0.1:8090 directly, inside the container. Needs curl and jq.
+set -euo pipefail
+
+ETC="${SCOREBOARD_ETC:-/etc/scoreboard}"
+PB="${SCOREBOARD_PB_URL:-http://127.0.0.1:8090}"
+
+die() {
+  echo "seed-staging: $*" >&2
+  exit 1
+}
+usage() {
+  echo "usage: seed-staging --superuser <email> --email-pattern '<local+{k}@domain>'" >&2
+  exit 2
+}
+
+superuser=""
+pattern=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --superuser)
+      [ $# -ge 2 ] || usage
+      superuser="$2"
+      shift
+      ;;
+    --email-pattern)
+      [ $# -ge 2 ] || usage
+      pattern="$2"
+      shift
+      ;;
+    *) usage ;;
+  esac
+  shift
+done
+[ -n "$superuser" ] && [ -n "$pattern" ] || usage
+case "$pattern" in *'{k}'*@*) ;; *) die "--email-pattern must hold {k} and an @" ;; esac
+
+[ -f "$ETC/ENVIRONMENT" ] || die "$ETC/ENVIRONMENT is missing"
+environment="$(head -n 1 "$ETC/ENVIRONMENT" | tr -d '[:space:]')"
+[ "$environment" = staging ] || die "refused: $ETC/ENVIRONMENT says '$environment'; this runs on staging only"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+token=""
+status=""
+
+# One API call: the response body goes to $work/out and the HTTP status to $status. Bodies come
+# as files or pipes (@-, @<(...)), so no secret reaches a command line.
+api() { # <method> <path> [curl args...]
+  local method="$1" route="$2"
+  shift 2
+  status="$(curl -sS -o "$work/out" -w '%{http_code}' -X "$method" \
+    -H @<(printf 'Content-Type: application/json\n'; if [ -n "$token" ]; then printf 'Authorization: %s\n' "$token"; fi) \
+    "$@" "$PB$route")" || die "can't reach PocketBase at $PB"
+}
+# The same, body on stdin, and anything but 200 stops the script (also from inside a pipeline).
+api_json() { # <method> <path>
+  api "$1" "$2" --data-binary @-
+  [ "$status" = 200 ] || die "$1 $2 answered $status: $(cat "$work/out")"
+}
+
+# --- sign in as the staging superuser (password, then the emailed code when MFA is on) ----------
+
+if [ -t 0 ]; then printf 'Staging superuser password: ' >&2; fi
+IFS= read -rs password || die "no password given"
+if [ -t 0 ]; then echo >&2; fi
+
+api POST /api/collections/_superusers/auth-with-password \
+  --data-binary @<(printf '%s' "$password" | jq -Rs --arg identity "$superuser" '{identity: $identity, password: .}')
+password=""
+if [ "$status" = 401 ] && [ -n "$(jq -r '.mfaId // empty' "$work/out")" ]; then
+  mfa_id="$(jq -r '.mfaId' "$work/out")"
+  jq -n --arg email "$superuser" '{email: $email}' | api_json POST /api/collections/_superusers/request-otp
+  otp_id="$(jq -r '.otpId // empty' "$work/out")"
+  [ -n "$otp_id" ] || die "PocketBase sent no otpId"
+  if [ -t 0 ]; then printf 'MFA is on: the code emailed to %s: ' "$superuser" >&2; fi
+  IFS= read -r code || die "no code given"
+  api POST /api/collections/_superusers/auth-with-otp \
+    --data-binary @<(printf '%s' "$code" | jq -Rs --arg otp "$otp_id" --arg mfa "$mfa_id" '{otpId: $otp, password: ., mfaId: $mfa}')
+fi
+[ "$status" = 200 ] || die "superuser sign-in refused ($status)"
+token="$(jq -r '.token // empty' "$work/out")"
+[ -n "$token" ] || die "superuser sign-in gave no token"
+echo "seed-staging: signed in as $superuser"
+
+# --- the fixture users (docs/security.md "Test fixtures"; names as in test/harness/users.ts) ----
+
+FIXTURES="K:Kayden:organizer
+O:Olivia:organizer
+S:Sam:member
+N:Angler N:member
+M:Angler M:member
+W:Angler W:member
+X:Angler X:member
+Y:Angler Y:member"
+
+email_of() { # <letter>
+  local lower
+  lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  printf '%s' "${pattern//\{k\}/$lower}"
+}
+
+# Runs once: refuse if any fixture email is already a user.
+filter=""
+while IFS=: read -r letter _; do
+  if [ -n "$filter" ]; then filter="$filter || "; fi
+  filter="${filter}email = \"$(email_of "$letter")\""
+done <<<"$FIXTURES"
+api GET /api/collections/users/records -G --data-urlencode "filter=$filter" --data-urlencode "perPage=1"
+[ "$status" = 200 ] || die "listing users answered $status"
+existing="$(jq -r '.totalItems' "$work/out")"
+[ "$existing" = 0 ] || die "refused: $existing fixture user(s) already exist; staging is already seeded"
+
+ids=""
+while IFS=: read -r letter name role; do
+  # Nobody signs in with it (OTP only); the auth collection just requires one.
+  secret="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  jq -n --arg email "$(email_of "$letter")" --arg name "$name" --arg role "$role" --arg pw "$secret" \
+    '{email: $email, emailVisibility: false, verified: true, name: $name, role: $role, display_units: "lb", password: $pw, passwordConfirm: $pw}' |
+    api_json POST /api/collections/users/records
+  ids="$ids
+$letter=$(jq -r '.id' "$work/out")"
+  echo "seed-staging: $letter $name ($role) $(email_of "$letter")"
+done <<<"$FIXTURES"
+
+id_of() { # <letter>
+  printf '%s\n' "$ids" | sed -n "s/^$1=//p"
+}
+
+# --- one live event, judged by K with S as backup -----------------------------------------------
+
+api GET /api/collections/species/records -G \
+  --data-urlencode 'filter=name = "largemouth bass" || name = "smallmouth bass"' --data-urlencode 'sort=name'
+[ "$status" = 200 ] || die "listing species answered $status"
+species="$(jq -c '[.items[].id]' "$work/out")"
+[ "$(jq 'length' <<<"$species")" = 2 ] || die "the seeded species (largemouth bass, smallmouth bass) are missing"
+
+jq -n --arg k "$(id_of K)" --arg s "$(id_of S)" --argjson species "$species" '{
+  name: "Staging Live", status: "live",
+  starts_at: ((now - 86400) | todate), ends_at: ((now + 30 * 86400) | todate),
+  submit_deadline: ((now + 31 * 86400) | todate), deadline_ext_min: 0,
+  metric: "weight", best_n: 10, judge: $k, backup_judge: $s, species: $species,
+  code_word_on: true, code_word: "OAK"
+}' | api_json POST /api/collections/events/records
+event="$(jq -r '.id' "$work/out")"
+echo "seed-staging: event Staging Live (live) $event"
+
+# The judge and backup judge are entered with the event (the automatic entries are S4's).
+for letter in K S; do
+  jq -n --arg event "$event" --arg angler "$(id_of "$letter")" '{event: $event, angler: $angler}' |
+    api_json POST /api/collections/entries/records
+  echo "seed-staging: $letter entered"
+done
+
+echo "seed-staging: done. Add the eight addresses to the staging Access app's email list."

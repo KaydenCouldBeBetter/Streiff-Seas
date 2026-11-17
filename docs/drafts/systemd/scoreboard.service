@@ -1,0 +1,33 @@
+# Draft (M0-05b) for Kayden to install on prod and on staging as
+# /etc/systemd/system/scoreboard.service. It replaces the hand-installed pocketbase.service
+# (decisions.md Open item 11). PocketBase runs as the non-root user `scoreboard` from whichever
+# release /opt/scoreboard/current points to (scripts/deploy.sh switches it), on localhost only,
+# and may write only to pb_data. exiftool (the photo strip, decisions.md L2) keeps its temp files
+# under pb_data too, which is why that is the one writable path.
+[Unit]
+Description=Fishing Scoreboard (PocketBase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scoreboard
+Group=scoreboard
+WorkingDirectory=/opt/scoreboard
+ExecStart=/opt/scoreboard/current/pocketbase serve --http=127.0.0.1:8090 --dir=/opt/scoreboard/pb_data --hooksDir=/opt/scoreboard/current/pb_hooks --migrationsDir=/opt/scoreboard/current/pb_migrations --publicDir=/opt/scoreboard/current/pb_public --indexFallback=true --hooksWatch=false
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+# NoNewPrivileges and ProtectSystem=strict with pb_data writable are what the photo spike ran
+# exiftool under in an unprivileged Debian 13 LXC. ProtectHome and PrivateTmp weren't tried there:
+# if the unit fails to start with a namespace error, remove those two and note it in ops.md §12.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/scoreboard/pb_data
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

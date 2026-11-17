@@ -1,0 +1,15 @@
+# Draft (M0-05b) for Kayden to install on staging only, as
+# /etc/systemd/system/scoreboard-staging-deploy.timer, then:
+#   systemctl daemon-reload && systemctl enable --now scoreboard-staging-deploy.timer
+# Runs the staging deploy every 5 minutes. A run that's still going is never started twice
+# (systemd won't start a running oneshot again), and deploy.sh holds its own lock as well.
+[Unit]
+Description=Run the Fishing Scoreboard staging deploy every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=scoreboard-staging-deploy.service
+
+[Install]
+WantedBy=timers.target

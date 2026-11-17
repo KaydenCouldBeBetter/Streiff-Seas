@@ -1,0 +1,15 @@
+# Draft (M0-05b) for Kayden to install on staging only, as
+# /etc/systemd/system/scoreboard-staging-deploy.service. Started every 5 minutes by
+# scoreboard-staging-deploy.timer: deploys the newest green ci.yml build on main if it isn't the
+# one running (decisions.md L3 stage 3). Runs as root, because it stops and starts
+# scoreboard.service and reads the root-only /etc/scoreboard/deploy.env. deploy.sh is installed
+# by hand as /usr/local/sbin/scoreboard-deploy (a copy of scripts/deploy.sh), never from a bundle.
+[Unit]
+Description=Fishing Scoreboard staging deploy (newest green main build)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/scoreboard-deploy --staging
+TimeoutStartSec=15min
