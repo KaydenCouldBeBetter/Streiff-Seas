@@ -1,6 +1,6 @@
 # Draft for `docs/ops.md` (from M0-05b, 2026-11-17)
 
-`ops.md` is read-only for Claude Code. These are the changes for Kayden to copy in. They go with `docs/drafts/decisions-M0-05b.md` (the interim `--bundle` row); leave out part C if you don't take that row.
+`ops.md` is read-only for Claude Code. These are the changes for Kayden to copy in. They go with the decisions.md 2026-11-17 rows "Interim: deploy a locally built bundle while GitHub is locked" and "M0-05b deploy calls", and Open item 21.
 
 ## A. §1 Inventory: replace the PocketBase row's `systemd unit TODO`
 
