@@ -6,6 +6,8 @@ pb_data/
 
 # Build output (npm run build writes the app here)
 pb_public/
+# Release bundles from scripts/make-bundle.sh
+/bundles/
 
 # Node
 node_modules/

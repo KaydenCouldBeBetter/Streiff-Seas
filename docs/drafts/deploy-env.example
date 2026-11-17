@@ -1,0 +1,20 @@
+# Template (M0-05b) for /etc/scoreboard/deploy.env on prod and on staging. Key names only: never put
+# a value in this repo. The file must be owned by root and mode 600 (deploy.sh refuses it
+# otherwise), and it is read as KEY=VALUE lines, never sourced: no quotes, no spaces around "=",
+# no other keys.
+#
+#   install -o root -g root -m 600 /dev/null /etc/scoreboard/deploy.env
+
+# owner/name of the repo (both containers)
+GITHUB_REPO=KaydenCouldBeBetter/ChromeFishingV2
+# prod: the fine-grained release-read token (this repo, Contents read)
+# staging: the staging token (this repo, Actions read and Contents read)
+# not needed for deploy.sh --bundle
+GITHUB_TOKEN=
+# the public URL the smoke test goes through, via Cloudflare (staging: https://staging.<domain>)
+SMOKE_URL=
+# the Access service token: uptime-probe on prod, staging-probe on staging
+CF_ACCESS_CLIENT_ID=
+CF_ACCESS_CLIENT_SECRET=
+# staging only: the Healthchecks staging check's ping URL (deploy.sh adds /fail on failure)
+HEALTHCHECKS_URL=

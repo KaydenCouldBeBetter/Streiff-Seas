@@ -100,7 +100,7 @@
       "scripts/seed-staging, run by Kayden on staging only, creates the security.md fixture users (each with a name) and one live event through the staging superuser, and refuses to run unless /etc/scoreboard/ENVIRONMENT says staging",
       "npm run check output shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "S2a-scoring-module",
