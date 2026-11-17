@@ -72,7 +72,7 @@
       "Locally, a catch added in the admin UI appears on the page without a reload",
       "Checked at 390 px wide; npm run check output shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-05a-ci-release",
