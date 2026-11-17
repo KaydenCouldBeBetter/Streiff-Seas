@@ -270,6 +270,6 @@
       "Checked at 390 and 320 px wide against Figma 65:3561, 104:8318, 184:9982 and its views; npm run check output shown",
       "Left for later: real reads for the stats (M0-03), places from scoring.ts (S2a), the Judge tab (JDG-00), RULES-01a, LB-01g"
     ],
-    "passes": false
+    "passes": true
   }
 ]
