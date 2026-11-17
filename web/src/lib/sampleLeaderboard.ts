@@ -1,39 +1,10 @@
-// Sample data for the LB-01a skeleton, matching the Figma frame (66:5754). Nothing here
-// comes from PocketBase: entries and catches can't be read through the API until M0-03
-// opens their list and view rules, and the standings come from web/src/lib/scoring.ts
-// (S2a) over verified catches, live (S2b). Replace this module with those then.
+// Sample data from the LB-01a skeleton, matching the Figma frame (66:5754). The app reads the
+// real board (lib/leaderboard.ts, S2b); this stays for the LB-02 tests' sample angler pages.
 
+import type { LeaderboardRow, LeaderboardView } from "./leaderboard";
 import { SAMPLE_TOURNAMENT } from "./sampleTournament";
 
-export interface LeaderboardRow {
-  /** The entry's id; the row opens that angler's catches (LB-02). */
-  entryId: string;
-  place: number;
-  /** A shared place: shown "T-2", and the next place is skipped. */
-  tied: boolean;
-  displayName: string;
-  /** Judge and backup judge are named on their rows (decisions.md 2026-10-03). */
-  role?: "Judge" | "Backup judge";
-  /** The signed-in member's own row: tint, left bar and "(you)", never color alone. */
-  isViewer: boolean;
-  /** Already rounded for display in the viewer's units (scoring.md: display rounding). */
-  total: string;
-  /** Verified fish that count toward the total, of the event's best_n. */
-  counted: number;
-  biggest: { size: string; species: string } | null;
-  pending: number;
-}
-
-export interface LeaderboardView {
-  name: string;
-  /** "Weight · best 10 · Week 3 of 6 · 14 anglers". */
-  subtitle: string;
-  unit: string;
-  bestN: number;
-  /** The viewer's row, for the "Your place" card; null when they have no row (LB-01e). */
-  you: LeaderboardRow | null;
-  rows: LeaderboardRow[];
-}
+export type { LeaderboardRow, LeaderboardView } from "./leaderboard";
 
 const ROWS: LeaderboardRow[] = [
   { entryId: "sample-1", place: 1, tied: false, displayName: "Dana R.", isViewer: false, total: "27.15", counted: 10, biggest: { size: "4.02", species: "Largemouth" }, pending: 0 },

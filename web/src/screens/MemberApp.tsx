@@ -4,8 +4,9 @@
 // tournament's leaderboard (LB-01), two or more on the Tournaments list (EVT-01d), anyone
 // else on Tournaments (EVT-01a). Until EVT-01 exists, every sign-in lands on the first live
 // tournament (liveTournament.ts): Join, Submit a catch, the real sender and My catches with its
-// history, edit, add photos and retract are real (S1); the standing, leaderboard and Profile
-// stats are still sample data.
+// history, edit, add photos and retract are real (S1); the leaderboard, kept live while it or an
+// angler's page is open, the angler pages and the standing on the tournament page are real (S2b);
+// Profile stats are still sample data.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import type { RecordModel } from "pocketbase";
@@ -13,10 +14,9 @@ import { pb } from "../lib/pb";
 import { checkSession } from "../lib/auth";
 import { retrySave, roleLabel, saveProfile } from "../lib/profile";
 import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampleProfile";
-import { SAMPLE_ANGLER_CATCHES } from "../lib/sampleAnglerCatches";
-import { SAMPLE_CATCH_HISTORY } from "../lib/sampleCatchHistory";
-import { SAMPLE_LEADERBOARD } from "../lib/sampleLeaderboard";
-import { SAMPLE_MY_CATCHES_CONTEXT } from "../lib/sampleMyCatches";
+import { loadLeaderboard, type LeaderboardData } from "../lib/leaderboard";
+import { loadAnglerCatches, type AnglerCatchesData } from "../lib/loadAnglerCatches";
+import { useLive } from "../lib/useLive";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
 import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
@@ -53,7 +53,7 @@ type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatc
 
 /** The page title's first part; the screens named after the live tournament add its name. */
 const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
-  leaderboard: `Leaderboard · ${SAMPLE_LEADERBOARD.name}`,
+  leaderboard: "Leaderboard",
   catches: "My catches",
   catch: "Catch",
   catchHistory: "History",
@@ -90,6 +90,15 @@ function tabFor(screen: Screen, rulesFrom: "tournament" | "profile"): MemberTab 
 
 /** The screens whose title names the live tournament, and that show the member's own catches. */
 const MY_CATCH_SCREENS: readonly Screen[] = ["catches", "catch", "catchHistory", "editCatch", "addPhotos"];
+
+/** The board stays live (subscribed) while any of these is open, so going back to it doesn't reconnect. */
+const BOARD_SCREENS: readonly Screen[] = ["leaderboard", "angler", "anglerCatch"];
+
+/** An angler's page (LB-02, LB-03): read when it opens and when the app comes back to the foreground (Gap 25). */
+type AnglerPage = { state: "loading" } | { state: "error" } | { state: "ready"; data: AnglerCatchesData };
+
+/** The tournament page's standing: the board read once when the page opens and on focus. */
+type StandingRead = { state: "loading" } | { state: "error" } | { state: "ready"; data: LeaderboardData };
 
 type Live = { state: "loading" } | { state: "none" } | { state: "error" } | { state: "ready"; tournament: LiveTournament };
 
@@ -157,6 +166,39 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     () => (ready && activeEntryId ? createCatchSender({ pb, entryId: activeEntryId, metric: ready.submit.metric, units, prepare: preparePhoto }) : null),
     [ready, activeEntryId, units],
   );
+  const eventId = ready?.submit.eventId ?? null;
+
+  // LB-01: live while the board or an angler's page is open; every message refetches (useLive).
+  const loadBoard = useCallback(() => loadLeaderboard(pb, eventId ?? "", user.id, units, serverNowMs()), [eventId, user.id, units]);
+  const board = useLive(eventId && BOARD_SCREENS.includes(screen) ? loadBoard : null);
+  const boardData = board.data?.eventId === eventId ? board.data : undefined;
+
+  // EVT-02's standing card: the same read, once on open and on focus (it isn't a live screen).
+  const [standingRead, setStandingRead] = useState<StandingRead>({ state: "loading" });
+  const loadStanding = useCallback(async () => {
+    if (!eventId) return;
+    try {
+      const data = await loadLeaderboard(pb, eventId, user.id, units, serverNowMs());
+      setStandingRead({ state: "ready", data });
+    } catch {
+      // A failed refresh keeps the standing already shown.
+      setStandingRead((previous) => (previous.state === "ready" && previous.data.eventId === eventId ? previous : { state: "error" }));
+    }
+  }, [eventId, user.id, units]);
+
+  useEffect(() => {
+    if (screen !== "tournament") return;
+    void loadStanding();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadStanding();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [screen, loadStanding]);
+
+  const standingData = standingRead.state === "ready" && standingRead.data.eventId === eventId ? standingRead.data : null;
+  const ownRow = standingData?.view.you ?? null;
+
   const view: TournamentView = ready
     ? {
         ...SAMPLE_TOURNAMENT,
@@ -166,6 +208,19 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         endsAt: ready.submit.endsAt,
         submitDeadline: ready.submit.submitDeadline,
         rules: rulesPanel(ready),
+        standing: standingData
+          ? ownRow && {
+              place: ownRow.place,
+              tied: ownRow.tied,
+              total: ownRow.total,
+              unit: standingData.view.unit,
+              counted: ownRow.counted,
+              bestN: standingData.view.bestN,
+            }
+          : standingRead.state === "error"
+            ? "unavailable"
+            : undefined,
+        catches: standingData?.mine,
       }
     : SAMPLE_TOURNAMENT;
 
@@ -217,20 +272,46 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   // From 1024 px the lists show their selected item beside them (MY-01 + MY-02, LB-02 + LB-03).
   const expanded = useBreakpoint() === "expanded";
 
-  const anglerRow = SAMPLE_LEADERBOARD.rows.find((row) => row.entryId === anglerEntryId);
-  const anglerCatches = anglerRow ? (SAMPLE_ANGLER_CATCHES[anglerRow.entryId] ?? []) : [];
+  // LB-02 and LB-03: the tapped angler's row from the live board, their catches read on open.
+  const anglerRow = boardData?.view.rows.find((row) => row.entryId === anglerEntryId);
+  const [anglerPage, setAnglerPage] = useState<AnglerPage>({ state: "loading" });
+  const anglerData = anglerPage.state === "ready" && anglerPage.data.entryId === anglerEntryId ? anglerPage.data : null;
+  const anglerCatches = anglerData?.catches ?? [];
   const anglerCatch = anglerCatches.find((c) => c.id === anglerCatchId);
+  const onAnglerScreen = screen === "angler" || screen === "anglerCatch";
+
+  const loadAngler = useCallback(
+    async (entryId: string) => {
+      try {
+        const data = await loadAnglerCatches(pb, entryId, user.id, units);
+        setAnglerPage({ state: "ready", data });
+      } catch {
+        // A failed refresh keeps the page already shown.
+        setAnglerPage((previous) => (previous.state === "ready" && previous.data.entryId === entryId ? previous : { state: "error" }));
+      }
+    },
+    [user.id, units],
+  );
+
+  useEffect(() => {
+    if (!onAnglerScreen || !anglerEntryId) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadAngler(anglerEntryId);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [onAnglerScreen, anglerEntryId, loadAngler]);
 
   useEffect(() => {
     // SubmitFlow titles its own steps.
     if (screen === "submit") return;
-    const angler = `${anglerRow?.displayName ?? "Angler"} · ${SAMPLE_LEADERBOARD.name}`;
+    const angler = `${anglerRow?.displayName ?? "Angler"} · ${ready ? view.name : "Leaderboard"}`;
     const title =
       screen === "angler" ? angler
       : screen === "anglerCatch" ? `Catch · ${angler}`
       : screen === "tournament" ? (ready ? view.name : "Tournament")
       : screen === "withdraw" ? "Withdraw"
-      : MY_CATCH_SCREENS.includes(screen) && ready ? `${TITLES[screen]} · ${view.name}`
+      : (MY_CATCH_SCREENS.includes(screen) || screen === "leaderboard") && ready ? `${TITLES[screen]} · ${view.name}`
       : TITLES[screen];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
@@ -320,6 +401,9 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
 
   function openAngler(entryId: string) {
     setAnglerEntryId(entryId);
+    setAnglerCatchId(null);
+    if (!(anglerPage.state === "ready" && anglerPage.data.entryId === entryId)) setAnglerPage({ state: "loading" });
+    void loadAngler(entryId);
     setScreen("angler");
   }
 
@@ -405,28 +489,39 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     );
   }
 
-  const leaderboard = (
+  // Without a live tournament there's no board: the tournament screen says why (NoTournament).
+  const leaderboard = ready ? (
     <Leaderboard
-      leaderboard={SAMPLE_LEADERBOARD}
-      window={{ endsAt: SAMPLE_TOURNAMENT.endsAt, submitDeadline: SAMPLE_TOURNAMENT.submitDeadline }}
+      name={ready.submit.name}
+      leaderboard={boardData?.view}
+      // A final board can't change, so it shows no badge (Gap 25).
+      badge={boardData?.status === "final" ? null : board.badge}
+      canSubmit={canSubmit(ready, serverNowMs())}
+      onClubRules={() => openClubRules("tournament")}
+      window={{ endsAt: ready.submit.endsAt, submitDeadline: ready.submit.submitDeadline }}
       onTab={openTab}
       onSubmit={openSubmit}
       onOpenRow={openAngler}
     />
+  ) : (
+    home()
   );
 
   // The angler's page: from 1024 px their selected catch (the opened one, else the newest) sits beside it.
   const anglerShown = newestFirst(shownOnAnglerPage(anglerCatches));
   const anglerSelected = anglerCatch ?? anglerShown[0];
-  // TODO(LB-03b): the sample event is live; read events.status once M0-03 exists.
-  const final = SAMPLE_MY_CATCHES_CONTEXT.phase === "final";
-  const anglerPage = anglerRow ? (
+  const final = boardData?.status === "final";
+  const metric = boardData?.metric ?? ready?.submit.metric ?? "weight";
+  const bestN = boardData?.view.bestN ?? ready?.bestN ?? 10;
+  const anglerScreen = anglerRow && boardData ? (
     <AnglerCatches
       key={anglerRow.entryId}
       row={anglerRow}
-      unit={SAMPLE_LEADERBOARD.unit}
-      bestN={SAMPLE_LEADERBOARD.bestN}
+      unit={boardData.view.unit}
+      bestN={bestN}
       catches={anglerCatches}
+      status={anglerData ? undefined : anglerPage.state === "error" ? "error" : "loading"}
+      onRetry={() => void loadAngler(anglerRow.entryId)}
       onOpen={openAnglerCatch}
       onBack={() => setScreen("leaderboard")}
       onTab={openTab}
@@ -439,9 +534,9 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
                   key={anglerSelected.id}
                   anglerName={anglerRow.displayName}
                   item={anglerSelected}
-                  bestN={SAMPLE_LEADERBOARD.bestN}
-                  metric={SAMPLE_MY_CATCHES_CONTEXT.metric}
-                  history={SAMPLE_CATCH_HISTORY[anglerSelected.id] ?? []}
+                  bestN={bestN}
+                  metric={metric}
+                  history={anglerData?.history[anglerSelected.id] ?? []}
                   final={final}
                 />
               ),
@@ -470,19 +565,19 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       case "leaderboard":
         return leaderboard;
       case "angler":
-        return anglerPage ?? leaderboard;
+        return anglerScreen ?? leaderboard;
       case "anglerCatch":
         if (anglerRow && anglerCatch) {
           // Beside the list on a wide window; a page of its own below that.
-          if (expanded) return anglerPage ?? leaderboard;
+          if (expanded) return anglerScreen ?? leaderboard;
           return (
             <AnglerCatch
               key={anglerCatch.id}
               anglerName={anglerRow.displayName}
               item={anglerCatch}
-              bestN={SAMPLE_LEADERBOARD.bestN}
-              metric={SAMPLE_MY_CATCHES_CONTEXT.metric}
-              history={SAMPLE_CATCH_HISTORY[anglerCatch.id] ?? []}
+              bestN={bestN}
+              metric={metric}
+              history={anglerData?.history[anglerCatch.id] ?? []}
               final={final}
               onBack={() => setScreen("angler")}
               onTab={openTab}

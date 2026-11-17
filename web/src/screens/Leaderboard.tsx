@@ -1,18 +1,27 @@
-// LB-01a Leaderboard: live, at least one angler qualifies (Figma 66:5754).
-// A UI skeleton on sample data: controls whose screens aren't built yet carry a TodoTag
-// with the screens.md row they open. Submit a catch opens SUB-01 (SubmitFlow); a row opens
-// that angler's catches (LB-02).
+// LB-01 Leaderboard (Figma 66:5754): the standings from lib/leaderboard.ts, kept current by
+// useLive in MemberApp. LB-01a live, LB-01b Reconnecting… (last standings kept), LB-01c
+// "Updated h:mm" while polling, LB-01d no angler yet, LB-01e the viewer withdrawn (no "Your
+// place"), LB-01f closed (still live), LB-01g final (no badge: it can't change). Submit a catch
+// opens SUB-01 (SubmitFlow); a row opens that angler's catches (LB-02).
 
-import type { LeaderboardRow, LeaderboardView } from "../lib/sampleLeaderboard";
+import type { LeaderboardRow, LeaderboardView } from "../lib/leaderboard";
 import { formatClubTime, placeLabel, rowPlace, spokenPlace } from "../lib/format";
 import { useBreakpoint } from "../lib/useBreakpoint";
-import { AccessoryBar, Button, Icon, LargeNavBar, LiveBadge, StatusChip, TabBar } from "../components/ui";
+import { AccessoryBar, Button, EmptyState, Icon, LargeNavBar, LiveBadge, StatusChip, TabBar, type LiveBadgeState } from "../components/ui";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
-const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", in: "inches" };
+const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", oz: "ounces", in: "inches" };
 
 interface Props {
-  leaderboard: LeaderboardView;
+  /** The tournament's name, shown while the first read is on its way. */
+  name: string;
+  /** undefined until the first read lands. */
+  leaderboard: LeaderboardView | undefined;
+  /** How current the standings are; null on a final board (Gap 25). */
+  badge: LiveBadgeState | null;
+  /** Submitting is open to the viewer (EVT-02d, EVT-02e): LB-01d offers Submit. */
+  canSubmit: boolean;
+  onClubRules: () => void;
   /** The tournament's window, for the dates card beside "Your place" on a wide window. */
   window?: { endsAt: Date; submitDeadline: Date };
   onTab: (tab: MemberTab) => void;
@@ -21,15 +30,18 @@ interface Props {
   onOpenRow: (entryId: string) => void;
 }
 
-export function Leaderboard({ leaderboard, window: dates, onTab, onSubmit, onOpenRow }: Props) {
-  const { you, rows, unit, bestN } = leaderboard;
+export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, window: dates, onTab, onSubmit, onOpenRow }: Props) {
+  const you = leaderboard?.you ?? null;
+  const rows = leaderboard?.rows ?? [];
+  const unit = leaderboard?.unit ?? "";
+  const bestN = leaderboard?.bestN ?? 10;
   // From 1024 px the standings are a real table with column headers (Figma 223:2286).
   const table = useBreakpoint() === "expanded";
   // The crown marks 1st place once the leader has a verified fish (screens.md LB-01a).
   const leaderHasFish = rows.some((row) => row.place === 1 && row.counted > 0);
   return (
     <div className="screen tab-screen screen-wide">
-      <LargeNavBar title={leaderboard.name} badge={<LiveBadge state="live" />} subtitle={leaderboard.subtitle} />
+      <LargeNavBar title={leaderboard?.name ?? name} badge={badge && <LiveBadge state={badge} />} subtitle={leaderboard?.subtitle} />
       <div className="screen-content leaderboard-content">
         <div className="leaderboard-summary">
           {you && (
@@ -62,13 +74,28 @@ export function Leaderboard({ leaderboard, window: dates, onTab, onSubmit, onOpe
             </dl>
           )}
           <div className="leaderboard-rules wide-only">
-            <Button variant="text" todo="RULES-01a">
+            <Button variant="text" onClick={onClubRules}>
               Club rules
             </Button>
           </div>
         </div>
 
-        {table ? (
+        {leaderboard === undefined ? (
+          <p className="leaderboard-status t-body t-secondary">Loading the standings…</p>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon="/icons/list-large.svg"
+            title="No catches yet"
+            message="Anglers show up here once they have a pending or verified catch."
+            action={
+              canSubmit && (
+                <Button variant="primary" onClick={onSubmit}>
+                  Submit a catch
+                </Button>
+              )
+            }
+          />
+        ) : table ? (
           <LeaderboardTable rows={rows} unit={unit} bestN={bestN} crownFirst={leaderHasFish} onOpenRow={onOpenRow} />
         ) : (
           <>

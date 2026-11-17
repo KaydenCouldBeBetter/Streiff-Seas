@@ -1,6 +1,7 @@
 // EVT-02 Tournament (Figma 66:5726 is EVT-02d: live, fishing window open, the viewer's entry
-// active). The name, rules line and dates are the live event's; the standing is still sample
-// data until the leaderboard (S2b). Club rules opens RULES-01a with this tournament's section.
+// active). The name, rules line and dates are the live event's; the standing and the counts come
+// from the leaderboard's read (lib/leaderboard.ts), refreshed on open and on focus (Gap 25). Club
+// rules opens RULES-01a with this tournament's section.
 // The bottom action depends on the viewer's entry (`action`):
 // Submit a catch (EVT-02d → SUB-01), Join (EVT-02a), or why neither is open (EVT-02h, 02j).
 
@@ -40,7 +41,8 @@ const JOIN_FAILED = {
 
 export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules }: Props) {
   const { standing, catches } = tournament;
-  const place = placeLabel(standing.place, standing.tied);
+  const place = standing && standing !== "unavailable" ? placeLabel(standing.place, standing.tied) : null;
+  const counts = catches ? `${catches.pending} pending · ${catches.rejected} rejected` : "";
   return (
     <div className="screen tab-screen screen-wide">
       <LargeNavBar title={tournament.name} badge={<EventStatus status={tournament.status} />} subtitle={tournament.rulesLine} />
@@ -67,16 +69,28 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
             <h2 id="standing-heading" className="t-footnote-strong t-secondary">
               Your standing
             </h2>
-            <div className="standing-numbers">
-              <p className="t-number-large">{place}</p>
-              <p className="standing-total">
-                <span className="t-number-large">{standing.total}</span>
-                <span className="t-callout-strong t-secondary">{standing.unit}</span>
+            {standing && standing !== "unavailable" ? (
+              <>
+                <div className="standing-numbers">
+                  <p className="t-number-large">{place}</p>
+                  <p className="standing-total">
+                    <span className="t-number-large">{standing.total}</span>
+                    <span className="t-callout-strong t-secondary">{standing.unit}</span>
+                  </p>
+                </div>
+                <p className="t-callout">
+                  {standing.counted} of {standing.bestN} counted{counts && ` · ${counts}`}
+                </p>
+              </>
+            ) : (
+              <p className="t-callout">
+                {standing === undefined
+                  ? "Loading your place…"
+                  : standing === "unavailable"
+                    ? "Couldn't load your place. Open the leaderboard, or come back to try again."
+                    : `Not on the leaderboard yet: you show up once you have a pending or verified catch.${catches && catches.rejected > 0 ? ` ${catches.rejected} rejected.` : ""}`}
               </p>
-            </div>
-            <p className="t-callout">
-              {standing.counted} of {standing.bestN} counted · {catches.pending} pending · {catches.rejected} rejected
-            </p>
+            )}
             {/* On a wide window the standing card carries its own way to the board (Figma 220:951). */}
             <div className="tournament-standing-action wide-only">
               <Button variant="secondary" icon="/icons/leaderboard.svg" onClick={onLeaderboard}>
@@ -129,12 +143,12 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
             <ListLink
               icon="/icons/list.svg"
               title="My catches"
-              detail={`${catches.submitted} submitted · ${catches.pending} pending`}
+              detail={catches ? `${catches.submitted} submitted · ${catches.pending} pending` : "Your catches in this tournament"}
               onClick={onMyCatches}
             />
           )}
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
-          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={entry === "active" ? `You're ${place}` : "See the standings"} onClick={onLeaderboard} />
+          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={entry === "active" && place ? `You're ${place}` : "See the standings"} onClick={onLeaderboard} />
         </div>
 
         {entry === "active" && (

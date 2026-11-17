@@ -9,8 +9,12 @@
 //
 // It assumes it is the app's only realtime user: after a failed first connect it clears the
 // whole topic from the SDK (see sdkRealtime.subscribe).
+//
+// After repeated failed loads it checks whether Cloudflare Access wants a sign-in, and reloads the
+// page if so (accessReload.ts; S2b step 4).
 
 import { useEffect, useState } from "react";
+import { reloadIfAccessExpired, type ReloadPort } from "./accessReload";
 import { createLiveTracker, type LiveSnapshot, type LiveTopic, type RealtimePort } from "./liveTracker";
 import { pb } from "./pb";
 import { serverNowMs } from "./serverClock";
@@ -45,15 +49,39 @@ const sdkRealtime: RealtimePort = {
   },
 };
 
+/** The browser's side of the Access check (accessReload.ts). */
+const browserReloadPort = (): ReloadPort => ({
+  fetch: (url, init) => window.fetch(url, init),
+  online: () => navigator.onLine !== false,
+  reload: () => window.location.reload(),
+  now: () => Date.now(),
+  // Through a function each time, so a browser that refuses storage throws inside accessReload's try.
+  storage: {
+    getItem: (key) => window.sessionStorage.getItem(key),
+    setItem: (key, value) => window.sessionStorage.setItem(key, value),
+  },
+});
+
+const EMPTY = { data: undefined, badge: { kind: "reconnecting" } } as const;
+
 /**
  * The data `load` returns, kept current, and the badge (Live, Reconnecting, Updated h:mm).
- * `load` must be the same function on every render (define it outside the component).
+ * `load` must be the same function on every render (define it outside the component, or with
+ * useCallback). A new `load` starts over; null subscribes to nothing.
  */
-export function useLive<T>(load: () => Promise<T>): LiveSnapshot<T> {
-  const [snapshot, setSnapshot] = useState<LiveSnapshot<T>>({ data: undefined, badge: { kind: "reconnecting" } });
+export function useLive<T>(load: (() => Promise<T>) | null): LiveSnapshot<T> {
+  const [snapshot, setSnapshot] = useState<LiveSnapshot<T>>(EMPTY);
 
   useEffect(() => {
-    const tracker = createLiveTracker({ load, realtime: sdkRealtime, serverNow: () => serverNowMs(), onChange: setSnapshot });
+    setSnapshot(EMPTY);
+    if (load === null) return;
+    const tracker = createLiveTracker({
+      load,
+      realtime: sdkRealtime,
+      serverNow: () => serverNowMs(),
+      onChange: setSnapshot,
+      onRepeatedFailure: () => void reloadIfAccessExpired(browserReloadPort()),
+    });
     tracker.start();
     const onVisibility = () => {
       if (document.visibilityState === "visible") tracker.visible();

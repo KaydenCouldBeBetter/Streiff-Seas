@@ -34,6 +34,8 @@ export interface People {
   me: string;
   judge: string;
   backupJudge: string;
+  /** Whose catch it is, on another angler's catch (LB-03): their own steps read "Angler". */
+  angler?: string;
 }
 
 const CATCH_ACTIONS: readonly string[] = ["create", "edit", "retract", "approve", "reject", "correct"] satisfies AuditAction[];
@@ -65,20 +67,25 @@ export function myCatchesContext(tournament: LiveTournament, nowMs: number): MyC
   };
 }
 
-/** "You" for the viewer's own steps; empty (a superuser action) and anyone else read "Organizer". */
+/**
+ * "You" for the viewer's own steps, "Angler" for the catch's angler on someone else's catch (even
+ * when that angler is the judge: it's their own catch); empty (a superuser action) and anyone else
+ * read "Organizer".
+ */
 export function actorOf(id: string, people: People): AuditActor {
   if (id === "") return "Organizer";
   if (id === people.me) return "You";
+  if (id === people.angler) return "Angler";
   if (id === people.judge) return "Judge";
   if (id === people.backupJudge) return "Backup judge";
   return "Organizer";
 }
 
-function photosOf(record: Readonly<Record<string, unknown>>): string[] {
+export function photosOf(record: Readonly<Record<string, unknown>>): string[] {
   return Array.isArray(record.photo) ? record.photo.map(String) : [];
 }
 
-interface Shaping {
+export interface Shaping {
   metric: "weight" | "length";
   units: DisplayUnits;
   /** Species id → label ("Largemouth bass"). */

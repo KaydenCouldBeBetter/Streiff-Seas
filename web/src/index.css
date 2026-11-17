@@ -734,6 +734,14 @@ dd {
   background: var(--cf-color-bg-default);
   color: var(--cf-color-text-success);
 }
+.live-badge-reconnecting {
+  border-color: var(--cf-color-border-warning);
+  color: var(--cf-color-text-warning);
+}
+.live-badge-updated {
+  border-color: var(--cf-color-border-neutral);
+  color: var(--cf-color-text-neutral);
+}
 
 /* Leaderboard (LB-01): rows run edge to edge, so the content has no side padding. */
 .tab-screen .leaderboard-content {
@@ -758,6 +766,11 @@ dd {
 }
 .your-place-total {
   align-items: flex-end;
+}
+/* LB-01 before the first read: the content has no side padding of its own. */
+.leaderboard-status {
+  margin: 0;
+  padding: 0 var(--cf-spacing-lg);
 }
 .leaderboard-columns {
   display: flex;
@@ -2317,4 +2330,12 @@ dd {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* LB-02 when the angler's catches couldn't be read: the reason, then Try again. */
+.angler-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cf-spacing-md);
 }
