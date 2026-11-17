@@ -26,7 +26,7 @@ with photos, the judge approves or rejects, standings update live. One developer
 - Nothing is deleted through the API: delete rules stay null. Retract and withdraw are flags; photos are append-only.
 - Migrations are append-only: a new file for every change, never an edit to a committed one.
 - Scoring lives only in web/src/lib/scoring.ts: pure, no deps, integers only (weight_hoz, length_q).
-- Every catch, entry or event change writes exactly one audit_log row; every photo goes through the location strip.
+- Every catch, entry or event change writes exactly one audit_log row (one exception: the name sync's display_name copy, decisions.md 2026-11-17); every photo goes through the location strip.
 - pb_hooks run in goja, not Node: CommonJS require() only, no async/await, no Node or browser APIs, no fetch.
 - Runtime deps are react, react-dom and pocketbase only. Ask before adding any dependency, dev deps included.
 - Don't change an existing test unless the matching docs/security.md row or docs/scoring.md example changes
