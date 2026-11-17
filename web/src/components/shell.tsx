@@ -5,7 +5,7 @@
 // aria-label="Main"> that responsive.css resizes, so there is one set of controls to keep right.
 
 import { useRef, type ReactNode } from "react";
-import { Icon, TodoTag } from "./ui";
+import { Icon } from "./ui";
 import { MEMBER_TABS, type MemberTab } from "../screens/memberTabs";
 
 interface Props {
@@ -16,10 +16,12 @@ interface Props {
   role: string;
   onTab: (tab: MemberTab) => void;
   onSubmit: () => void;
+  /** Opens the club rules (RULES-01a). */
+  onClubRules: () => void;
   children: ReactNode;
 }
 
-export function AppShell({ tab, name, role, onTab, onSubmit, children }: Props) {
+export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, children }: Props) {
   const content = useRef<HTMLDivElement>(null);
   return (
     <div className="shell">
@@ -63,14 +65,12 @@ export function AppShell({ tab, name, role, onTab, onSubmit, children }: Props) 
         </ul>
 
         <div className="side-nav-foot">
-          {/* TODO RULES-01a: the club rules page isn't built; it opens from here once it is. */}
-          <button type="button" className="side-nav-item" aria-label="Club rules">
+          <button type="button" className="side-nav-item" aria-label="Club rules" onClick={onClubRules}>
             <Icon src="/icons/info.svg" size={24} />
             <span className="side-nav-long">Club rules</span>
             <span className="side-nav-short" aria-hidden="true">
               Rules
             </span>
-            <TodoTag row="RULES-01a" />
           </button>
           <div className="side-nav-user">
             <p className="t-callout-strong">{name}</p>

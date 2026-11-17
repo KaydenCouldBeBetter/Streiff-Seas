@@ -29,6 +29,8 @@ const LOCKED: Record<RuleName, null> = {
 // The M0-03 read rules (migration 1794602178_open_live_reads.js): the security.md code blocks,
 // line breaks and indentation included.
 const SPECIES_READ = '@request.auth.id != ""';
+// S1 (migration 1794843247_users_read_rule.js): the security.md "users" List / view block.
+const USERS_READ = ['@request.auth.id != "" &&', '(id = @request.auth.id || @request.auth.role = "organizer")'].join("\n");
 const EVENTS_READ = ['@request.auth.id != "" &&', '(status != "draft" || @request.auth.role = "organizer")'].join("\n");
 const ENTRIES_READ = [
   '@request.auth.id != "" &&',
@@ -39,6 +41,106 @@ const ENTRIES_READ = [
   " (event.backup_judge = @request.auth.id && angler = event.judge) ||",
   ' @request.auth.role = "organizer")',
 ].join("\n");
+// S1 step 1 (migration 1794693360_entries_join_rule.js): the security.md "entries" Create block.
+const ENTRIES_CREATE = [
+  '@request.auth.id != "" &&',
+  "@request.body.angler = @request.auth.id &&",
+  'event.status = "live" &&',
+  "@now <= event.submit_deadline &&",
+  "@request.body.display_name:isset = false &&",
+  "@request.body.withdrawn:isset = false &&",
+  "@request.body.withdraw_reason:isset = false &&",
+  "@request.body.withdrawn_by:isset = false",
+].join("\n");
+// S1 step 4 (migration 1794695177_entries_withdraw_rule.js): the security.md "entries" Update block.
+const ENTRIES_UPDATE = [
+  '@request.auth.id != "" &&',
+  'event.status != "final" &&',
+  "@request.body.withdrawn:isset = true &&",
+  "@request.body.event:isset = false &&",
+  "@request.body.angler:isset = false &&",
+  "@request.body.display_name:isset = false &&",
+  "@request.body.withdrawn_by:isset = false &&",
+  "(",
+  "  (angler = @request.auth.id &&",
+  "   @request.body.withdraw_reason:isset = false &&",
+  "   ((@request.body.withdrawn = true && withdrawn = false) ||",
+  "    (@request.body.withdrawn = false && withdrawn = true &&",
+  "     withdrawn_by = @request.auth.id &&",
+  '     event.status = "live" && @now <= event.submit_deadline)))',
+  "  ||",
+  '  (@request.auth.role = "organizer" &&',
+  "   (@request.body.withdrawn = false ||",
+  "    angler = @request.auth.id ||",
+  '    @request.body.withdraw_reason != ""))',
+  ")",
+].join("\n");
+// S1 step 2 (migration 1794693724_catches_create_rule.js): the security.md "catches" Create block.
+const CATCHES_CREATE = [
+  '@request.auth.id != "" &&',
+  "entry.angler = @request.auth.id &&",
+  "entry.withdrawn = false &&",
+  'entry.event.status = "live" &&',
+  "@now >= entry.event.starts_at &&",
+  "@now <= entry.event.submit_deadline &&",
+  "entry.event.species.id ?= species &&",
+  '((entry.event.metric = "weight" && @request.body.weight_hoz > 0 && @request.body.length_q:isset = false) ||',
+  ' (entry.event.metric = "length" && @request.body.length_q > 0 && @request.body.weight_hoz:isset = false)) &&',
+  "@request.body.photo:length >= 2 &&",
+  "@request.body.status:isset = false &&",
+  "@request.body.judged_by:isset = false &&",
+  "@request.body.reason:isset = false &&",
+  "@request.body.flags:isset = false &&",
+  "@request.body.rev:isset = false",
+].join("\n");
+// S1 step 5 (migration 1794696648_catches_update_rule.js): the security.md "catches" Update block.
+const CATCHES_UPDATE = [
+  '@request.auth.id != "" &&',
+  "@request.body.entry:isset = false &&",
+  "@request.body.captured_at:isset = false &&",
+  "@request.body.client_uuid:isset = false &&",
+  "@request.body.judged_by:isset = false &&",
+  "@request.body.flags:isset = false &&",
+  "(@request.body.species:isset = false || entry.event.species.id ?= @request.body.species) &&",
+  '(@request.body.weight_hoz:isset = false || (entry.event.metric = "weight" && @request.body.weight_hoz > 0)) &&',
+  '(@request.body.length_q:isset = false || (entry.event.metric = "length" && @request.body.length_q > 0)) &&',
+  "(",
+  "  (entry.angler = @request.auth.id &&",
+  '   status = "pending" &&',
+  "   entry.withdrawn = false &&",
+  '   entry.event.status = "live" &&',
+  "   @now <= entry.event.submit_deadline &&",
+  '   (@request.body.status:isset = false || @request.body.status = "retracted") &&',
+  "   @request.body.reason:isset = false &&",
+  "   @request.body.rev:isset = true &&",
+  "   @request.body.rev = rev)",
+  "  ||",
+  "  (entry.angler != @request.auth.id &&",
+  "   (entry.event.judge = @request.auth.id ||",
+  "    (entry.event.backup_judge = @request.auth.id && entry.angler = entry.event.judge)) &&",
+  '   (entry.event.status = "live" || entry.event.status = "closed") &&',
+  '   status != "retracted" &&',
+  "   @request.body.photo:isset = false &&",
+  "   @request.body.photo_captured_at:isset = false &&",
+  "   @request.body.rev:isset = true &&",
+  "   @request.body.rev = rev &&",
+  "   (@request.body.status:isset = true ||",
+  "    @request.body.species:isset = true ||",
+  "    @request.body.weight_hoz:isset = true ||",
+  "    @request.body.length_q:isset = true) &&",
+  "   (@request.body.status:isset = false ||",
+  '    @request.body.status = "verified" || @request.body.status = "rejected") &&',
+  '   (@request.body.status != "rejected" || @request.body.reason != "") &&',
+  '   (@request.body.status != "rejected" ||',
+  "    (@request.body.species:isset = false &&",
+  "     @request.body.weight_hoz:isset = false &&",
+  "     @request.body.length_q:isset = false)) &&",
+  '   (status = "pending" ||',
+  "    @request.body.status:isset = false ||",
+  "    @request.body.status = status ||",
+  '    @request.body.reason != ""))',
+  ")",
+].join("\n");
 const CATCHES_READ = [
   '@request.auth.id != "" &&',
   "(",
@@ -48,6 +150,17 @@ const CATCHES_READ = [
   "  (entry.event.backup_judge = @request.auth.id && entry.angler = entry.event.judge) ||",
   '  @request.auth.role = "organizer"',
   ")",
+].join("\n");
+const AUDIT_READ = [
+  '@request.auth.id != "" &&',
+  '(@request.auth.role = "organizer" ||',
+  " catch.entry.event.judge = @request.auth.id ||",
+  " catch.entry.angler = @request.auth.id ||",
+  " (catch.entry.event.backup_judge = @request.auth.id &&",
+  "  catch.entry.angler = catch.entry.event.judge) ||",
+  ' (catch != "" &&',
+  '  catch.status != "rejected" && catch.status != "retracted" &&',
+  "  catch.entry.withdrawn = false))",
 ].join("\n");
 
 /**
@@ -60,25 +173,31 @@ const CATCHES_READ = [
 const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
   users: {
     ...LOCKED,
+    // R-USR-L-01 to L-03, R-USR-V-01, V-02 (security.md v0.14, S1): own record; organizers all.
+    listRule: USERS_READ,
+    viewRule: USERS_READ,
     // R-USR-C-01 (security.md v0.11): anon may sign up, as a member only.
     createRule:
       '@request.auth.id = "" && @request.body.role = "member" && ' +
       "@request.body.verified:isset = false && @request.body.emailVisibility:isset = false",
     // R-USR-U-01 to U-07 (security.md v0.12): a member updates their own record, never role,
-    // email or verified.
+    // email or verified; R-USR-U-08 (v0.14, Open item 19): nor emailVisibility.
     updateRule:
       '@request.auth.id != "" && id = @request.auth.id && @request.body.role:changed = false && ' +
-      "@request.body.email:isset = false && @request.body.verified:isset = false",
+      "@request.body.email:isset = false && @request.body.verified:isset = false && " +
+      "@request.body.emailVisibility:isset = false",
   },
   // R-SPC-L-01 to L-03 (security.md v0.9 text; opened by M0-03, Kayden's call 2026-11-13).
   species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },
   // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line).
   events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
-  // R-ENT-L-01 to L-06.
-  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ },
-  // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01.
-  catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ },
-  audit_log: { ...LOCKED },
+  // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1); R-ENT-U-01 to U-14 (withdraw and rejoin, S1 step 4).
+  entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE, updateRule: ENTRIES_UPDATE },
+  // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2);
+  // R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40 (angler edit, add photo, retract, S1 step 5).
+  catches: { ...LOCKED, listRule: CATCHES_READ, viewRule: CATCHES_READ, createRule: CATCHES_CREATE, updateRule: CATCHES_UPDATE },
+  // R-AUD-L-01 to L-09 (security.md text, line for line; opened in S1 for My catch's history).
+  audit_log: { ...LOCKED, listRule: AUDIT_READ, viewRule: AUDIT_READ },
 };
 
 /** A field as the collections API returns it, less what the specs below don't state. */
@@ -429,9 +548,11 @@ describe("species", () => {
       expect(await refusedFields(species.create({ name })), JSON.stringify(name)).toEqual({ name: "validation_invalid_format" });
     }
 
-    // One space between words is a name. Removed again: the tests below count the species.
-    const made = await species.create({ name: "white bass" });
-    await species.delete(made.id);
+    // One space between words is a name. Tried as a rename put straight back, not a new species:
+    // nothing can be deleted (R-ALL-D-02), and the tests below count the species.
+    const largemouth = await species.getFirstListItem('name = "largemouth bass"');
+    expect((await species.update(largemouth.id, { name: "white bass" })).name).toBe("white bass");
+    await species.update(largemouth.id, { name: "largemouth bass" });
   });
 });
 

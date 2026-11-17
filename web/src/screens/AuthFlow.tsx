@@ -1,15 +1,17 @@
 // The signed-out screens and the step between them (screens.md §3): AUTH-01 Sign in or
-// AUTH-03 Create an account → AUTH-02 code → signed in (MemberApp).
+// AUTH-03 Create an account → AUTH-02 code → signed in (MemberApp). A held session that has
+// expired or been refused shows SYS-04a first, on open or when the app comes back (MemberApp).
 
 import { useEffect, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { pb } from "../lib/pb";
-import { resumeSession } from "../lib/auth";
+import { checkSession } from "../lib/auth";
 import { SignInEmail } from "./SignInEmail";
 import { CreateAccount } from "./CreateAccount";
 import { SignInCode } from "./SignInCode";
 import { LiveCheck } from "./LiveCheck";
 import { MemberApp } from "./MemberApp";
+import { SessionEnded } from "./SessionEnded";
 
 interface PendingCode {
   email: string;
@@ -21,6 +23,7 @@ interface PendingCode {
 
 type Step =
   | { kind: "starting" }
+  | { kind: "ended"; email: string }
   | { kind: "signin"; email: string }
   | { kind: "signup"; email: string; name: string }
   | ({ kind: "code" } & PendingCode)
@@ -50,6 +53,7 @@ function savePending(pending: PendingCode | null): void {
 // Signed in, MemberApp titles each screen.
 const TITLES: Record<Exclude<Step["kind"], "signedIn">, string> = {
   starting: "Chromie Fishing",
+  ended: "Session ended · Chromie Fishing",
   signin: "Sign in · Chromie Fishing",
   signup: "Create an account · Chromie Fishing",
   code: "Enter code · Chromie Fishing",
@@ -60,10 +64,11 @@ export function AuthFlow() {
 
   useEffect(() => {
     let live = true;
-    void resumeSession(pb).then((user) => {
+    void checkSession(pb).then((session) => {
       if (!live) return;
       const pending = loadPending();
-      if (user) setStep({ kind: "signedIn", user });
+      if (session.kind === "active") setStep({ kind: "signedIn", user: session.user });
+      else if (session.kind === "ended") setStep({ kind: "ended", email: session.email });
       else if (pending) setStep({ kind: "code", ...pending });
       else setStep({ kind: "signin", email: "" });
     });
@@ -89,6 +94,8 @@ export function AuthFlow() {
   switch (step.kind) {
     case "starting":
       return null;
+    case "ended":
+      return <SessionEnded onSignIn={() => setStep({ kind: "signin", email: step.email })} />;
     case "signin":
       return (
         <SignInEmail
@@ -140,6 +147,7 @@ export function AuthFlow() {
         <MemberApp
           user={step.user}
           onUserChange={(user) => setStep({ kind: "signedIn", user })}
+          onSessionEnded={(email) => setStep({ kind: "ended", email })}
           onSignOut={() => {
             pb.authStore.clear();
             setStep({ kind: "signin", email: String(step.user.email ?? "") });

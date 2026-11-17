@@ -1,14 +1,16 @@
 // The Figma components for one catch: Photo slot, Species option (as a picker), Weight input,
+// Length input,
 // Status chip, Marker / In best 10, Catch card and the photo viewer. Their usage notes in Figma
 // are followed here. LB-02, LB-03 and JDG-02 are meant to reuse the catch ones (an angler's
 // catches as other members see them, never Rejected or Retracted there), and LB-03, MY-06 and
 // JDG-02 the Timeline item.
 
 import { useRef, useState, type ReactElement } from "react";
-import { Icon, SegmentedToggle, StatusChip, TodoTag, type Tone } from "./ui";
+import { Icon, SegmentedToggle, Sheet, StatusChip, TodoTag, type Tone } from "./ui";
 import type { SpeciesChoice } from "../lib/catchSender";
 import type { TimelineEntry, TimelineKind } from "../lib/catchTimeline";
 import { photoLabels, type CatchPhoto, type CatchStatus } from "../lib/myCatches";
+import { EIGHTHS_LABELS, lengthPreview, lengthProblemCopy, parseLength, type LengthEntry } from "../lib/lengthEntry";
 import { parseWeight, switchWeightFormat, weightProblemCopy, type WeightEntry, type WeightFormat } from "../lib/weightEntry";
 
 /**
@@ -233,6 +235,96 @@ export function WeightInput({ id, value, onChange }: WeightInputProps) {
         {error && <Icon src="/icons/alert.svg" size={18} />}
         <span>{error ?? (value.format === "lb" ? "Enter exactly what the scale shows, to 2 decimals." : "Ounces to one decimal, 0 to 15.9.")}</span>
       </p>
+    </div>
+  );
+}
+
+interface LengthInputProps {
+  id: string;
+  value: LengthEntry;
+  onChange: (value: LengthEntry) => void;
+}
+
+/**
+ * Length to the eighth inch: whole inches, plus an eighths selector that opens a sheet listing
+ * 0 to 7/8 (tap, no slider or drag). The quarter-inch value the club scores, rounded down, is
+ * previewed and announced politely as it changes (Figma Length input; scoring.md example 6).
+ */
+export function LengthInput({ id, value, onChange }: LengthInputProps) {
+  const [left, setLeft] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const result = parseLength(value);
+  const error = left && !result.ok ? lengthProblemCopy(result.problem) : null;
+  const preview = lengthPreview(value);
+  const helpId = `${id}-help`;
+  const eighths = EIGHTHS_LABELS[value.eighths] ?? "0";
+  return (
+    <div className="length-input" role="group" aria-labelledby={`${id}-label`}>
+      <h2 id={`${id}-label`} className="t-title-section">
+        Length
+      </h2>
+      <div className="unit-fields">
+        <div className={`unit-field${error ? " is-invalid" : ""}`}>
+          <input
+            id={`${id}-inches`}
+            className="unit-field-input t-number-row"
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label="Length, whole inches"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={helpId}
+            value={value.inches}
+            onChange={(event) => onChange({ ...value, inches: event.currentTarget.value })}
+            onBlur={() => setLeft(true)}
+          />
+          <span className="t-callout-strong t-secondary" aria-hidden="true">
+            in
+          </span>
+        </div>
+        <button type="button" className="unit-field eighths-button" aria-label={`Eighths of an inch, ${eighths}`} onClick={() => setChoosing(true)}>
+          <span className="t-number-row">{eighths}</span>
+          <Icon src="/icons/chevron-down-secondary.svg" size={24} />
+        </button>
+      </div>
+      {/* Figma draws no help line here; the error line appears only when there is one. */}
+      <p id={helpId} className="field-help t-footnote is-error" aria-live="polite" hidden={!error}>
+        {error && <Icon src="/icons/alert.svg" size={18} />}
+        <span>{error}</span>
+      </p>
+      <p className="length-preview t-callout-strong" aria-live="polite">
+        {preview && (
+          <>
+            <Icon src="/icons/check-success-20.svg" size={20} />
+            <span>{preview}</span>
+          </>
+        )}
+      </p>
+      {choosing && (
+        <Sheet title="Eighths of an inch" onCancel={() => setChoosing(false)}>
+          <fieldset className="eighths-options">
+            <legend className="visually-hidden">Eighths of an inch</legend>
+            {EIGHTHS_LABELS.map((label, index) => {
+              const selected = index === value.eighths;
+              return (
+                <label key={label} className={`species-option${selected ? " is-selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name={`${id}-eighths`}
+                    className="visually-hidden"
+                    checked={selected}
+                    onChange={() => {
+                      onChange({ ...value, eighths: index });
+                      setChoosing(false);
+                    }}
+                  />
+                  <Icon src={selected ? "/icons/radio-selected.svg" : "/icons/radio.svg"} size={22} />
+                  <span className="t-headline">{label === "0" ? "0 (whole inch)" : `${label} in`}</span>
+                </label>
+              );
+            })}
+          </fieldset>
+        </Sheet>
+      )}
     </div>
   );
 }

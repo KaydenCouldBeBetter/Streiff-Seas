@@ -278,9 +278,6 @@
   .shell-content .action-bar .button-large {
     width: auto;
   }
-  .shell-content .submit-bottom {
-    position: static;
-  }
   .shell-content .still-needed {
     border-radius: var(--cf-radius-md);
   }
@@ -388,29 +385,21 @@
   .tournament-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 22.5rem;
-    grid-template-columns: minmax(0, 1fr) 22.5rem;
-    grid-template-rows: auto auto 1fr;
-    grid-template-areas:
-      "standing facts"
-      "links facts"
-      "withdraw facts";
     align-items: start;
     gap: var(--cf-spacing-2xl);
   }
-  .tournament-standing {
-    grid-area: standing;
+  /* The banners, standing card, links and Withdraw stack in the left column in the order they
+     are written, and only the ones the entry state shows take a row; the facts panel spans
+     the right column beside them. */
+  .tournament-grid > * {
+    grid-column: 1;
   }
-  .tournament-facts {
-    grid-area: facts;
+  .tournament-grid > .tournament-facts {
+    grid-column: 2;
+    grid-row: 1 / span 4;
     display: flex;
     flex-direction: column;
     gap: var(--cf-spacing-md);
-  }
-  .tournament-links {
-    grid-area: links;
-  }
-  .tournament-withdraw {
-    grid-area: withdraw;
   }
   .tournament-standing-action {
     padding-top: var(--cf-spacing-sm);

@@ -20,6 +20,13 @@ export function formatClubTime(at: Date): string {
   return `${part.weekday}, ${part.month} ${part.day}, ${part.hour}:${part.minute} ${part.dayPeriod}`;
 }
 
+/** A moment in club time without the weekday, for a range: "Jul 4, 6:00 AM" (Figma 120:9412). */
+export function formatClubTimeShort(at: Date): string {
+  const part: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const { type, value } of CLUB_TIME.formatToParts(at)) part[type] = value;
+  return `${part.month} ${part.day}, ${part.hour}:${part.minute} ${part.dayPeriod}`;
+}
+
 const CLUB_TIME_SPOKEN = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
   weekday: "long",

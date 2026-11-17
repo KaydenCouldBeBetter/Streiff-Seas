@@ -1,6 +1,10 @@
 # Security: Fishing Scoreboard
 
-**Status:** Draft v0.13, 13 Nov 2026. v0.13 implements the list and view rules of `events`, `entries`, `catches` and `species`, exactly as written since v0.9 (R-EVT-L-01 to L-03, V-01, R-ENT-L-01 to L-06, R-CAT-L-01 to L-08, L-10 to L-12, V-01, R-SPC-L-01 to L-03; no row changed): migration `1794602178_open_live_reads.js`, tests in `test/rules.test.ts` (including one that the stored rules equal the code blocks on this page), `RULES` in `test/schema.test.ts`. Found on v0.40.4: R-ENT-L-05 expects "All" for K, but the rule's first clause, `event.status != "draft"`, holds for the organizer too, so K can't list a draft's entries (the judge's and backup judge's automatic ones). The rule is unchanged; the test reads the row as "all entries outside a draft" (`decisions.md` 2026-11-13, M0-03 row). The row's wording is left for Kayden.
+**Status:** Draft v0.15, 16 Nov 2026. v0.15 adds R-ALL-D-02 (`decisions.md` 2026-11-16, Open item 15): `pb_hooks/no_deletes.pb.js` refuses every delete in the six collections, the superuser's and the admin UI's included, so a deleted user can no longer empty `audit_log.actor`, `entries.withdrawn_by` or `catches.judged_by`; tests in `test/deletes.test.ts`. The delete rules stay `null`, so R-USR-D-01 and R-ALL-D-01 still answer 403 before the hook runs. v0.15 also implements the sweeps R-ALL-ANON-01, V-01 and D-01 (`test/sweeps.test.ts`, over the fixture world plus audit rows of each kind) and gives R-CAT-F-01 to F-03 and R-CAT-D-01 their tests (`test/rules.test.ts`); R-ALL-ANON-01 is reworded, as anon may create a `users` record by self sign-up since v0.11 (R-USR-C-01). R-ALL-S-01 waits for S3.
+
+v0.14 (16 Nov 2026) implements the `users` list and view rule, exactly as written (R-USR-L-01 to L-03, V-01, V-02; no row changed): migration `1794843247_users_read_rule.js`, tests in `test/rules.test.ts` (including the stored text against this page, and that an organizer sees no other member's email), `RULES.users` in `test/schema.test.ts`; R-USR-D-01 and R-USR-A-01 gain their own tests (`test/rules.test.ts`, `test/auth.test.ts`; on v0.40.4 a password sign-in answers 403). It adds R-USR-U-08 (`decisions.md` Open item 19, settled by Kayden): the `users` update rule now refuses `emailVisibility`, as create does, before the users read rule lets organizers read every record; migration `1794843182_users_refuse_email_visibility.js`, test in `test/rules.test.ts`, `RULES.users.updateRule` in `test/schema.test.ts`. It also records the S1-submit rules built since v0.13, each the block on this page line for line with no row changed: `entries` create (R-ENT-C-01 to C-08, `1794693360_entries_join_rule.js`) and update (R-ENT-U-01 to U-14, `1794695177_entries_withdraw_rule.js`), tested in `test/entries.test.ts`; `catches` create (R-CAT-C-01 to C-23, `1794693724_catches_create_rule.js`, `test/catches.test.ts`) and the angler branch of update (R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40, `1794696648_catches_update_rule.js`, `test/catchUpdate.test.ts`; judge requests are refused until S3); `audit_log` list and view (R-AUD-L-01 to L-09, `1794779708_audit_log_read_rule.js`, `test/rules.test.ts`). Found on v0.40.4: an update rule is checked before `onRecordUpdateRequest`, a create rule after `onRecordCreateRequest`, so the create hooks are model hooks that run only once the rule has passed.
+
+v0.13 (13 Nov 2026) implements the list and view rules of `events`, `entries`, `catches` and `species`, exactly as written since v0.9 (R-EVT-L-01 to L-03, V-01, R-ENT-L-01 to L-06, R-CAT-L-01 to L-08, L-10 to L-12, V-01, R-SPC-L-01 to L-03; no row changed): migration `1794602178_open_live_reads.js`, tests in `test/rules.test.ts` (including one that the stored rules equal the code blocks on this page), `RULES` in `test/schema.test.ts`. Found on v0.40.4: R-ENT-L-05 expects "All" for K, but the rule's first clause, `event.status != "draft"`, holds for the organizer too, so K can't list a draft's entries (the judge's and backup judge's automatic ones). The rule is unchanged; the test reads the row as "all entries outside a draft" (`decisions.md` 2026-11-13, M0-03 row). The row's wording is left for Kayden.
 
 v0.12 (12 Nov 2026) implements the `users` update rule and the name-sync hook (R-USR-U-01 to U-07, no row changed): migration `1794520253_users_own_update.js`, `pb_hooks/users_name_sync.pb.js`, tests in `test/rules.test.ts`, `RULES.users.updateRule` in `test/schema.test.ts`. Found while testing on v0.40.4: a member's update may also set `emailVisibility` (create refuses it; no row says either way, see `decisions.md` Open item 19) and sends of `tokenKey` are accepted but ignored; a password change is refused.
 
@@ -97,7 +101,8 @@ Events: **E1** live (largemouth bass, smallmouth bass; weight; judge K, backup S
 id = @request.auth.id &&
 @request.body.role:changed = false &&
 @request.body.email:isset = false &&
-@request.body.verified:isset = false
+@request.body.verified:isset = false &&
+@request.body.emailVisibility:isset = false
 ```
 **Delete:** `null`. **manageRule:** `null`.
 
@@ -128,6 +133,7 @@ id = @request.auth.id &&
 | R-USR-U-05 | K | Change M's `role` | Deny (roles change only by superuser) | rule |
 | R-USR-U-06 | M | Change own `name` | Allow; `display_name` updates on M's entries in live and closed events, not in final ones | rule, hook |
 | R-USR-U-07 | M | Change own `name` to empty, only spaces, or a name with leading, trailing or doubled spaces | Deny | schema |
+| R-USR-U-08 | M | Send own `emailVisibility` (true or false) | Deny; the record unchanged (organizers read every `users` record, R-USR-L-03, so a visible email would show to them) | rule |
 | R-USR-D-01 | M, K | Delete a user, including self | Deny | rule |
 | R-USR-A-01 | anon | Password sign-in with a real member's email | Refused | settings |
 | R-USR-A-02 | anon | Request an OTP for an unlisted email | Answered like any other (an otpId); no email sent, no user created | settings |
@@ -303,7 +309,7 @@ event.status != "final" &&
 | R-ENT-L-02 | M | List entries | Non-withdrawn entries in live, closed and final events | rule |
 | R-ENT-L-03 | M | List entries | W's withdrawn entry is absent | rule |
 | R-ENT-L-04 | W | List entries | Own withdrawn entry is present | rule |
-| R-ENT-L-05 | K | List entries | All, including withdrawn | rule |
+| R-ENT-L-05 | K | List entries | All entries outside a draft event, including withdrawn (the rule's first clause, `event.status != "draft"`, holds for K too; `decisions.md` 2026-11-13) | rule |
 | R-ENT-L-06 | S | List entries in E1 after K withdraws own entry | K's withdrawn entry present; W's withdrawn entry still absent; in E2, K's entry follows the member rule | rule |
 | R-ENT-C-01 | X | Join E1 | Allow; `display_name` set; `join` row | rule, hook |
 | R-ENT-C-02 | X | Join E1 as M | Deny | rule |
@@ -411,7 +417,7 @@ entry.event.species.id ?= species &&
 ```
 The last two clauses of the judge branch (decided 2026-10-02): a correction can't be combined with a rejection, and changing the status of a catch that was already judged needs a reason. Since v0.9 a judge request must also set `status` or change `species`, `weight_hoz` or `length_q`, so `reason` can't be rewritten on its own (review, 2026-10-05).
 
-**Why `rev`:** since anglers can edit pending catches, a judge could otherwise approve a value the angler changed after the judge loaded it. The judge's request must echo the `rev` it saw. If the angler edited in between, `rev` has moved on, the approval is refused, and the queue reloads. Since 2026-10-02 **the angler's own requests echo `rev` too**: the rule refuses a stale value, so a retried photo upload whose first attempt already landed is refused instead of adding the photo twice, and two of the angler's devices can't overwrite each other. The angler can only echo `rev`, never change it; the hook still sets it. Because the rule reads `rev` before the save, the hook re-reads it inside the save transaction and refuses if it moved, so two near-simultaneous requests can't both pass.
+**Why `rev`:** since anglers can edit pending catches, a judge could otherwise approve a value the angler changed after the judge loaded it. The judge's request must echo the `rev` it saw. If the angler edited in between, `rev` has moved on, the approval is refused, and the queue reloads. Since 2026-10-02 **the angler's own requests echo `rev` too**: the rule refuses a stale value, so a retried photo upload whose first attempt already landed is refused instead of adding the photo twice, and two of the angler's devices can't overwrite each other. The angler can only echo `rev`, never change it; the hook still sets it. Because the rule reads `rev` before the save, the hook compare-and-swaps it (one atomic `UPDATE catches SET rev = rev + 1 WHERE id = … AND rev = …` in `onRecordUpdateExecute`; no record update hook runs in a transaction on v0.40.4) and refuses if no row changed, so two near-simultaneous requests can't both pass.
 
 **Flag codes** (decided 2026-10-01; extra-photo codes renamed and widened 2026-10-02). `flags` is a JSON array. The hook adds codes and never removes one; a flag records what happened, and the judge's decision is what settles it. No numbers are stored: the queue derives hours from `captured_at` and `created`. One list is shared by the hook and the web app.
 
@@ -426,9 +432,9 @@ The last two clauses of the judge branch (decided 2026-10-02): a correction can'
 | `extra_photo_far` | A photo after the first has a capture time more than 24 h from `captured_at` (either side) | create and angler update, only when both times exist |
 
 **Hooks:**
-- **On create:** force `status = pending` and `rev = 1`; refuse fewer than 2 photos (backs up the rule); check the image type and size; refuse unless `photo_captured_at` has one entry per uploaded file and its first entry equals `captured_at` (both may be empty); strip or refuse location data; set `flags` from the create-time codes above, checking every photo after the first; write a `create` row.
-- **On update by the angler:** re-read the stored `rev` inside the save transaction and refuse if it no longer matches the request; refuse unless the new `photo` list still contains every existing file in the same order (append-only; checked against the original record before save, so a refused request deletes nothing), and `photo_captured_at` keeps every existing entry unchanged and has exactly one entry per photo. Strip location from added photos, add `photo_added` and, per added photo, `extra_photo_no_time` or `extra_photo_far`, `rev + 1`, and write an `edit` row (or a `retract` row when `status` becomes `retracted`).
-- **On update by a judge:** re-read `rev` inside the save transaction as above; set `judged_by`; require `reason` on reject, on any change to `species`, `weight_hoz` or `length_q`, and on any status change of a catch already judged. **A correction** (any change to `species`, `weight_hoz` or `length_q`) **sets `status = verified`** and writes exactly one `correct` row, whatever the status was before; otherwise write one `approve` or `reject` row. `flags` is left as it is.
+- **On create:** force `status = pending` and `rev = 1`; refuse fewer than 2 photos (backs up the rule); check the image type and size; refuse unless `photo_captured_at` has one entry per uploaded file and its first entry equals `captured_at` (both may be empty); strip every upload with exiftool, then refuse if anything location-capable is still in the cleaned bytes (fail closed); set `flags` from the create-time codes above, checking every photo after the first; write a `create` row.
+- **On update by the angler:** compare-and-swap the stored `rev` in `onRecordUpdateExecute` (one atomic UPDATE; refuse if no row changed); refuse unless the new `photo` list still contains every existing file in the same order (append-only; checked against the original record before save, so a refused request deletes nothing), and `photo_captured_at` keeps every existing entry unchanged and has exactly one entry per photo. Strip added photos with exiftool (same fail-closed scan as create), add `photo_added` and, per added photo, `extra_photo_no_time` or `extra_photo_far`, `rev + 1`, and write an `edit` row (or a `retract` row when `status` becomes `retracted`).
+- **On update by a judge:** compare-and-swap `rev` as above; set `judged_by`; require `reason` on reject, on any change to `species`, `weight_hoz` or `length_q`, and on any status change of a catch already judged. **A correction** (any change to `species`, `weight_hoz` or `length_q`) **sets `status = verified`** and writes exactly one `correct` row, whatever the status was before; otherwise write one `approve` or `reject` row. `flags` is left as it is.
 - **Every audit row** carries the fixed snapshots described under `audit_log`.
 
 **Retract, not delete.** "Delete and resubmit" is a retract: the angler sets their own pending catch to `retracted`, it disappears for everyone but them and the judges, it never scores, and it doesn't hold up finalize. They then submit a new catch. The record and its photos stay, so invariant 6 holds and the audit trail is intact. A retracted catch can't be un-retracted or judged.
@@ -579,9 +585,10 @@ Some collection × action × role cells have no row of their own above: views wh
 
 | ID | Who | Case | Expected | By |
 |---|---|---|---|---|
-| R-ALL-ANON-01 | anon | For every collection: view a seeded record by id, create, update and delete | Deny every request; no record and no audit row changes | rule |
+| R-ALL-ANON-01 | anon | For every collection: view a seeded record by id, create (except in `users`: self sign-up, R-USR-C-01 since v0.11), update and delete | Deny every request; no record and no audit row changes | rule |
 | R-ALL-V-01 | anon, K, O, S, N, M, W, X, Y | For every collection and every seeded record: view by id | Found exactly when the record appears in that caller's list (view rule = list rule) | rule |
 | R-ALL-D-01 | K, O, S, N, M, W, X, Y | Delete any seeded record in any collection | Deny; record still present | rule |
+| R-ALL-D-02 | superuser (the admin UI included) | Delete a record in any collection that no required relation points at; and a user that `audit_log.actor`, `entries.withdrawn_by` and `catches.judged_by` point at | Deny (400); the record and every reference to it unchanged (`decisions.md` 2026-11-16; tested in `test/deletes.test.ts`) | hook |
 | R-ALL-S-01 | S, N | Every `R-USR`, `R-EVT`, `R-SPC` and `R-ENT` case that runs as an ordinary member, re-run as S and N on records that aren't their own | Same result as the member: backup judging grants nothing outside `catches` and `audit_log` | rule |
 
 ---
@@ -595,7 +602,7 @@ Some collection × action × role cells have no row of their own above: views wh
 | 3. No self-judging; backup judge scope | R-CAT-U-06 to 09, U-46; R-EVT-U-18; R-ALL-S-01 |
 | 4. No location data | R-CAT-C-16, U-21 plus the four photo fixture tests (photo spike) |
 | 5. Every catch change audited | R-AUD-H-01, H-04, H-05 |
-| 6. Nothing deleted through the API | Every `D` row; R-ALL-D-01; R-CAT-U-26, U-29 (retract keeps the record), U-36, U-39 |
+| 6. Nothing deleted through the API | Every `D` row; R-ALL-D-01, D-02 (not even by the superuser); R-CAT-U-26, U-29 (retract keeps the record), U-36, U-39 |
 | 7. Final is locked | R-CAT-U-12, R-ENT-U-10, R-EVT-U-05 |
 | 8. Every read needs sign-in | Every `L-01` row, R-ALL-ANON-01, R-ALL-V-01, R-CAT-F-01, R-USR-A-01 |
 | 9. Server receive time is authoritative | R-CAT-C-06, C-07, C-17, C-20, U-19, R-ENT-C-05; R-EVT-U-12 (the deadline moves, the window doesn't) |
@@ -613,7 +620,7 @@ Cloudflare Access decides **who reaches the server at all**; PocketBase's rules 
 | Login method | One-time PIN to email | No passwords to leak; same inbox as PocketBase OTP |
 | Session duration | 7 days *(decided 2026-10-01; never under 24 h)* | Live-update reconnects mustn't fail silently mid-tournament; fewer PIN prompts over six weeks |
 | Admin UI `/_/` | A second, path-specific Access app allowing only Kayden's email *(decided 2026-10-01)* | Members can't even reach the superuser login page; superuser MFA stays on as the second lock |
-| Adding a member | Add to the Access list **and** have the superuser create the PocketBase user | Both lists must match (checked in the `ops.md` runbook) |
+| Adding a member | Add to the Access list; the member then creates their own account (open sign-up, R-USR-C-01), or the superuser creates it | Both lists must match (checked in the `ops.md` runbook) |
 | Removing a member | Remove from the Access list; their PocketBase user and entries stay for history | Nothing is deleted; Access removal cuts them off at the edge |
 
 **Access checks** (manual, recorded in `docs/evidence/m0.txt`, not in `rules.test.ts`):
@@ -644,10 +651,10 @@ Cloudflare Access decides **who reaches the server at all**; PocketBase's rules 
 
 ## Open items
 1. ~~**Scoring group.**~~ Settled 2026-10-01: all species allowed in a tournament score as one group (`decisions.md`; `scoring.md` v0.4 §2 and example 7, group sign-off pending).
-2. **Append-only photos need the photo spike to confirm** that a hook can compare the new `photo` list with the original before PocketBase deletes anything, on the pinned version. If it can't, the fallback is retract-and-resubmit only (R-CAT-U-21 becomes Deny, R-CAT-U-34 to U-36 and U-40 go with it, and `photo_added` is never set; the extra-photo checks still run at create).
+2. ~~**Append-only photos need the photo spike to confirm** that a hook can compare the new `photo` list with the original before PocketBase deletes anything, on the pinned version. If it can't, the fallback is retract-and-resubmit only (R-CAT-U-21 becomes Deny, R-CAT-U-34 to U-36 and U-40 go with it, and `photo_added` is never set; the extra-photo checks still run at create).~~ Settled 2026-11-13 (M0-04, `decisions.md` photo-spike row): the check runs before PocketBase deletes anything; R-CAT-U-21 stays Allow.
 3. ~~**Access session length and the admin-path app.**~~ Settled 2026-10-01 in `decisions.md`: 7 days, and a `/_/` app for Kayden's email only.
 4. ~~**Outage extension mechanism.**~~ Settled 2026-10-01 in `decisions.md`: the field stays `deadline_ext_min` (minutes); the organizer enters the new total in whole hours (R-EVT-U-15).
 5. ~~**`claude/features.json` doesn't cite the v0.5 to v0.8 test IDs yet** (R-EVT-C-07 to C-09, U-15 to U-17, R-ENT-L-06, R-CAT-C-19 to C-22, U-34 to U-44, R-AUD-L-06, L-07, H-05), and its S1 step for R-ENT-C-08 still says K joins E1, and its S3 audit-visibility step still says members see only their own rows.~~ Settled 2026-10-05: `claude/features.json` cites every test ID through v0.9.
 6. ~~**Two required photos depend on `scoring.md` v0.5**, which the group hasn't agreed yet. If they don't, the create rule's `photo:length >= 2` clause and R-CAT-C-21 are dropped, and the extra-photo codes apply only from photo 2 onward when one is sent.~~ Settled 2026-10-03: the group agreed `scoring.md` v0.5.
-7. **To confirm on the pinned binary (photo spike or the first rules test run):** that `judge.role` resolves against the submitted body in the events create rule (the hook checks it either way); that `@request.body.photo:length` counts uploaded files in a multipart create, and that the update hook can re-read `rev` inside the save transaction (R-CAT-U-40). If the second fails, photo adds need an idempotency key instead.
+7. ~~**To confirm on the pinned binary (photo spike or the first rules test run):** that `judge.role` resolves against the submitted body in the events create rule (the hook checks it either way); that `@request.body.photo:length` counts uploaded files in a multipart create, and that the update hook can re-read `rev` inside the save transaction (R-CAT-U-40). If the second fails, photo adds need an idempotency key instead.~~ Settled 2026-11-13 (M0-04): `judge.role` resolves against the body and `photo:length` counts uploads; no record update hook runs in a transaction, so R-CAT-U-40 is met by a compare-and-swap `UPDATE` in `onRecordUpdateExecute` (`pb_hooks/catches_update.pb.js`).
 8. ~~**Fixture conflict (older rows):** the fixture table says X is "not joined to anything", but R-CAT-L-09, L-10, U-10, U-22 and R-AUD-L-06 use X's catches. Options: seed another ordinary angler with an E1 entry and use them in those rows, or seed X's catches after X joins E1 in R-ENT-C-01.~~ Settled in v0.9: fixture Y holds those catches, and the rows use Y.

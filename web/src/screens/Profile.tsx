@@ -48,11 +48,13 @@ interface Props {
   onUserChange: (user: RecordModel) => void;
   onTab: (tab: MemberTab) => void;
   onSignOut: () => void;
+  /** RULES-01a, club-wide only. */
+  onClubRules: () => void;
 }
 
 type Notice = { kind: "saved"; title: string; message: string } | { kind: "not-sent"; changes: ProfileChanges };
 
-export function Profile({ user, stats: statsInput, season, format, onSave, onRetry, onUserChange, onTab, onSignOut }: Props) {
+export function Profile({ user, stats: statsInput, season, format, onSave, onRetry, onUserChange, onTab, onSignOut, onClubRules }: Props) {
   const saved = useMemo(() => savedProfile(user), [user]);
   const [draft, setDraft] = useState<ProfileDraft>(saved);
   const [nameProblem, setNameProblem] = useState<string | null>(null);
@@ -219,7 +221,7 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
             </div>
           </dl>
           <p className="t-footnote t-secondary">Only the club admin can change your email or role.</p>
-          <Button variant="text" todo="RULES-01a">
+          <Button variant="text" onClick={onClubRules}>
             Club rules
           </Button>
           <Button variant="secondary" full onClick={onSignOut}>

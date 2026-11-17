@@ -109,18 +109,44 @@ export async function signInWithCode(pb: PocketBase, otpId: string, code: string
   return (await pb.collection("users").authWithOTP(otpId, code)).record;
 }
 
+/** What a held session turned out to be when the app opened (or came back to the foreground). */
+export type SessionCheck =
+  /** Nobody was signed in on this phone. */
+  | { kind: "none" }
+  | { kind: "active"; user: RecordModel }
+  /** SYS-04a: there was a session, and it has expired or the server refused it. */
+  | { kind: "ended"; email: string };
+
+/** The server says the token itself is no good: unauthorized, forbidden, or no such user. */
+const TOKEN_REFUSED = new Set([401, 403, 404]);
+
 /**
  * Renews a held session each time the app opens (decisions.md 2026-10-07: a 14-day token,
- * refreshed on open). Returns the user, or null when there is no session or it was refused.
- * A network failure keeps the stored session: the phone may simply be out of signal.
+ * refreshed on open). A token past its expiry, or one the server refuses, has ended (SYS-04a,
+ * features.json S1 step 3), and is cleared. Anything else keeps the stored session: no signal,
+ * a dropped request, a server error or a rate limit says nothing about the token.
  */
-export async function resumeSession(pb: PocketBase): Promise<RecordModel | null> {
-  if (!pb.authStore.isValid) return null;
-  try {
-    return (await pb.collection("users").authRefresh()).record;
-  } catch (error) {
-    if (error instanceof ClientResponseError && (error.status === 0 || error.isAbort)) return pb.authStore.record;
+export async function checkSession(pb: PocketBase): Promise<SessionCheck> {
+  if (pb.authStore.token === "") return { kind: "none" };
+  const email = String(pb.authStore.record?.email ?? "");
+  if (!pb.authStore.isValid) {
     pb.authStore.clear();
-    return null;
+    return { kind: "ended", email };
   }
+  try {
+    return { kind: "active", user: (await pb.collection("users").authRefresh({ requestKey: null })).record };
+  } catch (error) {
+    if (error instanceof ClientResponseError && !error.isAbort && TOKEN_REFUSED.has(error.status)) {
+      pb.authStore.clear();
+      return { kind: "ended", email };
+    }
+    const stored = pb.authStore.record;
+    return stored ? { kind: "active", user: stored } : { kind: "none" };
+  }
+}
+
+/** checkSession for callers that only need the user: null when there is none or it ended. */
+export async function resumeSession(pb: PocketBase): Promise<RecordModel | null> {
+  const session = await checkSession(pb);
+  return session.kind === "active" ? session.user : null;
 }

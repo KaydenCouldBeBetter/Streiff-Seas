@@ -1,18 +1,18 @@
 // My catches (MY-01) and My catch (MY-02): the view model the screens render, and the rules
 // that pick a screens.md row and the actions it offers. Pure: no DOM, no PocketBase.
 //
-// Wiring: the angler's own catches in one event come from the catches list rule (angler
-// branch, M0-03), newest first; `inBest` from scoring (S2a); `decision`, `correction` and
-// `retractedAt` from the catch's audit_log rows (R-AUD-L-02). Until then the screens run on
-// lib/sampleMyCatches.ts.
+// Wiring (lib/loadMyCatches.ts): the angler's own catches in one event come from the catches
+// list rule (angler branch, M0-03), newest first; `inBest` from scoring (S2a); `decision`,
+// `correction` and `retractedAt` from the catch's audit_log rows (R-AUD-L-02). The tests'
+// sample data is lib/sampleMyCatches.ts.
 
 export type CatchStatus = "pending" | "verified" | "rejected" | "retracted";
 
 /** The event's state as screens.md §1 names it: events.status, plus the window for live. */
 export type EventPhase = "live:pre" | "live:window" | "live:late" | "live:over" | "closed" | "final";
 
-/** The viewer's entry: withdrawn by themself, or by the organizer ("withdrawn-by-K"). */
-export type EntryState = "active" | "withdrawn-self" | "withdrawn-by-K";
+/** The viewer's entry: withdrawn by themself, or by the organizer ("withdrawn-by-K"); "none" before joining. */
+export type EntryState = "none" | "active" | "withdrawn-self" | "withdrawn-by-K";
 
 export interface MyCatchesContext {
   eventName: string;

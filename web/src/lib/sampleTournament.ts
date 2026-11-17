@@ -14,14 +14,13 @@ export interface TournamentView {
   endsAt: Date;
   submitDeadline: Date;
   /**
-   * The fixed facts of the "Dates and rules" panel on a wide window (Figma 220:951). Names are
-   * shown as the leaderboard shows them; the code word is only said to be on or off.
+   * The fixed facts of the "Dates and rules" panel on a wide window (Figma 220:951). The code word
+   * is only said to be on or off. The Figma frame's judge rows are left out: members can't read
+   * `users` (screens.md Gap 13), so the live event has no name to show.
    */
   rules: {
     scoring: string;
     species: string;
-    judge: string;
-    backupJudge: string;
     codeWord: "On" | "Off";
   };
   standing: {
@@ -50,7 +49,7 @@ export const SAMPLE_TOURNAMENT: TournamentView = {
   // 8:00 PM Eastern (EDT) on Sun 15 Aug 2027; the deadline is ends_at + 24 h.
   endsAt: new Date("2027-08-16T00:00:00Z"),
   submitDeadline: new Date("2027-08-17T00:00:00Z"),
-  rules: { scoring: "Weight · best 10", species: "Largemouth, Smallmouth", judge: "Kayden R.", backupJudge: "Sam P.", codeWord: "On" },
+  rules: { scoring: "Weight · best 10", species: "Largemouth, Smallmouth", codeWord: "On" },
   standing: { place: 4, tied: false, total: "18.42", unit: "lb", counted: 7, bestN: 10 },
   catches: { submitted: 9, pending: 1, rejected: 1 },
 };

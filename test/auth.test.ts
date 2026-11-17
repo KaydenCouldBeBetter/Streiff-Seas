@@ -84,3 +84,17 @@ describe("sign-up and sign-in by emailed code", () => {
     expect((await superuser.collection("users").getList(1, 1, { filter: superuser.filter("email = {:email}", { email }) })).totalItems).toBe(0);
   });
 });
+
+describe("password sign-in", () => {
+  it("R-USR-A-01: a real member's email with the right password is refused, and nobody is signed in", async () => {
+    // The auth collection requires a password at create; this one is known, so the refusal
+    // below is password sign-in being off, not a wrong password.
+    const password = "right-password-1234";
+    const body = newUser({ password, passwordConfirm: password, verified: true, emailVisibility: false });
+    await pocketbase().superuser.collection("users").create(body);
+    const anon = actAsAnon(pocketbase());
+
+    expect(await statusOf(anon.collection("users").authWithPassword(body.email as string, password))).toBe(403);
+    expect(anon.authStore.isValid).toBe(false);
+  });
+});

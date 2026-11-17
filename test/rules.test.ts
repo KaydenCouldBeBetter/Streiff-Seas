@@ -108,6 +108,17 @@ describe("users update", () => {
     expect(await pocketbase().superuser.collection("users").getOne(member.id)).toEqual(before);
   });
 
+  it.each([true, false])("R-USR-U-08: a member may not send emailVisibility %s", async (emailVisibility) => {
+    const member = await ownMember();
+    const before = await pocketbase().superuser.collection("users").getOne(member.id);
+
+    expect(
+      await statusOf((await actAs(pocketbase(), member)).collection("users").update(member.id, { name: "Changed Name", emailVisibility })),
+    ).toBe(404);
+    // Refused whole, as for U-02 and U-03: not even the name moved.
+    expect(await pocketbase().superuser.collection("users").getOne(member.id)).toEqual(before);
+  });
+
   it("R-USR-U-04: a member may not update another member's record", async () => {
     const mine = await ownMember();
     const theirs = await ownMember("Other Member");
@@ -169,6 +180,71 @@ describe("users update", () => {
       name: expect.stringMatching(/^validation_/),
     });
     expect((await pocketbase().superuser.collection("users").getOne(member.id)).name).toBe("Dana Ruiz");
+  });
+});
+
+// S1: the users list and view rule (R-USR-L-01 to L-03, V-01, V-02). Other tests in this file
+// add users of their own, so each list is compared with what the superuser lists at the time.
+describe("users list and view", () => {
+  it("stores the list and view rule exactly as security.md writes it", async () => {
+    const stored = await pocketbase().superuser.collections.getOne("users");
+    const documented = await documentedListRule("users");
+
+    expect(stored.listRule).toBe(documented);
+    expect(stored.viewRule).toBe(documented);
+  });
+
+  it("R-USR-L-01: anon lists no users", async () => {
+    const response = await fetch(`${pocketbase().url}/api/collections/users/records`);
+
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { totalItems: number }).totalItems).toBe(0);
+  });
+
+  it("R-USR-L-02: a member lists only their own record", async () => {
+    const client = await actAs(pocketbase(), users.M);
+
+    expect(idsOf(await client.collection("users").getFullList())).toEqual([users.M.id]);
+  });
+
+  it.each(["K", "O"] as const)("R-USR-L-03: organizer %s lists and views every user, and sees no one else's email", async (who) => {
+    const client = await actAs(pocketbase(), users[who]);
+    const listed = await client.collection("users").getFullList();
+
+    expect(idsOf(listed)).toEqual(idsOf(await pocketbase().superuser.collection("users").getFullList()));
+    for (const record of listed) {
+      expect(record.email ?? "", record.id).toBe(record.id === users[who].id ? users[who].email : "");
+    }
+    expect((await client.collection("users").getOne(users.X.id)).name).toBe("Angler X");
+  });
+
+  it("R-USR-V-01: a member may not view another member's record", async () => {
+    expect(await statusOf((await actAs(pocketbase(), users.M)).collection("users").getOne(users.X.id))).toBe(404);
+  });
+
+  it("R-USR-V-02: a member views their own record, email included", async () => {
+    const own = await (await actAs(pocketbase(), users.M)).collection("users").getOne(users.M.id);
+
+    expect(own).toMatchObject({ id: users.M.id, name: "Angler M", email: users.M.email });
+  });
+});
+
+describe("users delete", () => {
+  /** An organizer of its own, so a delete that wrongly went through can't take K or O. */
+  const ownOrganizer = () =>
+    pocketbase().superuser.collection("users").create(newUser({ name: "Test Organizer", role: "organizer", emailVisibility: false, verified: true }));
+
+  it.each([
+    ["a member deletes their own record", "member", "self"],
+    ["an organizer deletes their own record", "organizer", "self"],
+    ["an organizer deletes a member", "organizer", "member"],
+  ] as const)("R-USR-D-01: %s; refused", async (_case, callerRole, target) => {
+    const caller = callerRole === "organizer" ? await ownOrganizer() : await ownMember();
+    const victim = target === "self" ? caller : await ownMember("Other Member");
+
+    // The delete rule is null: PocketBase answers 403 before it looks the record up.
+    expect(await statusOf((await actAs(pocketbase(), caller)).collection("users").delete(victim.id))).toBe(403);
+    expect((await pocketbase().superuser.collection("users").getOne(victim.id)).id).toBe(victim.id);
   });
 });
 
@@ -408,6 +484,56 @@ describe("live reads (M0-03)", () => {
       expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.rejected")))).toBe(404);
       expect(await statusOf(m.collection("catches").getOne(catchId("E1.Y.verified")))).toBe("allowed");
     });
+
+    // The delete rule is null: PocketBase answers 403 before it looks the record up (and
+    // pb_hooks/no_deletes.pb.js would refuse it after, R-ALL-D-02).
+    it.each([
+      ["M", "E1.M.pending"],
+      ["K", "E1.Y.pending"],
+      ["S", "E1.K.pending"],
+    ] as const)("R-CAT-D-01: %s may not delete %s", async (who, key) => {
+      expect(await statusOf((await as(who)).collection("catches").delete(catchId(key)))).toBe(403);
+      expect((await pocketbase().superuser.collection("catches").getOne(catchId(key))).id).toBe(catchId(key));
+    });
+  });
+
+  // The photo field is protected: a file loads only with a short-lived file token, and only when
+  // the token's user may view the catch (security.md "catches", R-CAT-F-01 to F-03).
+  describe("photo files", () => {
+    /** The URL of the catch's first photo, with the token when one is given. */
+    const photoUrl = (client: PocketBase, key: CatchKey, token?: string) => {
+      const record = catchOf(world, key);
+      return client.files.getURL(record, String((record.photo as string[])[0]), token === undefined ? {} : { token });
+    };
+
+    it("R-CAT-F-01: without a file token no one loads a photo, and anon can't get a token", async () => {
+      const anon = actAsAnon(pocketbase());
+      const m = await as("M");
+
+      expect((await fetch(photoUrl(anon, "E1.Y.verified"))).status).toBe(404);
+      // A signed-in member's own photo is no different: an image URL carries no auth header.
+      expect((await fetch(photoUrl(m, "E1.M.pending"))).status).toBe(404);
+      expect(await statusOf(anon.files.getToken())).toBe(401);
+    });
+
+    it("R-CAT-F-02: with a file token, M loads the photos of catches M can see", async () => {
+      const m = await as("M");
+      const token = await m.files.getToken();
+
+      for (const key of ["E1.M.pending", "E1.Y.verified", "E1.Y.pending"] as const) {
+        const response = await fetch(photoUrl(m, key, token));
+        expect(response.status, key).toBe(200);
+        expect(response.headers.get("content-type"), key).toBe("image/jpeg");
+      }
+    });
+
+    it("R-CAT-F-03: with a file token, M may not load another angler's rejected photo", async () => {
+      const m = await as("M");
+      const token = await m.files.getToken();
+
+      expect((await fetch(photoUrl(m, "E1.Y.rejected", token))).status).toBe(404);
+      expect((await fetch(photoUrl(m, "E1.Y.retracted", token))).status).toBe(404);
+    });
   });
 
   describe("species", () => {
@@ -423,6 +549,163 @@ describe("live reads (M0-03)", () => {
 
       expect(idsOf(listed)).toEqual(idsOf(await all(pocketbase().superuser, "species")));
       expect(idsOf(listed)).toContain(world.species.walleye.id);
+    });
+  });
+
+  // S1: the audit_log list and view rule (R-AUD-L-01 to L-09). The world's model hooks wrote one
+  // `create` row per catch and one `join` row per entry. This block adds, as the superuser, K's
+  // reject and re-approve of S's verified catch (the security.md fixture behind R-AUD-L-07) and
+  // one E1 `open` row. Judging and event hooks don't exist yet, so these rows are written by hand.
+  describe("audit_log", () => {
+    /** Every world row, as the superuser reads it. */
+    let rows: RecordModel[];
+    let worldRowIds: Set<string>;
+    let openRow: RecordModel;
+
+    /** A catch snapshot (security.md "Audit snapshots") of `record`, with `changes` applied. */
+    function catchSnapshot(record: RecordModel, changes: Record<string, unknown>): Record<string, unknown> {
+      const fields = ["species", "weight_hoz", "length_q", "status", "reason", "photo", "photo_captured_at", "flags", "rev"];
+      return { ...Object.fromEntries(fields.map((field) => [field, record[field]])), ...changes };
+    }
+
+    beforeAll(async () => {
+      const audit = pocketbase().superuser.collection("audit_log");
+      const reApproved = catchOf(world, "E1.S.verified");
+      const onCatch = { actor: users.K.id, event: world.events.E1.id, catch: reApproved.id, target_id: reApproved.id };
+      const pending = { status: "pending", reason: "" };
+      const rejected = { status: "rejected", reason: "Readout not legible" };
+      const verified = { status: "verified", reason: "Second photo shows the readout" };
+      await audit.create({ ...onCatch, action: "reject", before: catchSnapshot(reApproved, pending), after: catchSnapshot(reApproved, rejected) });
+      await audit.create({ ...onCatch, action: "approve", before: catchSnapshot(reApproved, rejected), after: catchSnapshot(reApproved, verified) });
+      // An event row: no `catch`. Its snapshots are cut down; only the row's visibility matters here.
+      openRow = await audit.create({
+        actor: users.K.id,
+        action: "open",
+        event: world.events.E1.id,
+        target_id: world.events.E1.id,
+        before: { status: "draft" },
+        after: { status: "live" },
+      });
+
+      const catchIdSet = new Set(CATCH_KEYS.map((key) => catchOf(world, key).id));
+      const entryIdSet = new Set(Object.values(world.entries).map((entry) => entry.id));
+      rows = (await all(pocketbase().superuser, "audit_log")).filter(
+        (row) => catchIdSet.has(row.catch) || (row.catch === "" && entryIdSet.has(row.target_id)) || row.id === openRow.id,
+      );
+      worldRowIds = new Set(rows.map((row) => row.id));
+    });
+
+    /** The world rows `who` lists. Other tests in this file add records, and so rows, of their own. */
+    async function listedWorldRows(who: FixtureName, filter = ""): Promise<string[]> {
+      return idsOf((await all(await as(who), "audit_log", filter)).filter((row) => worldRowIds.has(row.id)));
+    }
+
+    /** The world rows of the given catches; throws when a catch has none, so no check is empty. */
+    function rowsOfCatches(ids: string[]): string[] {
+      const wanted = new Set(ids);
+      const found = rows.filter((row) => wanted.has(row.catch));
+      for (const id of ids) {
+        if (!found.some((row) => row.catch === id)) throw new Error(`catch ${id} has no audit row`);
+      }
+      return idsOf(found);
+    }
+
+    const rowsOf = (...keys: CatchKey[]) => rowsOfCatches(keys.map(catchId));
+    const joinRowOf = (key: `${"E1"}.${FixtureName}`) => {
+      const row = rows.find((candidate) => candidate.action === "join" && candidate.target_id === entryOf(world, key).id);
+      if (row === undefined) throw new Error(`entry ${key} has no join row`);
+      return row;
+    };
+    const visible = (status: string, angler: FixtureName) => (status === "pending" || status === "verified") && angler !== "W";
+    const e1 = () => `event = "${world.events.E1.id}"`;
+
+    it("stores the list and view rule exactly as security.md writes it", async () => {
+      const stored = await pocketbase().superuser.collections.getOne("audit_log");
+      const documented = await documentedListRule("audit_log");
+
+      expect(stored.listRule).toBe(documented);
+      expect(stored.viewRule).toBe(documented);
+    });
+
+    it("R-AUD-L-01: anon lists no audit rows", async () => {
+      expect(await anonList("audit_log")).toEqual({ status: 200, totalItems: 0 });
+    });
+
+    it("R-AUD-L-02: M lists every row of own catches and of the other catches M can see", async () => {
+      const expected = rowsOfCatches(catchIds(({ angler, status }) => visible(status, angler) || angler === "M"));
+
+      expect(await listedWorldRows("M")).toEqual(expected);
+      // An earlier rejection on a catch that's verified now is part of its history.
+      expect(expected).toEqual(expect.arrayContaining(rowsOf("E1.S.verified", "E1.M.rejected")));
+    });
+
+    it("R-AUD-L-03: M lists no event or entry rows, own join row included", async () => {
+      const listed = await all(await as("M"), "audit_log");
+
+      expect(listed.filter((row) => row.catch === "")).toEqual([]);
+      expect(idsOf(listed)).not.toContain(openRow.id);
+      expect(idsOf(listed)).not.toContain(joinRowOf("E1.M").id);
+    });
+
+    it("R-AUD-L-04: K, the organizer, lists every row", async () => {
+      const listed = idsOf(await all(await as("K"), "audit_log"));
+
+      expect(listed).toEqual(idsOf(await all(pocketbase().superuser, "audit_log")));
+      expect(listed).toContain(openRow.id);
+      expect(listed).toContain(joinRowOf("E1.W").id);
+    });
+
+    it("R-AUD-L-05: in E1, S lists the rows of K's catches and own, plus what any member sees", async () => {
+      const expected = rowsOfCatches(
+        catchIds(({ event, angler, status }) => event === "E1" && (visible(status, angler) || angler === "K" || angler === "S")),
+      );
+
+      expect(await listedWorldRows("S", e1())).toEqual(expected);
+      expect(expected).toEqual(expect.arrayContaining(rowsOf("E1.K.rejected", "E1.S.rejected")));
+
+      const everywhere = await all(await as("S"), "audit_log");
+      // S backs up K in E1 only: K's rejected catch in E2 stays hidden, as from any member.
+      for (const id of rowsOf("E2.K.rejected")) expect(idsOf(everywhere)).not.toContain(id);
+      expect(everywhere.filter((row) => row.catch === "")).toEqual([]);
+    });
+
+    it("R-AUD-L-06: M lists no rows of Y's rejected or retracted catch, or of W's catches", async () => {
+      const listed = idsOf(await all(await as("M"), "audit_log"));
+
+      for (const id of rowsOf("E1.Y.rejected", "E1.Y.retracted", "E1.W.pending", "E1.W.verified")) {
+        expect(listed).not.toContain(id);
+      }
+    });
+
+    it("R-AUD-L-07: M lists every row of S's re-approved catch, the reject row with its reason", async () => {
+      const listed = await all(await as("M"), "audit_log", `catch = "${catchId("E1.S.verified")}"`);
+
+      expect(listed.map((row) => row.action).sort()).toEqual(["approve", "create", "reject"]);
+      expect(listed.find((row) => row.action === "reject")?.after).toMatchObject({ status: "rejected", reason: "Readout not legible" });
+    });
+
+    it("R-AUD-L-09: Y lists every row of own rejected and retracted catches", async () => {
+      const listed = idsOf(await all(await as("Y"), "audit_log"));
+
+      expect(listed).toEqual(expect.arrayContaining(rowsOf("E1.Y.rejected", "E1.Y.retracted")));
+    });
+
+    // Last of the audit tests: it makes S the judge of E1 for a moment and puts K back. The
+    // superuser sets the fields directly, which is what the R-EVT-U-19 step-down leaves behind
+    // (no events hook exists yet; S3 tests the step-down itself in its own file).
+    it("R-AUD-L-08: after a step-down makes S the judge of E1, S lists every row of every E1 catch", async () => {
+      const events = pocketbase().superuser.collection("events");
+      try {
+        await events.update(world.events.E1.id, { judge: users.S.id, backup_judge: users.N.id });
+
+        const expected = rowsOfCatches(catchIds(({ event }) => event === "E1"));
+        expect(await listedWorldRows("S", e1())).toEqual(expected);
+        expect(expected).toEqual(expect.arrayContaining(rowsOf("E1.Y.rejected", "E1.M.rejected", "E1.W.pending")));
+        // Still no event or entry rows: S isn't an organizer.
+        expect((await all(await as("S"), "audit_log")).filter((row) => row.catch === "")).toEqual([]);
+      } finally {
+        await events.update(world.events.E1.id, { judge: users.K.id, backup_judge: users.S.id });
+      }
     });
   });
 });
