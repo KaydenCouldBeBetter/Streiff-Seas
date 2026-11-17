@@ -663,3 +663,49 @@
     text-align: center;
   }
 }
+
+/* Judging from 1024 px (Figma Desktop JDG-01a + JDG-02a): the queue pane scrolls on its own beside
+   the review, which carries its decision bar between the facts and the history. */
+@media (min-width: 64em) {
+  .judge-split .judge-queue-pane {
+    position: sticky;
+    top: var(--cf-spacing-2xl);
+    max-height: calc(100dvh - 9rem);
+    margin: calc(-1 * var(--cf-spacing-xs));
+    padding: var(--cf-spacing-xs) var(--cf-spacing-md) var(--cf-spacing-xs) var(--cf-spacing-xs);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cf-color-border-default) transparent;
+    scrollbar-gutter: stable;
+  }
+  .judge-split .catch-split-list {
+    position: static;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .review-pane .review-checks {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    align-items: start;
+  }
+  .review-pane .review-checks > :only-child {
+    grid-column: 1 / -1;
+  }
+  .review-pane .review-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .review-pane .code-word-card:not(.code-word-card-both) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .judging-home .queue-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  }
+  .judging-home .judging-section > .button {
+    align-self: flex-start;
+    width: auto;
+  }
+}

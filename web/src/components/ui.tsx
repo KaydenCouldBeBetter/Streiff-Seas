@@ -127,6 +127,42 @@ export function TextField({ id, label, help, error, value, onValueChange, ...inp
   );
 }
 
+interface TextAreaFieldProps {
+  id: string;
+  label: string;
+  help: string;
+  error?: string | null;
+  value: string;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+}
+
+/** A reason in words (JDG-03, JDG-04, JDG-05, ORG-09): the text field, two lines tall and growing. */
+export function TextAreaField({ id, label, help, error, value, disabled = false, onValueChange }: TextAreaFieldProps) {
+  const helpId = `${id}-help`;
+  return (
+    <div className="field">
+      <label htmlFor={id} className="t-callout-strong">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        className="field-input field-textarea"
+        rows={2}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onValueChange(event.currentTarget.value)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={helpId}
+      />
+      <p id={helpId} className={`field-help t-footnote${error ? " is-error" : ""}`} aria-live={error ? "polite" : undefined}>
+        {error && <Icon src="/icons/alert.svg" size={18} />}
+        <span>{error ?? help}</span>
+      </p>
+    </div>
+  );
+}
+
 interface ButtonProps {
   children: ReactNode;
   /** Destructive: withdraw, retract, reject, always behind a confirm sheet (Figma Button notes). */
@@ -552,6 +588,57 @@ export function Sheet({ title, onCancel, children, footer }: SheetProps) {
         </div>
         <div className="sheet-content">{children}</div>
         {footer && <div className="sheet-footer">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+interface OverlayProps {
+  /** dialog: centered (Figma Desktop JDG-03a, JDG-05a, ORG-09a); panel: from the right edge (JDG-04a). */
+  kind: "dialog" | "panel";
+  title: string;
+  /** The close button, Escape and a click on the backdrop. Absent while a request is in flight. */
+  onClose?: () => void;
+  children: ReactNode;
+  /** Cancel and the action, right-aligned. */
+  footer?: ReactNode;
+}
+
+/**
+ * A modal dialog or side panel on a wide window, where a phone uses a Sheet or a page of its own.
+ * Focus moves into it and goes back to where it was when it closes, as Sheet does.
+ */
+export function Overlay({ kind, title, onClose, children, footer }: OverlayProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    ref.current?.querySelector<HTMLElement>("textarea, input, button:not([disabled])")?.focus();
+    return () => before?.focus();
+  }, []);
+  useEffect(() => {
+    if (!onClose) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className={`overlay-layer overlay-${kind}`}>
+      <div className="sheet-backdrop" aria-hidden="true" onClick={onClose} />
+      <div ref={ref} className="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+        <div className="overlay-header">
+          <h2 id="overlay-title" className="t-title-section">
+            {title}
+          </h2>
+          {onClose && (
+            <button type="button" className="overlay-close" aria-label="Close" onClick={onClose}>
+              <Icon src="/icons/close.svg" size={24} />
+            </button>
+          )}
+        </div>
+        <div className="overlay-content">{children}</div>
+        {footer && <div className="overlay-footer">{footer}</div>}
       </div>
     </div>
   );

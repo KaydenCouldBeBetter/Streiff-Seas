@@ -6,7 +6,8 @@
 // tournament (liveTournament.ts): Join, Submit a catch, the real sender and My catches with its
 // history, edit, add photos and retract are real (S1); the leaderboard, kept live while it or an
 // angler's page is open, the angler pages and the standing on the tournament page are real (S2b);
-// Profile stats are still sample data.
+// the Judge tab (JDG-00 to JDG-05) and the organizer's Entries (ORG-08, ORG-09) are S3's; Profile
+// stats are still sample data.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import type { RecordModel } from "pocketbase";
@@ -17,6 +18,11 @@ import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampl
 import { loadLeaderboard, type LeaderboardData } from "../lib/leaderboard";
 import { loadAnglerCatches, type AnglerCatchesData } from "../lib/loadAnglerCatches";
 import { useLive } from "../lib/useLive";
+import { judgesAny } from "../lib/judging";
+import { Entries } from "./Entries";
+import { JudgeFlow } from "./Judging";
+import { MemberTabsContext } from "./MemberTabBar";
+import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
 import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
@@ -49,10 +55,25 @@ import { Withdraw } from "./Withdraw";
 import { ClubRules } from "./ClubRules";
 import { thisTournament } from "../lib/clubRules";
 
-type Screen = "tournament" | "withdraw" | "leaderboard" | "angler" | "anglerCatch" | "catches" | "catch" | "catchHistory" | "editCatch" | "addPhotos" | "profile" | "submit" | "clubRules";
+type Screen =
+  | "tournament"
+  | "withdraw"
+  | "leaderboard"
+  | "angler"
+  | "anglerCatch"
+  | "catches"
+  | "catch"
+  | "catchHistory"
+  | "editCatch"
+  | "addPhotos"
+  | "profile"
+  | "submit"
+  | "clubRules"
+  | "judge"
+  | "entries";
 
 /** The page title's first part; the screens named after the live tournament add its name. */
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries">, string> = {
   leaderboard: "Leaderboard",
   catches: "My catches",
   catch: "Catch",
@@ -68,7 +89,10 @@ function tabFor(screen: Screen, rulesFrom: "tournament" | "profile"): MemberTab 
   switch (screen) {
     case "tournament":
     case "withdraw":
+    case "entries":
       return "home";
+    case "judge":
+      return "judge";
     case "leaderboard":
     case "angler":
     case "anglerCatch":
@@ -269,6 +293,25 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [onSessionEnded, onUserChange]);
 
+  // The Judge tab shows for the judge or backup judge of a live or closed tournament (screens.md
+  // §0 Tabs): checked on open and when the app comes back to the foreground.
+  const [judges, setJudges] = useState(false);
+  const [judgeVisit, setJudgeVisit] = useState(0);
+  useEffect(() => {
+    let current = true;
+    const check = () => void judgesAny(pb, user.id).then((yes) => current && setJudges(yes), () => {});
+    check();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      current = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user.id]);
+  const tabs = useMemo(() => memberTabs(judges), [judges]);
+
   // From 1024 px the lists show their selected item beside them (MY-01 + MY-02, LB-02 + LB-03).
   const expanded = useBreakpoint() === "expanded";
 
@@ -303,8 +346,8 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }, [onAnglerScreen, anglerEntryId, loadAngler]);
 
   useEffect(() => {
-    // SubmitFlow titles its own steps.
-    if (screen === "submit") return;
+    // SubmitFlow, the judge's screens and Entries title their own.
+    if (screen === "submit" || screen === "judge" || screen === "entries") return;
     const angler = `${anglerRow?.displayName ?? "Angler"} · ${ready ? view.name : "Leaderboard"}`;
     const title =
       screen === "angler" ? angler
@@ -383,6 +426,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
           setScreen("withdraw");
         }}
         onClubRules={() => openClubRules("tournament")}
+        onEntries={user.role === "organizer" ? () => setScreen("entries") : undefined}
       />
     );
   }
@@ -397,6 +441,11 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     if (tab === "leaderboard") setScreen("leaderboard");
     if (tab === "catches") setScreen("catches");
     if (tab === "profile") setScreen("profile");
+    if (tab === "judge") {
+      // The Judge tab always opens the Judging home, even from inside a queue.
+      setJudgeVisit((n) => n + 1);
+      setScreen("judge");
+    }
   }
 
   function openAngler(entryId: string) {
@@ -688,6 +737,11 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
             onClubRules={() => openClubRules("profile")}
           />
         );
+      case "judge":
+        return <JudgeFlow key={judgeVisit} me={user.id} units={units} onTab={openTab} />;
+      case "entries":
+        if (!ready || user.role !== "organizer") return home();
+        return <Entries eventId={ready.submit.eventId} me={user.id} onBack={() => setScreen("tournament")} />;
       case "clubRules":
         return (
           <ClubRules
@@ -703,6 +757,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   })();
 
   return (
+    <MemberTabsContext.Provider value={tabs}>
     <AppShell
       tab={tabFor(screen, rulesFrom)}
       name={String(user.name ?? "")}
@@ -713,5 +768,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     >
       {content}
     </AppShell>
+    </MemberTabsContext.Provider>
   );
 }

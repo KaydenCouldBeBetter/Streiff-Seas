@@ -237,7 +237,7 @@
       "Outage: the queue shows hours from capture to receipt so the judge can apply the outage allowance from the outage log (scoring.md example 22)",
       "Queue checked at 390 px wide; npm run check output shown; /security-review run"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "S4-finalize",

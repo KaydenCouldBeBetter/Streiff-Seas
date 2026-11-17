@@ -4,8 +4,9 @@
 // it was opened from.
 
 import { CLUB_RULES, RULES_IN_FORCE, RULES_VERSION, type Fact } from "../lib/clubRules";
-import { NavBar, TabBar } from "../components/ui";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import { NavBar } from "../components/ui";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   /** Where Back goes: the screen it was opened from. */
@@ -58,7 +59,7 @@ export function ClubRules({ back, tournament, tab, onBack, onTab }: Props) {
       </div>
 
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected={tab} onSelect={onTab} />
+        <MemberTabBar selected={tab} onSelect={onTab} />
       </div>
     </div>
   );

@@ -4,10 +4,11 @@
 // Never shown here: event and entry rows (R-AUD-L-03), flag codes, or any action.
 
 import { CatchTimeline } from "../components/catch";
-import { NavBar, TabBar } from "../components/ui";
+import { NavBar } from "../components/ui";
 import { historySubtitle, timelineEntries, type CatchAuditRow } from "../lib/catchTimeline";
 import type { MyCatchView } from "../lib/myCatches";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   item: MyCatchView;
@@ -32,7 +33,7 @@ export function MyCatchHistory({ item, metric, history, onBack, onTab }: Props) 
       </div>
 
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
+        <MemberTabBar selected="catches" onSelect={onTab} />
       </div>
     </div>
   );

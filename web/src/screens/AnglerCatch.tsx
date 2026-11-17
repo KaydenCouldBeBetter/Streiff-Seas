@@ -7,11 +7,12 @@
 // TODO(LB-03a): view a photo full size; MY-02's viewer has no full-size view yet either.
 
 import { CatchStatusChip, CatchTimeline, InBestMarker, PhotoViewer } from "../components/catch";
-import { Banner, NavBar, TabBar } from "../components/ui";
+import { Banner, NavBar } from "../components/ui";
 import type { AnglerCatchView } from "../lib/anglerCatches";
 import { timelineEntries, type CatchAuditRow } from "../lib/catchTimeline";
 import { formatClubTime } from "../lib/format";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   /** The angler's name: the back label, and beside the species. */
@@ -37,7 +38,7 @@ export function AnglerCatch({ anglerName, item, bestN, metric, history, final, o
       </div>
 
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="leaderboard" onSelect={onTab} />
+        <MemberTabBar selected="leaderboard" onSelect={onTab} />
       </div>
     </div>
   );

@@ -7,8 +7,9 @@
 import type { LeaderboardRow, LeaderboardView } from "../lib/leaderboard";
 import { formatClubTime, placeLabel, rowPlace, spokenPlace } from "../lib/format";
 import { useBreakpoint } from "../lib/useBreakpoint";
-import { AccessoryBar, Button, EmptyState, Icon, LargeNavBar, LiveBadge, StatusChip, TabBar, type LiveBadgeState } from "../components/ui";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import { AccessoryBar, Button, EmptyState, Icon, LargeNavBar, LiveBadge, StatusChip, type LiveBadgeState } from "../components/ui";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 const SPOKEN_UNIT: Record<string, string> = { lb: "pounds", oz: "ounces", in: "inches" };
 
@@ -122,7 +123,7 @@ export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, 
             Submit a catch
           </Button>
         </AccessoryBar>
-        <TabBar tabs={MEMBER_TABS} selected="leaderboard" onSelect={onTab} />
+        <MemberTabBar selected="leaderboard" onSelect={onTab} />
       </div>
     </div>
   );

@@ -6,7 +6,8 @@
 
 import { useRef, type ReactNode } from "react";
 import { Icon } from "./ui";
-import { MEMBER_TABS, type MemberTab } from "../screens/memberTabs";
+import type { MemberTab } from "../screens/memberTabs";
+import { useMemberTabs } from "../screens/MemberTabBar";
 
 interface Props {
   /** The section the screen belongs to, or null when none is (Submit a catch). */
@@ -23,6 +24,7 @@ interface Props {
 
 export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, children }: Props) {
   const content = useRef<HTMLDivElement>(null);
+  const tabs = useMemberTabs();
   return (
     <div className="shell">
       {/* The first control on the page: lets keyboard users skip the navigation (build note 2). */}
@@ -51,7 +53,7 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
         </button>
 
         <ul className="side-nav-list">
-          {MEMBER_TABS.map((item) => {
+          {tabs.map((item) => {
             const selected = item.id === tab;
             return (
               <li key={item.id}>

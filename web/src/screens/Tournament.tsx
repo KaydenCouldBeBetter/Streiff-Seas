@@ -7,8 +7,9 @@
 
 import type { TournamentView } from "../lib/sampleTournament";
 import { formatClubTime, placeLabel } from "../lib/format";
-import { AccessoryBar, Banner, Button, EmptyState, EventStatus, LargeNavBar, ListLink, TabBar } from "../components/ui";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import { AccessoryBar, Banner, Button, EmptyState, EventStatus, LargeNavBar, ListLink } from "../components/ui";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 export type TournamentAction =
   /** EVT-02d: an active entry inside the window. */
@@ -32,6 +33,8 @@ interface Props {
   onWithdraw: () => void;
   /** RULES-01a, with this tournament's section. */
   onClubRules: () => void;
+  /** ORG-08 Entries: organizers only, until ORG-01 Manage tournament exists (S4). */
+  onEntries?: () => void;
 }
 
 const JOIN_FAILED = {
@@ -39,7 +42,7 @@ const JOIN_FAILED = {
   "not-accepted": "Joining isn't open for this tournament any more.",
 } as const;
 
-export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules }: Props) {
+export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules, onEntries }: Props) {
   const { standing, catches } = tournament;
   const place = standing && standing !== "unavailable" ? placeLabel(standing.place, standing.tied) : null;
   const counts = catches ? `${catches.pending} pending · ${catches.rejected} rejected` : "";
@@ -149,6 +152,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
           )}
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
           <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={entry === "active" && place ? `You're ${place}` : "See the standings"} onClick={onLeaderboard} />
+          {onEntries && <ListLink icon="/icons/person-tab.svg" title="Entries" detail="Every angler, withdrawn ones included" onClick={onEntries} />}
         </div>
 
         {entry === "active" && (
@@ -188,7 +192,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
             </Button>
           </AccessoryBar>
         )}
-        <TabBar tabs={MEMBER_TABS} selected="home" onSelect={onTab} />
+        <MemberTabBar selected="home" onSelect={onTab} />
       </div>
     </div>
   );
@@ -231,7 +235,7 @@ export function NoTournament({ state, onRetry, onTab, onClubRules }: NoTournamen
         </Button>
       </div>
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="home" onSelect={onTab} />
+        <MemberTabBar selected="home" onSelect={onTab} />
       </div>
     </div>
   );
