@@ -362,15 +362,19 @@ describe("retract", () => {
   });
 });
 
-describe("judging isn't built yet (S3)", () => {
-  it("K approving M's pending catch is refused, and nothing changes", async () => {
+// Until S3 these two asserted that every judge request was refused. S3 builds the judge branch of the
+// hook (R-CAT-U-01, U-04; the full set is in test/judge.test.ts), so they now assert it lands.
+describe("judging (S3)", () => {
+  it("R-CAT-U-01: K approving M's pending catch lands, with one approve row", async () => {
     const { record } = await submitted();
-    await expectRefused(async () => update(await as("K"), record.id, { rev: 1, status: "verified" }), record.id);
+    expect(await update(await as("K"), record.id, { rev: 1, status: "verified" })).toMatchObject({ status: "verified", judged_by: users.K.id, rev: 2 });
+    expect((await rows(record.id)).map((row) => row.action)).toEqual(["approve"]);
   });
 
-  it("K correcting M's pending catch (the rule allows it) is refused until S3 writes its correct row", async () => {
+  it("R-CAT-U-04: K correcting M's pending catch lands as verified, with one correct row", async () => {
     const { record } = await submitted();
-    await expectRefused(async () => update(await as("K"), record.id, { rev: 1, status: "verified", weight_hoz: 5600, reason: "Readout shows 3.50" }), record.id);
+    expect(await update(await as("K"), record.id, { rev: 1, status: "verified", weight_hoz: 5600, reason: "Readout shows 3.50" })).toMatchObject({ status: "verified", weight_hoz: 5600 });
+    expect((await rows(record.id)).map((row) => row.action)).toEqual(["correct"]);
   });
 });
 
@@ -380,7 +384,8 @@ describe("R-AUD-H-04 and the order of checks", () => {
     const y = catchOf(world, "E1.Y.pending");
     await statusOf(update(await as("M"), y.id, { rev: y.rev, weight_hoz: 1 }));
     await statusOf(update(actAsAnon(pocketbase()), y.id, { rev: y.rev, weight_hoz: 1 }));
-    await statusOf(update(await as("K"), y.id, { rev: y.rev, status: "verified" }));
+    // A judge request the rule refuses: K echoes a rev that isn't the stored one (R-CAT-U-13).
+    await statusOf(update(await as("K"), y.id, { rev: y.rev + 5, status: "verified" }));
 
     expect((await pocketbase().superuser.collection("audit_log").getList(1, 1)).totalItems).toBe(before);
   });

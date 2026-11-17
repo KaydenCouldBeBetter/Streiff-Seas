@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { BestTile, IdentityCard, StatusCountsCard } from "../components/profile";
 import { StatsChart, readChart } from "../components/statsChart";
-import { Banner, Button, LargeNavBar, ListLink, SegmentedToggle, SwitchRow, TabBar, TextField } from "../components/ui";
+import { Banner, Button, LargeNavBar, ListLink, SegmentedToggle, SwitchRow, TextField } from "../components/ui";
 import {
   PROFILE_COPY,
   UNIT_OPTIONS,
@@ -34,7 +34,8 @@ import {
 import { computeStats, type ChartId, type MeasureFormat, type ProfileStatsInput, type StatsScope } from "../lib/profileStats";
 import { APPEARANCE_COPY } from "../lib/theme";
 import { setTheme, useTheme } from "../lib/themeStore";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   user: RecordModel;
@@ -231,7 +232,7 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
       </div>
 
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="profile" onSelect={onTab} />
+        <MemberTabBar selected="profile" onSelect={onTab} />
       </div>
     </div>
   );

@@ -1,15 +1,14 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Catch update by the angler (docs/security.md "catches" Hooks, On update by the angler;
-// R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40; R-AUD-H-01, H-04, H-05). Runs in goja:
-// CommonJS only, no async/await.
+// Catch update by the angler or by a judge (docs/security.md "catches" Hooks, On update by the
+// angler: R-CAT-U-16 to U-30, U-32, U-34 to U-36, U-39, U-40; On update by a judge: R-CAT-U-01 to
+// U-05, U-11, U-38, U-43 to U-45; R-AUD-H-01, H-04, H-05). Runs in goja: CommonJS only, no
+// async/await.
 //
 // On v0.40.4 an update rule is checked before onRecordUpdateRequest runs (test/entries.test.ts
 // pins it), so a request that gets here has passed the rule: the caller is the angler with a
-// pending catch, a live event, before the deadline, echoing the stored rev; or a judge (S3).
-//
-// The judge branch of the rule is live text, but judging isn't built: its hook (judged_by, the
-// correct-means-verified rule, approve/reject/correct rows) is S3's. Until then every judge request
-// is refused here, so no catch can change without its audit row.
+// pending catch, a live event, before the deadline, echoing the stored rev; or the event's judge
+// (or its backup judge, on the judge's own catch) with a live or closed event, a catch that isn't
+// retracted, the stored rev, and a body the judge branch allows.
 //
 // Not atomic: no record update hook runs in a transaction on v0.40.4 (M0-04 spike), so the audit
 // row is saved right after the catch. The rev compare-and-swap below is what keeps two requests
@@ -21,14 +20,65 @@ onRecordUpdateRequest((e) => {
   const record = e.record
   const original = record.original()
   const entry = e.app.findRecordById("entries", original.getString("entry"))
+  const before = lib.catchSnapshot(original)
 
   if (entry.getString("angler") !== e.auth.id) {
-    throw new BadRequestError("Judging isn't available yet.", {
-      status: new ValidationError("judging_not_available", "The judge's screens come with S3."),
-    })
-  }
+    // A judge's decision. The rule has already refused: another status than verified or rejected,
+    // a reject with no reason or with a new species or measurement, a status change of a decided
+    // catch with no reason, and a body that changes nothing it may change (R-CAT-U-14, U-03, U-41,
+    // U-42, U-45). What's left for the hook:
+    const measured =
+      record.getString("species") !== original.getString("species") ||
+      record.getInt("weight_hoz") !== original.getInt("weight_hoz") ||
+      record.getInt("length_q") !== original.getInt("length_q")
+    // The record keeps the stored reason when the body leaves it out, so ask the body itself.
+    const body = e.requestInfo().body
+    const sentReason = body.reason === undefined || body.reason === null ? null : String(body.reason).trim()
+    // The rule's `reason != ""` lets spaces through; a reason made of spaces says nothing.
+    if (sentReason === "" && String(body.reason) !== "") {
+      throw new BadRequestError("The reason can't be blank.", {
+        reason: new ValidationError("reason_blank", "Write the reason in words."),
+      })
+    }
 
-  const before = lib.catchSnapshot(original)
+    let action
+    if (measured) {
+      // A correction approves the catch at the corrected value in one step, from pending,
+      // verified or rejected, and always needs a reason (R-CAT-U-04, U-05, U-44; decisions.md
+      // 2026-10-02 "Correct is one action").
+      if (!sentReason) {
+        throw new BadRequestError("A correction needs a reason.", {
+          reason: new ValidationError("reason_required", "Say what the photo shows."),
+        })
+      }
+      record.set("status", "verified")
+      action = "correct"
+    } else {
+      const status = record.getString("status")
+      if (status === original.getString("status")) {
+        throw new BadRequestError("Nothing to change.", {
+          status: new ValidationError("nothing_changed", "The catch already has this decision."),
+        })
+      }
+      action = status === "verified" ? "approve" : "reject"
+    }
+    if (sentReason === null) record.set("reason", "")
+    else record.set("reason", sentReason)
+    record.set("judged_by", e.auth.id)
+
+    e.next()
+
+    const audit = new Record(e.app.findCollectionByNameOrId("audit_log"))
+    audit.set("actor", e.auth.id)
+    audit.set("action", action)
+    audit.set("event", entry.getString("event"))
+    audit.set("catch", record.id)
+    audit.set("target_id", record.id)
+    audit.set("before", before)
+    audit.set("after", lib.catchSnapshot(record))
+    e.app.save(audit)
+    return
+  }
 
   // Append-only (R-CAT-U-26): the new list starts with every stored name, in order, and anything
   // after them is a new upload. Checked before e.next(), so a refused request deletes nothing.

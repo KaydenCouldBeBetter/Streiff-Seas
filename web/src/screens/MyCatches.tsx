@@ -6,10 +6,11 @@
 
 import type { ReactNode } from "react";
 import { CatchCard } from "../components/catch";
-import { AccessoryBar, Banner, Button, EmptyState, LargeNavBar, TabBar } from "../components/ui";
+import { AccessoryBar, Banner, Button, EmptyState, LargeNavBar } from "../components/ui";
 import { formatClubTime } from "../lib/format";
 import { myCatchesRow, myCatchesSubtitle, newestFirst, submittingOpen, type MyCatchesContext, type MyCatchView } from "../lib/myCatches";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   context: MyCatchesContext;
@@ -84,7 +85,7 @@ export function MyCatches({ context, catches, onOpen, onSubmit, onTab, split }: 
             </Button>
           </AccessoryBar>
         )}
-        <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
+        <MemberTabBar selected="catches" onSelect={onTab} />
       </div>
     </div>
   );
@@ -117,7 +118,7 @@ export function MyCatchesStatus({ state, onRetry, onTab }: { state: "loading" | 
         />
       </div>
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
+        <MemberTabBar selected="catches" onSelect={onTab} />
       </div>
     </div>
   );

@@ -6,11 +6,12 @@
 
 import type { ReactNode } from "react";
 import { CatchCard } from "../components/catch";
-import { Button, NavBar, TabBar } from "../components/ui";
+import { Button, NavBar } from "../components/ui";
 import { anglerFacts, catchTimes, shownOnAnglerPage, type AnglerCatchView } from "../lib/anglerCatches";
 import { newestFirst } from "../lib/myCatches";
 import type { LeaderboardRow } from "../lib/leaderboard";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   /** The angler's leaderboard row: name, place, total and counted fish. */
@@ -81,7 +82,7 @@ export function AnglerCatches({ row, unit, bestN, catches, status, onRetry, onOp
       </div>
 
       <div className="tab-screen-bottom">
-        <TabBar tabs={MEMBER_TABS} selected="leaderboard" onSelect={onTab} />
+        <MemberTabBar selected="leaderboard" onSelect={onTab} />
       </div>
     </div>
   );

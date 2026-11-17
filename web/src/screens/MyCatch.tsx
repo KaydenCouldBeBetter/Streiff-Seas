@@ -10,12 +10,13 @@
 
 import type { ReactNode } from "react";
 import { CatchStatusChip, CatchTimeline, InBestMarker, PhotoViewer } from "../components/catch";
-import { Banner, Button, NavBar, TabBar } from "../components/ui";
+import { Banner, Button, NavBar } from "../components/ui";
 import { timelineEntries, type CatchAuditRow } from "../lib/catchTimeline";
 import type { ChangeNotice } from "../lib/changeCopy";
 import { formatClubTime } from "../lib/format";
 import { MAX_PHOTOS, myCatchState, type MyCatchesContext, type MyCatchState, type MyCatchView } from "../lib/myCatches";
-import { MEMBER_TABS, type MemberTab } from "./memberTabs";
+import type { MemberTab } from "./memberTabs";
+import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   context: MyCatchesContext;
@@ -52,7 +53,7 @@ export function MyCatch({ context, item, onBack, onHistory, onSubmit, onEdit, on
             </Button>
           </div>
         )}
-        <TabBar tabs={MEMBER_TABS} selected="catches" onSelect={onTab} />
+        <MemberTabBar selected="catches" onSelect={onTab} />
       </div>
       {sheet}
     </div>
