@@ -5,7 +5,7 @@
 // from scoring (S2a). Until then the screen runs on lib/sampleAnglerCatches.ts.
 
 import { formatClubClock, formatClubTime, placeLabel, sameClubDay } from "./format";
-import type { LeaderboardRow } from "./sampleLeaderboard";
+import type { LeaderboardRow } from "./leaderboard";
 import type { MyCatchView } from "./myCatches";
 
 /** One catch as other members see it: no reason, decision or correction on the list. */

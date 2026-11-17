@@ -9,6 +9,8 @@
 //   message comes again;
 // - coming back to the page refetches, and checks the quiet time from timestamps, because a
 //   sleeping phone freezes timers.
+// - after FAILURE_LIMIT failed loads in a row it calls onRepeatedFailure (S2b; screens.md LB-01b,
+//   SYS-04a), which useLive turns into a check for an expired Access session (accessReload.ts).
 // The badge (decisions.md 2026-10-05 "Event status and the live badge use different words"):
 // Live, Reconnecting, or "Updated 9:05 AM" in club time from the server's clock.
 //
@@ -21,6 +23,8 @@ import { formatClubClock } from "./format";
 export const QUIET_MS = 150_000;
 /** How often to poll while the stream is quiet. */
 export const POLL_MS = 30_000;
+/** This many failed loads in a row count as "repeated network failures" (decisions.md 2026-10-05, Gap 19). */
+export const FAILURE_LIMIT = 4;
 
 export type LiveTopic = "PB_CONNECT" | "heartbeat" | "catches";
 export const LIVE_TOPICS: readonly LiveTopic[] = ["PB_CONNECT", "heartbeat", "catches"];
@@ -49,6 +53,8 @@ export interface LiveTrackerOptions<T> {
   /** The server's time now (serverClock), for the "Updated" label. The phone's clock by default. */
   serverNow?: () => number;
   onChange: (snapshot: LiveSnapshot<T>) => void;
+  /** Called each time FAILURE_LIMIT loads in a row have failed; the count then starts again. */
+  onRepeatedFailure?: () => void;
 }
 
 export interface LiveTracker<T> {
@@ -94,6 +100,8 @@ export function createLiveTracker<T>(options: LiveTrackerOptions<T>): LiveTracke
   let lastFetch: FetchResult | undefined;
   let fetching = false;
   let fetchAgain = false;
+  /** Failed loads since the last one that worked. */
+  let failures = 0;
   let needsResubscribe = false;
   let quietTimer: ReturnType<typeof setTimeout> | undefined;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -137,6 +145,7 @@ export function createLiveTracker<T>(options: LiveTrackerOptions<T>): LiveTracke
         (loaded) => {
           if (disposed) return;
           data = loaded;
+          failures = 0;
           lastFetch = { ok: true, seq, atMs: serverNow() };
           // The server answers, so a stream that never connected may now.
           if (needsResubscribe) subscribeAll();
@@ -144,6 +153,11 @@ export function createLiveTracker<T>(options: LiveTrackerOptions<T>): LiveTracke
         () => {
           if (disposed) return;
           lastFetch = { ok: false, seq, atMs: serverNow() };
+          failures++;
+          if (failures >= FAILURE_LIMIT) {
+            failures = 0;
+            options.onRepeatedFailure?.();
+          }
         },
       )
       .finally(() => {

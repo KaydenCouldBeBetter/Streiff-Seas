@@ -216,7 +216,7 @@
       "Realtime: a member subscribed to catches gets no event for another angler's rejected catch (R-CAT-L-09); the board refetches on PB_CONNECT and when the tab becomes visible, shows Live / Reconnecting / last updated, and polls every 30 s after 150 s of silence; after repeated network failures it does a full page reload so an expired Access session can prompt (screens.md LB-01b, SYS-04a; moved from S1 on 2026-11-16, Kayden's call; checked through real Access in the M0-07 soak)",
       "Leaderboard checked at 390 px wide; npm run check output shown"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "S3-judge",

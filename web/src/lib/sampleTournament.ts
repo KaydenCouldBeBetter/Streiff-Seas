@@ -23,7 +23,11 @@ export interface TournamentView {
     species: string;
     codeWord: "On" | "Off";
   };
-  standing: {
+  /**
+   * The viewer's row on the board (lib/leaderboard.ts): null when they have none yet (no pending
+   * or verified catch), undefined while it is being read, "unavailable" when the read failed.
+   */
+  standing?: {
     place: number;
     tied: boolean;
     /** Already rounded for display in the viewer's units (scoring.md: display rounding). */
@@ -31,9 +35,9 @@ export interface TournamentView {
     unit: string;
     counted: number;
     bestN: number;
-  };
-  /** The viewer's own catches in this event, by status. */
-  catches: {
+  } | null | "unavailable";
+  /** The viewer's own catches in this event, by status; undefined while being read. */
+  catches?: {
     submitted: number;
     pending: number;
     rejected: number;

@@ -4,6 +4,7 @@
 // and Sheet. Their usage notes in Figma are followed here.
 
 import { useEffect, useRef, type ChangeEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { badgeText } from "../lib/liveTracker";
 import { iconSrc } from "../lib/theme";
 import { useTheme } from "../lib/themeStore";
 
@@ -30,6 +31,9 @@ export const OFFLINE_ICONS: readonly string[] = [
   "/icons/close-danger.svg",
   "/icons/refresh-on-primary.svg",
   "/icons/refresh-link.svg",
+  // The leaderboard's Reconnecting and Updated badges (LB-01b, LB-01c).
+  "/icons/refresh-warning.svg",
+  "/icons/clock-neutral.svg",
 ];
 
 export function usePreloadedIcons(paths: readonly string[]): void {
@@ -209,23 +213,36 @@ export function EventStatus({ status }: { status: EventStatusValue }) {
   );
 }
 
-export type LiveBadgeState = "live";
+export type LiveBadgeState = { kind: "live" } | { kind: "reconnecting" } | { kind: "updated"; atMs: number };
 
-const LIVE_BADGE: Record<LiveBadgeState, string> = {
-  // Reconnecting (LB-01b) and "Updated h:mm" (LB-01c) join this map when realtime lands (S2b).
-  live: "Live",
-};
+/** Figma Live badge (22:64): the icon and words for each state. */
+function liveBadgeParts(state: LiveBadgeState): { icon: string; size: number; text: string; spoken: string } {
+  switch (state.kind) {
+    case "live":
+      return { icon: "/icons/live-dot.svg", size: 10, text: "Live", spoken: "Live" };
+    case "reconnecting":
+      return { icon: "/icons/refresh-warning.svg", size: 16, text: "Reconnecting…", spoken: "reconnecting" };
+    case "updated": {
+      // "Updated 9:05 AM" in club time, from the server's clock (liveTracker.badgeText).
+      const text = badgeText(state);
+      return { icon: "/icons/clock-neutral.svg", size: 16, text, spoken: text.charAt(0).toLowerCase() + text.slice(1) };
+    }
+  }
+}
 
 /**
  * Leaderboard freshness, not events.status: an outlined pill, never the Event status tag.
- * A polite live region, so a change is announced ("Leaderboard reconnecting").
+ * Live (stream healthy), Reconnecting… (stream lost, last standings kept: LB-01b) or Updated h:mm
+ * (polling after 150 s of silence: LB-01c). A polite live region, so a change is announced
+ * ("Leaderboard reconnecting").
  */
 export function LiveBadge({ state }: { state: LiveBadgeState }) {
+  const { icon, size, text, spoken } = liveBadgeParts(state);
   return (
-    <span className={`live-badge live-badge-${state} t-footnote-strong`} role="status">
-      <Icon src="/icons/live-dot.svg" size={10} />
-      <span className="visually-hidden">Leaderboard </span>
-      {LIVE_BADGE[state]}
+    <span className={`live-badge live-badge-${state.kind} t-footnote-strong`} role="status">
+      <Icon src={icon} size={size} />
+      <span className="visually-hidden">Leaderboard {spoken}</span>
+      <span aria-hidden="true">{text}</span>
     </span>
   );
 }

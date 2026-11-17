@@ -1,15 +1,15 @@
 // LB-02a Angler's catches: another angler's pending and verified catches in this tournament,
-// opened from their leaderboard row (Figma 60:2831). A UI skeleton on sample data; each card
-// opens LB-03, the catch detail. Never shown here: their rejected or retracted catches, for
+// opened from their leaderboard row (Figma 60:2831), read by lib/loadAnglerCatches.ts when the
+// page opens and on focus (Gap 25); each card opens LB-03, the catch detail. Never shown here: their rejected or retracted catches, for
 // any viewer (LB-02c), or flag codes.
 // TODO(LB-02b): once the event is final, pass `archived` to the cards ("Photo archived").
 
 import type { ReactNode } from "react";
 import { CatchCard } from "../components/catch";
-import { NavBar, TabBar } from "../components/ui";
+import { Button, NavBar, TabBar } from "../components/ui";
 import { anglerFacts, catchTimes, shownOnAnglerPage, type AnglerCatchView } from "../lib/anglerCatches";
 import { newestFirst } from "../lib/myCatches";
-import type { LeaderboardRow } from "../lib/sampleLeaderboard";
+import type { LeaderboardRow } from "../lib/leaderboard";
 import { MEMBER_TABS, type MemberTab } from "./memberTabs";
 
 interface Props {
@@ -18,6 +18,9 @@ interface Props {
   unit: string;
   bestN: number;
   catches: readonly AnglerCatchView[];
+  /** Before the first read lands, or when it failed (with Try again). */
+  status?: "loading" | "error";
+  onRetry?: () => void;
   /** Opens LB-03 for one catch. */
   onOpen: (catchId: string) => void;
   onBack: () => void;
@@ -26,7 +29,7 @@ interface Props {
   split?: { selectedId: string; detail: ReactNode };
 }
 
-export function AnglerCatches({ row, unit, bestN, catches, onOpen, onBack, onTab, split }: Props) {
+export function AnglerCatches({ row, unit, bestN, catches, status, onRetry, onOpen, onBack, onTab, split }: Props) {
   const shown = newestFirst(shownOnAnglerPage(catches));
   const facts = anglerFacts(row, unit, bestN, shown.length);
   return (
@@ -48,6 +51,15 @@ export function AnglerCatches({ row, unit, bestN, catches, onOpen, onBack, onTab
           </div>
         </dl>
 
+        {status === "loading" && <p className="t-body t-secondary">Loading {row.displayName}'s catches…</p>}
+        {status === "error" && (
+          <div className="angler-status">
+            <p className="t-body">Couldn't load {row.displayName}'s catches. Check your signal and try again.</p>
+            <Button variant="secondary" onClick={onRetry}>
+              Try again
+            </Button>
+          </div>
+        )}
         <ul className="catch-list-items catch-split-list" aria-label={`${row.displayName}'s catches`}>
           {shown.map((item) => (
             <li key={item.id}>
