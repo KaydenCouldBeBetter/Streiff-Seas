@@ -22,6 +22,8 @@ import { computeStandings, type CatchStatus, type Metric } from "./scoring";
 
 export interface AnglerCatchesData {
   entryId: string;
+  /** The event is final (LB-02b, LB-03b): every photo shows "Photo archived" and none is requested. */
+  final: boolean;
   /** Newest first; pending and verified only. */
   catches: AnglerCatchView[];
   /** Each catch's audit rows, oldest first, by catch id. */
@@ -39,6 +41,8 @@ export interface AnglerCatchRecords {
   audit: readonly RecordModel[];
   /** The photo URL for one file, already carrying the file token. */
   photoUrl: (record: RecordModel, filename: string) => string;
+  /** The event is final: photos are archived, so no URL is built (S4 step 9). */
+  final?: boolean;
 }
 
 /** The pages' view model from the records. Pure. */
@@ -85,13 +89,13 @@ export function anglerCatchesFromRecords(input: AnglerCatchRecords): AnglerCatch
         status: record.status as CatchStatus,
         created: parsePbDate(String(record.created)),
         ...(capturedAt !== "" && { capturedAt: parsePbDate(capturedAt) }),
-        photos: photosOf(record).map((name) => ({ url: input.photoUrl(record, name) })),
+        photos: photosOf(record).map((name) => ({ url: input.final ? "" : input.photoUrl(record, name) })),
         inBest: counted.has(record.id),
       };
     })
     .sort((a, b) => b.created.getTime() - a.created.getTime() || (a.id < b.id ? 1 : -1));
 
-  return { entryId, catches, history };
+  return { entryId, final: input.final === true, catches, history };
 }
 
 /**
@@ -112,8 +116,11 @@ export async function loadAnglerCatches(pb: PocketBase, entryId: string, viewerI
     }),
     pb.collection("audit_log").getFullList({ filter: pb.filter("catch.entry = {:entry}", { entry: entryId }), sort: "created", requestKey: null }),
   ]);
-  const token = catches.some((record) => photosOf(record).length > 0) ? await pb.files.getToken({ requestKey: null }) : "";
+  // Once final the photos are archived (and later removed from the server): no token, no URL.
+  const final = event?.status === "final";
+  const token = !final && catches.some((record) => photosOf(record).length > 0) ? await pb.files.getToken({ requestKey: null }) : "";
   return anglerCatchesFromRecords({
+    final,
     entryId,
     metric,
     units,

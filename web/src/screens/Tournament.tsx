@@ -23,6 +23,8 @@ export type TournamentAction =
 
 interface Props {
   tournament: TournamentView;
+  /** ORG-01 Manage: organizers only (EVT-02m). */
+  onManage?: () => void;
   /** screens.md §1 "Entry state": the standing and Withdraw show only for an active entry (EVT-02a has neither). */
   entry: "none" | "active" | "withdrawn";
   action: TournamentAction;
@@ -33,8 +35,13 @@ interface Props {
   onWithdraw: () => void;
   /** RULES-01a, with this tournament's section. */
   onClubRules: () => void;
-  /** ORG-08 Entries: organizers only, until ORG-01 Manage tournament exists (S4). */
+  /** ORG-08 Entries: organizers only (EVT-02m). */
   onEntries?: () => void;
+}
+
+/** Withdraw is offered while live or closed, never on a draft or once final (R-ENT-U-02, U-10). */
+function onWithdrawShown(status: TournamentView["status"]): boolean {
+  return status === "live" || status === "closed";
 }
 
 const JOIN_FAILED = {
@@ -42,8 +49,10 @@ const JOIN_FAILED = {
   "not-accepted": "Joining isn't open for this tournament any more.",
 } as const;
 
-export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules, onEntries }: Props) {
+export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules, onEntries, onManage }: Props) {
   const { standing, catches } = tournament;
+  // On a draft only the facts, Manage and Entries show (Figma EVT-02m note): nobody can join yet.
+  const draft = tournament.status === "draft";
   const place = standing && standing !== "unavailable" ? placeLabel(standing.place, standing.tied) : null;
   const counts = catches ? `${catches.pending} pending · ${catches.rejected} rejected` : "";
   return (
@@ -67,7 +76,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
               : "You're not on the leaderboard. Your catches are kept, and pending ones are still judged. Rejoin and your verified fish count again."}
           </Banner>
         )}
-        {entry === "active" && (
+        {entry === "active" && !draft && (
           <section className="card card-selected tournament-standing" aria-labelledby="standing-heading">
             <h2 id="standing-heading" className="t-footnote-strong t-secondary">
               Your standing
@@ -142,7 +151,7 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
         </div>
 
         <div className="list-links tournament-links">
-          {entry !== "none" && (
+          {entry !== "none" && !draft && (
             <ListLink
               icon="/icons/list.svg"
               title="My catches"
@@ -151,11 +160,22 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
             />
           )}
           {/* screens.md §0 status words: "You're 4th", not the Figma frame's "Live · you're 4th". */}
-          <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={entry === "active" && place ? `You're ${place}` : "See the standings"} onClick={onLeaderboard} />
-          {onEntries && <ListLink icon="/icons/person-tab.svg" title="Entries" detail="Every angler, withdrawn ones included" onClick={onEntries} />}
+          {!draft && <ListLink icon="/icons/leaderboard.svg" title="Leaderboard" detail={entry === "active" && place ? `You're ${place}` : "See the standings"} onClick={onLeaderboard} />}
         </div>
 
-        {entry === "active" && (
+        {(onManage || onEntries) && (
+          <section className="org-section" aria-labelledby="organizer-heading">
+            <h2 id="organizer-heading" className="t-caption-caps t-secondary group-heading">
+              Organizer
+            </h2>
+            <div className="list-links">
+              {onManage && <ListLink icon="/icons/edit-link.svg" title="Manage" detail="Edit, open, extend, close, finalize, exports" onClick={onManage} />}
+              {onEntries && <ListLink icon="/icons/person-tab.svg" title="Entries" detail="Every angler, withdrawn ones included" onClick={onEntries} />}
+            </div>
+          </section>
+        )}
+
+        {entry === "active" && onWithdrawShown(tournament.status) && (
           <div className="tournament-withdraw">
             <Button variant="secondary" onClick={onWithdraw}>
               Withdraw from tournament…

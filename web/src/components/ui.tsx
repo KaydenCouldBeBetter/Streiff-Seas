@@ -230,11 +230,14 @@ export function TodoTag({ row }: { row: string }) {
   );
 }
 
-export type EventStatusValue = "live";
+export type EventStatusValue = "draft" | "live" | "closed" | "final";
 
+/** Figma Event status (117:531): a filled square-cornered tag with an icon and the word. */
 const EVENT_STATUS: Record<EventStatusValue, { label: string; icon: string }> = {
-  // Draft, Closed and Final join this map with their Figma icons when EVT-02 shows them.
+  draft: { label: "Draft", icon: "/icons/edit-neutral.svg" },
   live: { label: "Live", icon: "/icons/clock-success.svg" },
+  closed: { label: "Closed", icon: "/icons/judge-warning.svg" },
+  final: { label: "Final", icon: "/icons/lock-neutral-16.svg" },
 };
 
 /** events.status in the large title's badge slot. Not a control. */

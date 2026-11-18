@@ -2,8 +2,11 @@
 //
 // Landing (decisions.md 2026-10-03 "Home screen and landing"): one live entry lands on that
 // tournament's leaderboard (LB-01), two or more on the Tournaments list (EVT-01d), anyone
-// else on Tournaments (EVT-01a). Until EVT-01 exists, every sign-in lands on the first live
-// tournament (liveTournament.ts): Join, Submit a catch, the real sender and My catches with its
+// else on Tournaments (EVT-01a). For now (decisions.md 2026-11-17 "Tournaments list") every
+// sign-in lands on the first live tournament's page, or on Tournaments (EVT-01, the Home tab)
+// when none is live; the list opens any other tournament, whose page, leaderboard and catches the
+// rest of the app then shows. The organizer's Manage, the tournament form, Extend, Exports and
+// Species (ORG-01 to ORG-07, ORG-10) are S4's. Join, Submit a catch, the real sender and My catches with its
 // history, edit, add photos and retract are real (S1); the leaderboard, kept live while it or an
 // angler's page is open, the angler pages and the standing on the tournament page are real (S2b);
 // the Judge tab (JDG-00 to JDG-05) and the organizer's Entries (ORG-08, ORG-09) are S3's; Profile
@@ -20,12 +23,19 @@ import { loadAnglerCatches, type AnglerCatchesData } from "../lib/loadAnglerCatc
 import { useLive } from "../lib/useLive";
 import { judgesAny } from "../lib/judging";
 import { Entries } from "./Entries";
+import { EventForm } from "./EventForm";
+import { Exports } from "./Exports";
+import { ExtendDeadline } from "./ExtendDeadline";
+import { Manage } from "./Manage";
+import { Species } from "./Species";
+import { Tournaments } from "./Tournaments";
+import { loadNewEventOptions, type ManageData, type Person } from "../lib/eventAdmin";
 import { JudgeFlow } from "./Judging";
 import { MemberTabsContext } from "./MemberTabBar";
 import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadLiveTournament, setWithdrawn, type LiveTournament } from "../lib/liveTournament";
+import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, statusOf, type LiveTournament } from "../lib/liveTournament";
 import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
@@ -70,10 +80,19 @@ type Screen =
   | "submit"
   | "clubRules"
   | "judge"
-  | "entries";
+  | "entries"
+  | "tournaments"
+  | "manage"
+  | "eventForm"
+  | "extend"
+  | "exports"
+  | "species";
+
+/** The screens that set their own page title. */
+const SELF_TITLED: readonly Screen[] = ["submit", "judge", "entries", "tournaments", "manage", "eventForm", "extend", "exports", "species"];
 
 /** The page title's first part; the screens named after the live tournament add its name. */
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries" | "tournaments" | "manage" | "eventForm" | "extend" | "exports" | "species">, string> = {
   leaderboard: "Leaderboard",
   catches: "My catches",
   catch: "Catch",
@@ -90,6 +109,12 @@ function tabFor(screen: Screen, rulesFrom: "tournament" | "profile"): MemberTab 
     case "tournament":
     case "withdraw":
     case "entries":
+    case "tournaments":
+    case "manage":
+    case "eventForm":
+    case "extend":
+    case "exports":
+    case "species":
       return "home";
     case "judge":
       return "judge";
@@ -169,15 +194,24 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   // The catch as it was when Edit, Add photos or Retract opened. Frozen there, so a refresh in
   // the meantime can't slip the newer rev under the change: it is refused and explained (MY-03b).
   const [changeBase, setChangeBase] = useState<CatchBase | null>(null);
+  // EVT-01: the tournament the member opened from the list; null is the first live one.
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  // ORG-01 to ORG-07: what Manage loaded, for the form and Extend; what they saved, for Manage.
+  const [manageData, setManageData] = useState<ManageData | null>(null);
+  const [manageSaved, setManageSaved] = useState<string | null>(null);
+  const [newOptions, setNewOptions] = useState<{ people: Person[]; species: { id: string; name: string }[] } | null>(null);
+  const [entriesFrom, setEntriesFrom] = useState<"tournament" | "manage">("tournament");
+  const [speciesFrom, setSpeciesFrom] = useState<"tournaments">("tournaments");
+  const organizer = user.role === "organizer";
 
   const reload = useCallback(async () => {
     try {
-      const tournament = await loadLiveTournament(pb, user.id);
+      const tournament = await loadTournament(pb, user.id, selectedEventId);
       setLive(tournament ? { state: "ready", tournament } : { state: "none" });
     } catch {
       setLive({ state: "error" });
     }
-  }, [user.id]);
+  }, [user.id, selectedEventId]);
 
   useEffect(() => {
     void reload();
@@ -226,6 +260,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   const view: TournamentView = ready
     ? {
         ...SAMPLE_TOURNAMENT,
+        status: statusOf(ready),
         name: ready.submit.name,
         rulesLine: ready.rulesLine,
         startsAt: ready.startsAt,
@@ -346,16 +381,19 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }, [onAnglerScreen, anglerEntryId, loadAngler]);
 
   useEffect(() => {
-    // SubmitFlow, the judge's screens and Entries title their own.
-    if (screen === "submit" || screen === "judge" || screen === "entries") return;
+    // SubmitFlow, the judge's screens, Entries and the organizer's screens title their own.
+    if (SELF_TITLED.includes(screen)) {
+      window.scrollTo(0, 0);
+      return;
+    }
     const angler = `${anglerRow?.displayName ?? "Angler"} · ${ready ? view.name : "Leaderboard"}`;
     const title =
       screen === "angler" ? angler
       : screen === "anglerCatch" ? `Catch · ${angler}`
       : screen === "tournament" ? (ready ? view.name : "Tournament")
       : screen === "withdraw" ? "Withdraw"
-      : (MY_CATCH_SCREENS.includes(screen) || screen === "leaderboard") && ready ? `${TITLES[screen]} · ${view.name}`
-      : TITLES[screen];
+      : (MY_CATCH_SCREENS.includes(screen) || screen === "leaderboard") && ready ? `${TITLES[screen as keyof typeof TITLES]} · ${view.name}`
+      : TITLES[screen as keyof typeof TITLES];
     document.title = `${title} · Chromie Fishing`;
     window.scrollTo(0, 0);
   }, [screen, anglerRow, ready, view.name]);
@@ -394,6 +432,10 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
 
   function tournamentAction(tournament: LiveTournament): TournamentAction {
     const now = serverNowMs();
+    const status = statusOf(tournament);
+    if (status === "draft") return { kind: "closed", title: "Draft", message: "Only you can see this tournament. Members see it once you open it." };
+    if (status === "closed") return { kind: "closed", title: "Closed", message: "Submissions are over. Judging carries on until the organizer finalizes." };
+    if (status === "final") return { kind: "closed", title: "Final", message: "Results are final. Photos are archived; the history is unchanged." };
     if (canSubmit(tournament, now)) return { kind: "submit", onSubmit: openSubmit };
     if (canJoin(tournament, now)) return { kind: "join", joining, failed: joinFailed, onJoin: () => void join() };
     if (canRejoin(tournament, now)) return { kind: "rejoin", rejoining: entryBusy, failed: entryFailed, onRejoin: () => void changeEntry(false) };
@@ -409,8 +451,51 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     return { kind: "closed", title: "Submissions have closed", message: `The deadline was ${formatClubTime(tournament.submit.submitDeadline)}.` };
   }
 
+  /** EVT-01: open one tournament's page; the rest of the app follows it. */
+  function openTournament(eventId: string) {
+    if (eventId !== selectedEventId) {
+      setSelectedEventId(eventId);
+      setLive({ state: "loading" });
+      setStandingRead({ state: "loading" });
+      setMine({ state: "loading" });
+    }
+    setScreen("tournament");
+  }
+
+  function tournaments() {
+    return (
+      <Tournaments
+        me={user.id}
+        units={units}
+        organizer={organizer}
+        onOpen={openTournament}
+        onNewTournament={() => void openNewTournament()}
+        onSpecies={() => {
+          setSpeciesFrom("tournaments");
+          setScreen("species");
+        }}
+        onClubRules={() => openClubRules("tournament")}
+        onTab={openTab}
+      />
+    );
+  }
+
+  /** ORG-02a: the form needs the people and species first. */
+  async function openNewTournament() {
+    setManageData(null);
+    setNewOptions(null);
+    setScreen("eventForm");
+    try {
+      setNewOptions(await loadNewEventOptions(pb));
+    } catch {
+      setScreen("tournaments");
+    }
+  }
+
   function home() {
     if (!ready) {
+      // No live tournament: Home is the Tournaments list (EVT-01a).
+      if (live.state === "none") return tournaments();
       return <NoTournament state={live.state === "ready" ? "loading" : live.state} onRetry={() => void reload()} onTab={openTab} onClubRules={() => openClubRules("tournament")} />;
     }
     return (
@@ -426,7 +511,22 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
           setScreen("withdraw");
         }}
         onClubRules={() => openClubRules("tournament")}
-        onEntries={user.role === "organizer" ? () => setScreen("entries") : undefined}
+        onEntries={
+          organizer
+            ? () => {
+                setEntriesFrom("tournament");
+                setScreen("entries");
+              }
+            : undefined
+        }
+        onManage={
+          organizer
+            ? () => {
+                setManageSaved(null);
+                setScreen("manage");
+              }
+            : undefined
+        }
       />
     );
   }
@@ -437,7 +537,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }
 
   function openTab(tab: MemberTab) {
-    if (tab === "home") setScreen("tournament");
+    if (tab === "home") setScreen("tournaments");
     if (tab === "leaderboard") setScreen("leaderboard");
     if (tab === "catches") setScreen("catches");
     if (tab === "profile") setScreen("profile");
@@ -574,6 +674,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       onOpen={openAnglerCatch}
       onBack={() => setScreen("leaderboard")}
       onTab={openTab}
+      archived={anglerData?.final === true}
       split={
         expanded && anglerSelected
           ? {
@@ -740,8 +841,77 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       case "judge":
         return <JudgeFlow key={judgeVisit} me={user.id} units={units} onTab={openTab} />;
       case "entries":
-        if (!ready || user.role !== "organizer") return home();
-        return <Entries eventId={ready.submit.eventId} me={user.id} onBack={() => setScreen("tournament")} />;
+        if (!ready || !organizer) return home();
+        return <Entries eventId={ready.submit.eventId} me={user.id} onBack={() => setScreen(entriesFrom)} />;
+      case "tournaments":
+        return tournaments();
+      case "manage":
+        if (!ready || !organizer) return home();
+        return (
+          <Manage
+            key={`${ready.submit.eventId}:${manageSaved ?? ""}`}
+            eventId={ready.submit.eventId}
+            me={user.id}
+            saved={manageSaved}
+            onBack={() => setScreen("tournament")}
+            onEdit={(data) => {
+              setManageData(data);
+              setScreen("eventForm");
+            }}
+            onExtend={(data) => {
+              setManageData(data);
+              setScreen("extend");
+            }}
+            onEntries={() => {
+              setEntriesFrom("manage");
+              setScreen("entries");
+            }}
+            onExports={() => setScreen("exports")}
+            onJudgeQueue={() => openTab("judge")}
+            onChanged={() => void reload()}
+          />
+        );
+      case "eventForm": {
+        if (!organizer) return home();
+        const options = manageData ? { people: manageData.people, species: manageData.species } : newOptions;
+        if (!options) return <NoTournament state="loading" onRetry={() => void openNewTournament()} onTab={openTab} onClubRules={() => openClubRules("tournament")} />;
+        return (
+          <EventForm
+            key={manageData?.eventId ?? "new"}
+            editing={manageData}
+            options={options}
+            me={user.id}
+            onBack={() => setScreen(manageData ? "manage" : "tournaments")}
+            onSaved={(eventId, message) => {
+              setManageSaved(message);
+              if (eventId !== selectedEventId) {
+                setSelectedEventId(eventId);
+                setLive({ state: "loading" });
+              } else void reload();
+              setScreen("manage");
+            }}
+          />
+        );
+      }
+      case "extend":
+        if (!manageData || !organizer) return home();
+        return (
+          <ExtendDeadline
+            data={manageData}
+            onBack={() => setScreen("manage")}
+            onSaved={(message) => {
+              setManageSaved(message);
+              void reload();
+              setScreen("manage");
+            }}
+          />
+        );
+      case "exports":
+        if (!ready || !organizer) return home();
+        return <Exports eventId={ready.submit.eventId} onBack={() => setScreen("manage")} />;
+      case "species":
+        if (!organizer) return home();
+        return <Species backLabel="Tournaments" onBack={() => setScreen(speciesFrom)} />;
       case "clubRules":
         return (
           <ClubRules

@@ -546,6 +546,15 @@ dd {
   background: var(--cf-color-bg-success);
   color: var(--cf-color-text-success);
 }
+.event-status-draft,
+.event-status-final {
+  background: var(--cf-color-bg-neutral);
+  color: var(--cf-color-text-neutral);
+}
+.event-status-closed {
+  background: var(--cf-color-bg-warning);
+  color: var(--cf-color-text-warning);
+}
 
 /* Cards on the tournament page. */
 .card {
@@ -2718,4 +2727,298 @@ a.review-photo-image:focus-visible {
 .entries-content > :not(.entry-list) {
   margin-left: var(--cf-spacing-lg);
   margin-right: var(--cf-spacing-lg);
+}
+
+/* S4 organizer: EVT-01 Tournaments and the ORG screens (Figma Flow 9a, 9b). */
+.group-heading {
+  margin: var(--cf-spacing-xs) 0 0;
+}
+.tournament-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+}
+.tournament-card {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  width: 100%;
+  padding: var(--cf-spacing-lg) var(--cf-spacing-md) var(--cf-spacing-lg) var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tournament-card:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.tournament-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cf-spacing-xs);
+  min-width: 0;
+}
+.org-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+}
+.org-note img {
+  flex: none;
+}
+.org-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+}
+.org-content {
+  gap: var(--cf-spacing-lg);
+}
+
+/* Check row (84:512): the whole 48 px row toggles. */
+.check-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.check-group legend {
+  margin-bottom: var(--cf-spacing-xs);
+  padding: 0;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-md);
+  min-height: var(--cf-size-control-md);
+  padding: 0 var(--cf-spacing-lg);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.check-row.is-checked {
+  padding: 0 calc(var(--cf-spacing-lg) - 0.5px);
+  border: var(--cf-stroke-selected) solid var(--cf-color-border-selected);
+  background: var(--cf-color-bg-selected);
+}
+.check-row:has(input:focus-visible) {
+  box-shadow: var(--cf-focus-ring);
+}
+.check-group:disabled .check-row {
+  cursor: default;
+}
+.check-box {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-color-bg-default);
+}
+.check-row.is-checked .check-box {
+  border-color: var(--cf-color-bg-primary);
+  background: var(--cf-color-bg-primary);
+}
+
+/* Picker field (85:490): looks like a field, acts as a button. */
+.picker-field {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-sm);
+  width: 100%;
+  min-height: var(--cf-size-control-md);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-lg);
+  border: var(--cf-stroke-field) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-default);
+  color: var(--cf-color-text-default);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-field > span {
+  flex: 1;
+  min-width: 0;
+}
+.picker-field:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
+.picker-field.is-invalid {
+  border-color: var(--cf-color-border-danger);
+}
+.field-label-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--cf-spacing-sm);
+}
+
+/* Manage: the live counts and the facts. */
+.manage-counts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cf-spacing-sm);
+}
+.stat-tiles {
+  display: flex;
+  gap: var(--cf-spacing-sm);
+}
+.stat-tile {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  min-width: 0;
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-sunken);
+}
+.stat-tile p {
+  margin: 0;
+}
+.manage-facts .fact dd {
+  font-weight: 600;
+}
+
+/* The Open checklist (ORG-01a). */
+.checklist-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  padding: var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+}
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cf-spacing-sm);
+}
+.checklist-item img {
+  flex: none;
+}
+
+/* Export card (86:579): the hash in 8 groups, two per line, never wrapping unevenly. */
+.export-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+  padding: var(--cf-spacing-lg);
+  border: var(--cf-stroke-hairline) solid var(--cf-color-border-default);
+  border-radius: var(--cf-radius-lg);
+}
+.export-card h2,
+.export-card p {
+  margin: 0;
+}
+.hash-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  padding: var(--cf-spacing-sm) var(--cf-spacing-md) var(--cf-spacing-md);
+  border-radius: var(--cf-radius-md);
+  background: var(--cf-color-bg-sunken);
+}
+.hash-text {
+  display: flex;
+  flex-direction: column;
+  font-family: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: pre;
+  user-select: all;
+}
+.export-status,
+.export-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--cf-spacing-xs);
+}
+.export-status.is-success {
+  color: var(--cf-color-text-success);
+}
+.export-status.is-danger {
+  color: var(--cf-color-text-danger);
+}
+.export-preview {
+  color: var(--cf-color-text-warning);
+}
+.export-actions {
+  display: flex;
+  gap: var(--cf-spacing-sm);
+}
+.export-actions > * {
+  flex: 1;
+}
+
+/* Extend deadline (ORG-04a): the resulting deadline. */
+.result-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-2xs);
+  padding: var(--cf-spacing-md) var(--cf-spacing-lg);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-color-bg-selected);
+}
+.result-panel p {
+  margin: 0;
+}
+
+/* Species (ORG-10a). */
+.species-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.species-list li {
+  min-height: var(--cf-size-control-md);
+  padding: var(--cf-spacing-md) 0;
+  border-bottom: 1px solid var(--cf-color-border-divider);
+}
+.species-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cf-spacing-md);
+}
+@media (min-width: 64em) {
+  .species-add {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .species-add > .field {
+    flex: 1;
+  }
+  .species-add > .button {
+    margin-top: 26px;
+  }
 }

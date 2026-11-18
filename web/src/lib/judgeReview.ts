@@ -196,10 +196,12 @@ export function reviewFromRecords(input: ReviewRecords): ReviewData {
 export async function loadReview(pb: PocketBase, catchId: string, me: string, units: DisplayUnits): Promise<ReviewData> {
   const record = await pb.collection("catches").getOne(catchId, { expand: "entry,species", requestKey: null });
   const entry = record.expand?.entry as RecordModel | undefined;
-  const [event, audit, token] = await Promise.all([
+  const [event, audit] = await Promise.all([
     pb.collection("events").getOne(String(entry?.event ?? ""), { expand: "species", requestKey: null }),
     pb.collection("audit_log").getFullList({ filter: pb.filter("catch = {:id}", { id: catchId }), sort: "created", requestKey: null }),
-    pb.files.getToken({ requestKey: null }),
   ]);
+  // Once final the photos are archived (JDG-02h): no token, no URL (S4 step 9).
+  if (event.status === "final") return reviewFromRecords({ me, units, record, event, audit, photoUrl: () => "" });
+  const token = await pb.files.getToken({ requestKey: null });
   return reviewFromRecords({ me, units, record, event, audit, photoUrl: (r, name) => pb.files.getURL(r, name, { token }) });
 }

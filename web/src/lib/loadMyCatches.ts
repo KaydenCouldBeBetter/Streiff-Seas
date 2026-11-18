@@ -43,6 +43,7 @@ const DECISIONS: readonly AuditAction[] = ["approve", "reject", "correct"];
 
 /** screens.md §1 for a live event: before the window, in it, after it until submit_deadline, then over. */
 export function myCatchesPhase(tournament: LiveTournament, nowMs: number): EventPhase {
+  if (tournament.status === "closed" || tournament.status === "final") return tournament.status;
   if (nowMs < tournament.startsAt.getTime()) return "live:pre";
   if (nowMs <= tournament.submit.endsAt.getTime()) return "live:window";
   if (nowMs <= tournament.submit.submitDeadline.getTime()) return "live:late";
@@ -218,7 +219,9 @@ export async function loadMyCatches(pb: PocketBase, tournament: LiveTournament, 
     pb.collection("catches").getFullList({ filter: pb.filter("entry = {:entry}", { entry }), sort: "-created", expand: "species", requestKey: null }),
     pb.collection("audit_log").getFullList({ filter: pb.filter("catch.entry = {:entry}", { entry }), sort: "created", requestKey: null }),
   ]);
-  const token = catches.some((record) => photosOf(record).length > 0) ? await pb.files.getToken({ requestKey: null }) : "";
+  // Once final the photos are archived (and later removed from the server): no token, no URL (S4 step 9).
+  const final = tournament.status === "final";
+  const token = !final && catches.some((record) => photosOf(record).length > 0) ? await pb.files.getToken({ requestKey: null }) : "";
   return myCatchesFromRecords({
     tournament,
     nowMs,
@@ -226,6 +229,6 @@ export async function loadMyCatches(pb: PocketBase, tournament: LiveTournament, 
     people: { me: userId, judge: String(event.judge ?? ""), backupJudge: String(event.backup_judge ?? "") },
     catches,
     audit,
-    photoUrl: (record, filename) => pb.files.getURL(record, filename, { token }),
+    photoUrl: final ? () => "" : (record, filename) => pb.files.getURL(record, filename, { token }),
   });
 }
