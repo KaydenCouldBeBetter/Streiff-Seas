@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Checklist, ExportCard, Note, StatTile } from "../components/organizer";
 import { ActionBar, Banner, Button, Icon, ListLink, LiveBadge, NavBar, Overlay, Sheet, SwitchRow } from "../components/ui";
-import { loadManage, refusalCopy, retryEventChange, sendEventChange, type EventChangeResult, type ManageData } from "../lib/eventAdmin";
+import { draftAction, loadManage, refusalCopy, retryEventChange, sendEventChange, type EventChangeResult, type ManageData } from "../lib/eventAdmin";
 import { buildExports, loadExportData, type ExportFile, type ExportKind } from "../lib/exports";
 import { formatClubTime } from "../lib/format";
 import { pb } from "../lib/pb";
@@ -74,7 +74,7 @@ export function Manage({ eventId, me, onBack, onEdit, onExtend, onEntries, onExp
         )}
         {data && <ManageBody data={data} badge={<LiveBadge state={live.badge} />} onEdit={() => onEdit(data)} onExtend={() => onExtend(data)} onEntries={onEntries} onExports={onExports} />}
       </div>
-      {data && <ManageActions data={data} onStep={(next) => { setNotice(null); setStep(next); }} />}
+      {data && <ManageActions data={data} onEdit={() => onEdit(data)} onStep={(next) => { setNotice(null); setStep(next); }} />}
       {data && step && <StepSheet step={step} data={data} onCancel={() => setStep(null)} onDone={(result) => done(result, step)} onJudgeQueue={onJudgeQueue} />}
     </div>
   );
@@ -116,7 +116,10 @@ function ManageBody({ data, badge, onEdit, onExtend, onEntries, onExports }: Bod
             Only you can see this tournament. Members see it once you open it.
           </Banner>
           <Facts data={data} />
-          <Checklist items={data.checklist} />
+          <Checklist items={data.checklist} onFix={onEdit} />
+          <div className="list-links">
+            <ListLink icon="/icons/edit-link.svg" title="Edit draft" detail="Every field, until you open it" onClick={onEdit} />
+          </div>
         </>
       );
     case "live:open":
@@ -220,19 +223,14 @@ function Previews({ eventId }: { eventId: string }) {
   );
 }
 
-function ManageActions({ data, onStep }: { data: ManageData; onStep: (step: Step) => void }) {
-  if (data.phase === "draft") {
+function ManageActions({ data, onEdit, onStep }: { data: ManageData; onEdit: () => void; onStep: (step: Step) => void }) {
+  const draft = draftAction(data);
+  if (draft) {
     return (
       <ActionBar>
-        {data.canOpen ? (
-          <Button variant="primary" large onClick={() => onStep("open")}>
-            Open tournament
-          </Button>
-        ) : (
-          <Button variant="primary" large disabled>
-            Fix these to open
-          </Button>
-        )}
+        <Button variant="primary" large onClick={draft.kind === "open" ? () => onStep("open") : onEdit}>
+          {draft.label}
+        </Button>
       </ActionBar>
     );
   }

@@ -125,6 +125,15 @@ export function openChecklist(event: RecordModel): ChecklistItem[] {
   return items;
 }
 
+/**
+ * The action bar of a draft (ORG-01a): Open once the checklist is met, otherwise the form to finish
+ * it (ORG-02b), never a disabled button (P11). Null when the tournament isn't a draft.
+ */
+export function draftAction(data: Pick<ManageData, "phase" | "canOpen">): { kind: "open" | "edit"; label: string } | null {
+  if (data.phase !== "draft") return null;
+  return data.canOpen ? { kind: "open", label: "Open tournament" } : { kind: "edit", label: "Finish the draft" };
+}
+
 export function eventFormFromRecord(event: RecordModel): EventForm {
   return {
     name: String(event.name ?? ""),
