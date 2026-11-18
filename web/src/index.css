@@ -2924,6 +2924,32 @@ a.review-photo-image:focus-visible {
 .checklist-item img {
   flex: none;
 }
+/* A "To do" row opens the tournament form (ORG-02b). */
+.checklist-fix {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  min-height: var(--cf-size-control-lg);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.checklist-fix > .t-callout {
+  flex: 1;
+}
+.checklist-fix:active {
+  background: var(--cf-color-bg-sunken);
+}
+.checklist-fix:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
 
 /* Export card (86:579): the hash in 8 groups, two per line, never wrapping unevenly. */
 .export-card {
