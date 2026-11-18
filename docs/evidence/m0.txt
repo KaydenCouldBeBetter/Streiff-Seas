@@ -128,6 +128,37 @@ streiffseas.com -> http://127.0.0.1:8090, still the hand-installed PocketBase (O
     only, no automatic reboot) unchanged. The 48 pending packages upgraded by hand, then
     pct reboot 110: apt list --upgradable -> 0.
 
+22. First deploy to prod, interim path (decisions.md 2026-11-17 "Interim: deploy a locally
+    built bundle"), 2026-11-18 06:34 UTC. Prepared CT 110 per docs/drafts/ops-md-m0-05b.md E:
+    user scoreboard; /etc/scoreboard/ENVIRONMENT prod; deploy.env -rw------- root root;
+    /usr/local/sbin/scoreboard-deploy -rwxr-xr-x; pb_data drwxr-x--- scoreboard; scoreboard
+    enabled; the old pocketbase.service disabled and stopped first (it held 127.0.0.1:8090).
+    On Kayden's Fedora machine (Node v24.18.0), on main: scripts/make-bundle.sh ->
+    bundles/567acbb74ea23e67504313d5127102b761ece860/bundle.tar.gz,
+    sha256 c4418c802c817335694355dd21372545f61133127e9ea994d580f6e9b632a4a1 (npm run check green).
+    Copied to the host (scp), then pct push into CT 110. scoreboard-deploy --bundle /root/bundle:
+      WARNING: a locally built bundle; its on-main check was made only when it was built
+      bundle sha256 c4418c80...b632a4a1 ok          (the same as make-bundle printed)
+      bundle is commit 567acbb74ea23e67504313d5127102b761ece860
+      PocketBase 0.40.4 verified
+      backing up pb_data to /var/backups/scoreboard/pre-deploy-567acbb...-20261118T063448Z.tar.zst
+      current -> releases/567acbb...; starting scoreboard
+      smoke test passed: https://streiffseas.com runs 567acbb74ea23e67504313d5127102b761ece860
+    Prod runs a build that no CI tested (decisions.md 2026-11-17, Open item 21).
+    In a private window, signed in through Access: https://streiffseas.com shows the app's
+    sign-in screen (the 404 of check 18 is gone).
+
+23. Open item 11: the hand install was /opt/pocketbase (current -> releases/v0.40.4, its own
+    pb_data owned by a pocketbase user) and /etc/systemd/system/pocketbase.service. Removed
+    after check 22 was green: rm -rf both, daemon-reload, userdel pocketbase. No data kept.
+    pct exec 110 -- ls /opt -> scoreboard
+
+24. Prod superuser (M0-06 step 6, first half): created through PocketBase's one-time installer
+    link from journalctl -u scoreboard (valid 30 minutes), opened as https://streiffseas.com/_/#/pbinstall/...
+    behind the admin Access app. The link is printed with http://127.0.0.1:8090: opened as
+    printed on the desktop it reached the local dev PocketBase instead, which refused it (403).
+    MFA not on yet: it needs SMTP for the emailed code (Phase 4).
+
 ## Still to record for the M0 gate
 
 - Network isolation for the staging LXC, once built: from staging, a LAN host, the

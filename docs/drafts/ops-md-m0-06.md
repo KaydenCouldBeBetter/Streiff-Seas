@@ -53,6 +53,18 @@ Add a line under §12 "Other superuser actions" (or wherever `/_/` is first used
 > to the `Scoreboard admin` app, but its API calls go through `Scoreboard`; signed in to only the
 > first, the admin page says "Something went wrong" (`m0.txt` check 18).
 
+## §12 Superuser: creating the first one on a new `pb_data`
+
+Add under "Other superuser actions":
+
+> On a new, empty `pb_data` (the first deploy, or after a restore into a new container),
+> PocketBase prints a one-time setup link valid 30 minutes:
+> `pct exec <CT> -- journalctl -u scoreboard --no-pager | grep -o 'http[^ ]*pbinstal[^ ]*' | tail -1`.
+> It's printed with `http://127.0.0.1:8090`: replace that with `https://streiffseas.com` (or
+> `https://staging.streiffseas.com`) before opening it, signed in to Access at `/` first. Opened
+> as printed on a desktop that runs a dev PocketBase, it reaches that one and fails with 403.
+> If it has expired, `systemctl restart scoreboard` prints a new one. Then turn on MFA (§14).
+
 ## §15 Setup status
 
 | Item | Status | Evidence / notes |
