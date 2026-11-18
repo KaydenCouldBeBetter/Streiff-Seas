@@ -18,7 +18,7 @@ export function LiveCheck({ onSignOut }: { onSignOut: () => void }) {
   const { data, badge } = useLive(loadBoard);
 
   useEffect(() => {
-    document.title = "Live check · Chromie Fishing";
+    document.title = "Live check · Streiff Seas";
   }, []);
 
   return (

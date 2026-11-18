@@ -39,7 +39,7 @@ export function Entries({ eventId, me, onBack }: Props) {
   }, [read]);
 
   useEffect(() => {
-    document.title = `Entries${data ? ` · ${data.eventName}` : ""} · Chromie Fishing`;
+    document.title = `Entries${data ? ` · ${data.eventName}` : ""} · Streiff Seas`;
   }, [data]);
 
   return (

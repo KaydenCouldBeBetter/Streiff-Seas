@@ -48,7 +48,7 @@ describe("new-device sign-in alert", () => {
     const users = await pocketbase().superuser.collections.getOne("users");
 
     expect(users.authAlert.enabled).toBe(true);
-    expect(users.authAlert.emailTemplate.subject).toBe("New sign-in to Chromie Fishing");
+    expect(users.authAlert.emailTemplate.subject).toBe("New sign-in to Streiff Seas");
     expect(users.authAlert.emailTemplate.body).toContain("Secure your email account, then talk to a club organizer or admin.");
     expect(users.authAlert.emailTemplate.body).not.toMatch(/password/i);
   });
@@ -65,7 +65,7 @@ describe("new-device sign-in alert", () => {
 
     expect(alert?.to).toEqual([email]);
     const text = decodedText(alert!);
-    expect(text).toContain("We noticed a sign-in to your Chromie Fishing account from a new device or location");
+    expect(text).toContain("We noticed a sign-in to your Streiff Seas account from a new device or location");
     expect(text).toContain("Phone-B/2.0");
     expect(text).toContain("If this was you, you don't need to do anything.");
     expect(text).toContain("someone may have access to your email, because sign-in codes go there");

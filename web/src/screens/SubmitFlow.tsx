@@ -53,7 +53,7 @@ export function SubmitFlow({ tournament, sender, onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    document.title = `${TITLES[phase.kind]} · Chromie Fishing`;
+    document.title = `${TITLES[phase.kind]} · Streiff Seas`;
   }, [phase.kind]);
 
   // Leaving while the catch hasn't landed warns (decisions.md 2026-10-02).

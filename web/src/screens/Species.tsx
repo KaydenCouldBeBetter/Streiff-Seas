@@ -38,7 +38,7 @@ export function Species({ backLabel, onBack }: Props) {
 
   useEffect(() => {
     void read();
-    document.title = "Species · Chromie Fishing";
+    document.title = "Species · Streiff Seas";
   }, [read]);
 
   async function add() {

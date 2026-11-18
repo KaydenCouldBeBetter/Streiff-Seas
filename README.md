@@ -1,4 +1,4 @@
-# Chromie Fishing
+# Streiff Seas
 
 Members-only live leaderboard for the club's six-week fishing tournaments: anglers submit catches with two proof photos, the judge approves or rejects them, and standings update live on phones.
 

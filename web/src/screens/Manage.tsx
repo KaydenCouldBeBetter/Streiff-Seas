@@ -47,7 +47,7 @@ export function Manage({ eventId, me, onBack, onEdit, onExtend, onEntries, onExp
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; title: string; message: string } | null>(saved ? { tone: "success", title: "Saved", message: saved } : null);
 
   useEffect(() => {
-    document.title = `Manage${data ? ` · ${data.name}` : ""} · Chromie Fishing`;
+    document.title = `Manage${data ? ` · ${data.name}` : ""} · Streiff Seas`;
   }, [data]);
 
   function done(result: EventChangeResult, what: Step) {

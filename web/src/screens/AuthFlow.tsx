@@ -52,11 +52,11 @@ function savePending(pending: PendingCode | null): void {
 
 // Signed in, MemberApp titles each screen.
 const TITLES: Record<Exclude<Step["kind"], "signedIn">, string> = {
-  starting: "Chromie Fishing",
-  ended: "Session ended · Chromie Fishing",
-  signin: "Sign in · Chromie Fishing",
-  signup: "Create an account · Chromie Fishing",
-  code: "Enter code · Chromie Fishing",
+  starting: "Streiff Seas",
+  ended: "Session ended · Streiff Seas",
+  signin: "Sign in · Streiff Seas",
+  signup: "Create an account · Streiff Seas",
+  code: "Enter code · Streiff Seas",
 };
 
 export function AuthFlow() {

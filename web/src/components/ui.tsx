@@ -52,7 +52,7 @@ export function usePreloadedIcons(paths: readonly string[]): void {
 export function Brand() {
   return (
     <div className="brand">
-      <p className="t-title-large">Chromie Fishing</p>
+      <p className="t-title-large">Streiff Seas</p>
       <p className="t-callout t-secondary">Club scoreboard · members only</p>
     </div>
   );

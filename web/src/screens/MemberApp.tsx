@@ -394,7 +394,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       : screen === "withdraw" ? "Withdraw"
       : (MY_CATCH_SCREENS.includes(screen) || screen === "leaderboard") && ready ? `${TITLES[screen as keyof typeof TITLES]} · ${view.name}`
       : TITLES[screen as keyof typeof TITLES];
-    document.title = `${title} · Chromie Fishing`;
+    document.title = `${title} · Streiff Seas`;
     window.scrollTo(0, 0);
   }, [screen, anglerRow, ready, view.name]);
 

@@ -32,7 +32,7 @@ export function ExtendDeadline({ data, onBack, onSaved }: Props) {
   );
 
   useEffect(() => {
-    document.title = `Extend deadline · ${data.name} · Chromie Fishing`;
+    document.title = `Extend deadline · ${data.name} · Streiff Seas`;
   }, [data.name]);
 
   const whole = /^\d+$/.test(hours) ? Number(hours) : null;

@@ -40,7 +40,7 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
       </a>
       <nav className="side-nav" aria-label="Main">
         <div className="side-nav-brand">
-          <p className="t-title-section">Chromie Fishing</p>
+          <p className="t-title-section">Streiff Seas</p>
           <p className="t-footnote t-secondary">Club scoreboard</p>
         </div>
 

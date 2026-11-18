@@ -152,7 +152,7 @@ function JudgeHome({ me, units, onTab, onOpenQueue, onOpenCatch }: Props & { onO
   }, [read]);
 
   useEffect(() => {
-    document.title = "Judging · Chromie Fishing";
+    document.title = "Judging · Streiff Seas";
   }, []);
 
   const count = sections?.length ?? 0;
@@ -240,7 +240,7 @@ function QueueFlow(props: QueueFlowProps) {
   const selectedId = catchId ?? (expanded ? (items[0]?.id ?? null) : null);
 
   useEffect(() => {
-    if (queue) document.title = `Judge queue · ${queue.eventName} · Chromie Fishing`;
+    if (queue) document.title = `Judge queue · ${queue.eventName} · Streiff Seas`;
   }, [queue]);
 
   if (!expanded && catchId) {

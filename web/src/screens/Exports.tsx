@@ -32,7 +32,7 @@ export function Exports({ eventId, onBack }: Props) {
         if (!current) return;
         setFiles(built);
         setState("ready");
-        document.title = `Exports · ${String(data.event.name)} · Chromie Fishing`;
+        document.title = `Exports · ${String(data.event.name)} · Streiff Seas`;
       })
       .catch(() => current && setState("error"));
     return () => {

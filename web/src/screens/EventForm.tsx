@@ -66,7 +66,7 @@ export function EventForm({ editing, options, me, onBack, onSaved }: Props) {
   const title = status === "new" ? "New tournament" : status === "draft" ? "Edit draft" : status === "live" ? "Edit live tournament" : "Edit closed tournament";
 
   useEffect(() => {
-    document.title = `${title} · Chromie Fishing`;
+    document.title = `${title} · Streiff Seas`;
   }, [title]);
 
   // Leaving a NOT SENT form asks first (responsive spec 231:5828).

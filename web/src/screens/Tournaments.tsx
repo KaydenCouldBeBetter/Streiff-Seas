@@ -47,14 +47,14 @@ export function Tournaments({ me, units, organizer, onOpen, onNewTournament, onS
   }, [read]);
 
   useEffect(() => {
-    document.title = "Tournaments · Chromie Fishing";
+    document.title = "Tournaments · Streiff Seas";
   }, []);
 
   const empty = data && data.live.length === 0 && data.past.length === 0 && (!organizer || data.drafts.length === 0);
 
   return (
     <div className="screen tab-screen screen-wide">
-      <LargeNavBar title="Tournaments" subtitle="Chromie Fishing club" />
+      <LargeNavBar title="Tournaments" subtitle="Streiff Seas club" />
       <div className="screen-content tournament-list">
         {failed && !data && (
           <EmptyState
