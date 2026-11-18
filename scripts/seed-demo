@@ -1,0 +1,435 @@
+#!/usr/bin/env bash
+# Seeds demo data for grading on a fresh prod (or staging) PocketBase: fake anglers, one live
+# tournament with weeks of catches and a judge queue, and two past final tournaments
+# (decisions.md 2026-11-18 "Demo data on prod for grading"; Open item 23). Kayden runs it once,
+# inside the container, after pushing it and a folder of fish photos there:
+#
+#   seed-demo --superuser <email> --photos <dir> [--judge <organizer email>]
+#
+# --photos: a folder of JPEGs, 5 MB or less each, at least 2 (10 to 30 is plenty). Every catch
+# gets two of them, taken in turn, through the normal upload: the catches hook strips every photo
+# with exiftool, so prod must have exiftool, as it must for real catches.
+# --judge: an existing organizer who judges the live tournament, so their account has a real
+# judge queue. Without it a fake organizer judges.
+#
+# How (decisions.md 2026-11-18): the superuser signs in (password, then the emailed code when MFA
+# is on; both read from the terminal, never from argv), makes the fake users, then acts as each of
+# them through PocketBase's superuser-only impersonate endpoint, so creating and opening the
+# tournaments, joining, judging, retracting, withdrawing, closing and finalizing all go through
+# the real API rules and hooks and write their audit rows. Two things only the superuser does:
+# it creates the catches (as pending, with capture times spread over past weeks and no flags, so
+# a back-dated catch isn't flagged late), and it moves a past tournament's dates into the past
+# before it is closed (the clock is the one thing faked, as in test/closeFinalize.test.ts).
+#
+# It runs once, on a fresh install: it refuses if any tournament exists. Nothing can be deleted
+# through the API, so the way back is a fresh pb_data (the wipe in decisions.md Open item 23).
+# It talks to PocketBase on 127.0.0.1:8090 directly. Needs curl, jq and GNU date.
+set -euo pipefail
+
+ETC="${SCOREBOARD_ETC:-/etc/scoreboard}"
+PB="${SCOREBOARD_PB_URL:-http://127.0.0.1:8090}"
+MAX_PHOTO_BYTES=5242880
+CLUB_TZ=America/New_York
+
+die() {
+  echo "seed-demo: $*" >&2
+  exit 1
+}
+usage() {
+  echo "usage: seed-demo --superuser <email> --photos <dir> [--judge <organizer email>]" >&2
+  exit 2
+}
+say() {
+  echo "seed-demo: $*"
+}
+
+superuser=""
+photos=""
+judge_email=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --superuser | --photos | --judge)
+      [ $# -ge 2 ] || usage
+      case "$1" in
+        --superuser) superuser="$2" ;;
+        --photos) photos="$2" ;;
+        --judge) judge_email="$2" ;;
+      esac
+      shift
+      ;;
+    *) usage ;;
+  esac
+  shift
+done
+[ -n "$superuser" ] && [ -n "$photos" ] || usage
+
+[ -f "$ETC/ENVIRONMENT" ] || die "$ETC/ENVIRONMENT is missing"
+environment="$(head -n 1 "$ETC/ENVIRONMENT" | tr -d '[:space:]')"
+case "$environment" in
+  prod | staging) ;;
+  *) die "refused: $ETC/ENVIRONMENT says '$environment'; this runs on prod or staging only" ;;
+esac
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+# --- the photo pool: checked and copied before anything is sent -------------------------------
+
+[ -d "$photos" ] || die "--photos: $photos is not a folder"
+pool=()
+while IFS= read -r -d '' file; do
+  size="$(stat -c %s "$file")"
+  [ "$size" -le "$MAX_PHOTO_BYTES" ] || die "refused: $file is over 5 MB"
+  [ "$(head -c 3 "$file" | od -An -tx1 | tr -d ' \n')" = ffd8ff ] || die "refused: $file is not a JPEG"
+  # Copied under a plain name, so no file name reaches a curl argument or PocketBase.
+  copy="$work/pool-${#pool[@]}.jpg"
+  cp "$file" "$copy"
+  pool+=("$copy")
+done < <(find "$photos" -maxdepth 1 -type f -print0 | sort -z)
+[ "${#pool[@]}" -ge 2 ] || die "refused: --photos needs at least 2 JPEGs (found ${#pool[@]})"
+say "${#pool[@]} photos in the pool"
+
+# --- API calls ----------------------------------------------------------------------------------
+
+token=""
+status=""
+
+# One API call as $token: the body goes to $work/out and the HTTP status to $status. Bodies come
+# as files or pipes, so no secret reaches a command line.
+api() { # <method> <path> [curl args...]
+  local method="$1" route="$2"
+  shift 2
+  status="$(curl -sS -o "$work/out" -w '%{http_code}' -X "$method" \
+    -H @<(printf 'Content-Type: application/json\n'; if [ -n "$token" ]; then printf 'Authorization: %s\n' "$token"; fi) \
+    "$@" "$PB$route")" || die "can't reach PocketBase at $PB"
+}
+# The same, JSON body on stdin; anything but 200 stops the script (also from inside a pipeline).
+api_json() { # <method> <path>
+  api "$1" "$2" --data-binary @-
+  [ "$status" = 200 ] || die "$1 $2 answered $status: $(cat "$work/out")"
+}
+# A GET whose answer must be 200.
+api_get() { # <path> [curl args...]
+  api GET "$@"
+  [ "$status" = 200 ] || die "GET $1 answered $status: $(cat "$work/out")"
+}
+
+# --- sign in as the superuser (password, then the emailed code when MFA is on) ------------------
+
+if [ -t 0 ]; then printf 'Superuser password: ' >&2; fi
+IFS= read -rs password || die "no password given"
+if [ -t 0 ]; then echo >&2; fi
+
+api POST /api/collections/_superusers/auth-with-password \
+  --data-binary @<(printf '%s' "$password" | jq -Rs --arg identity "$superuser" '{identity: $identity, password: .}')
+password=""
+if [ "$status" = 401 ] && [ -n "$(jq -r '.mfaId // empty' "$work/out")" ]; then
+  mfa_id="$(jq -r '.mfaId' "$work/out")"
+  jq -n --arg email "$superuser" '{email: $email}' | api_json POST /api/collections/_superusers/request-otp
+  otp_id="$(jq -r '.otpId // empty' "$work/out")"
+  [ -n "$otp_id" ] || die "PocketBase sent no otpId"
+  if [ -t 0 ]; then printf 'MFA is on: the code emailed to %s: ' "$superuser" >&2; fi
+  IFS= read -r code || die "no code given"
+  api POST /api/collections/_superusers/auth-with-otp \
+    --data-binary @<(printf '%s' "$code" | jq -Rs --arg otp "$otp_id" --arg mfa "$mfa_id" '{otpId: $otp, password: ., mfaId: $mfa}')
+fi
+[ "$status" = 200 ] || die "superuser sign-in refused ($status)"
+super_token="$(jq -r '.token // empty' "$work/out")"
+[ -n "$super_token" ] || die "superuser sign-in gave no token"
+token="$super_token"
+say "signed in as $superuser ($environment)"
+
+as_super() {
+  token="$super_token"
+}
+# Act as a user: a short impersonation token from the superuser, kept for the run.
+declare -A TOKENS=()
+as_user() { # <user id>
+  if [ -z "${TOKENS[$1]:-}" ]; then
+    token="$super_token"
+    jq -n '{duration: 3600}' | api_json POST "/api/collections/users/impersonate/$1"
+    TOKENS[$1]="$(jq -r '.token // empty' "$work/out")"
+    [ -n "${TOKENS[$1]}" ] || die "impersonating $1 gave no token"
+  fi
+  token="${TOKENS[$1]}"
+}
+
+# --- once only, on a fresh install -------------------------------------------------------------
+
+api_get /api/collections/events/records -G --data-urlencode "perPage=1"
+existing="$(jq -r '.totalItems' "$work/out")"
+[ "$existing" = 0 ] || die "refused: $existing tournament(s) already exist; demo data goes on a fresh install only"
+api_get /api/collections/users/records -G --data-urlencode 'filter=email ~ "demo-%@example.com"' --data-urlencode "perPage=1"
+existing="$(jq -r '.totalItems' "$work/out")"
+[ "$existing" = 0 ] || die "refused: $existing demo user(s) already exist from an earlier run; start again from a fresh pb_data"
+
+judge_id=""
+if [ -n "$judge_email" ]; then
+  api_get /api/collections/users/records -G --data-urlencode "filter=email = \"${judge_email//\"/}\"" --data-urlencode "perPage=1"
+  [ "$(jq -r '.totalItems' "$work/out")" = 1 ] || die "refused: --judge $judge_email is not a user"
+  [ "$(jq -r '.items[0].role' "$work/out")" = organizer ] || die "refused: --judge $judge_email is not an organizer"
+  judge_id="$(jq -r '.items[0].id' "$work/out")"
+fi
+
+# --- the fake users ------------------------------------------------------------------------------
+
+# Twelve anglers and two organizers. Nobody signs in as them: example.com takes no mail, and the
+# script acts as them by impersonation only.
+ANGLER_NAMES=("Avery M." "Blake R." "Casey L." "Devin H." "Emery S." "Finley T." "Harper W." "Jesse K." "Logan P." "Morgan D." "Quinn B." "Riley C.")
+ORGANIZER_NAMES=("Dana F." "Sam O.")
+
+make_user() { # <name> <role> <units>; prints the new id
+  local name="$1" role="$2" units="$3" slug secret
+  slug="$(printf '%s' "${name%% *}" | tr '[:upper:]' '[:lower:]')"
+  secret="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  jq -n --arg email "demo-$slug@example.com" --arg name "$name" --arg role "$role" --arg units "$units" --arg pw "$secret" \
+    '{email: $email, emailVisibility: false, verified: true, name: $name, role: $role, display_units: $units, password: $pw, passwordConfirm: $pw}' |
+    api_json POST /api/collections/users/records
+  jq -r '.id' "$work/out"
+}
+
+as_super
+ANGLERS=()
+for i in "${!ANGLER_NAMES[@]}"; do
+  units=lb
+  if [ $((i % 3)) = 2 ]; then units=lb_oz; fi
+  ANGLERS+=("$(make_user "${ANGLER_NAMES[$i]}" member "$units")")
+done
+DANA="$(make_user "${ORGANIZER_NAMES[0]}" organizer lb)"
+SAM="$(make_user "${ORGANIZER_NAMES[1]}" organizer lb)"
+say "made ${#ANGLERS[@]} demo anglers and 2 demo organizers (demo-<name>@example.com)"
+
+# --- species -------------------------------------------------------------------------------------
+
+as_super
+api_get /api/collections/species/records -G --data-urlencode 'filter=name = "largemouth bass" || name = "smallmouth bass"' --data-urlencode 'sort=name'
+[ "$(jq '.items | length' "$work/out")" = 2 ] || die "the seeded species (largemouth bass, smallmouth bass) are missing"
+LARGEMOUTH="$(jq -r '.items[0].id' "$work/out")"
+SMALLMOUTH="$(jq -r '.items[1].id' "$work/out")"
+api_get /api/collections/species/records -G --data-urlencode 'filter=name = "walleye"'
+WALLEYE="$(jq -r '.items[0].id // empty' "$work/out")"
+if [ -z "$WALLEYE" ]; then
+  as_user "$SAM"
+  jq -n '{name: "walleye"}' | api_json POST /api/collections/species/records
+  WALLEYE="$(jq -r '.id' "$work/out")"
+  say "added species walleye (as ${ORGANIZER_NAMES[1]})"
+fi
+
+# --- time ----------------------------------------------------------------------------------------
+
+RANDOM=20261118 # every run makes the same catches, relative to today
+now="$(date +%s)"
+iso() { # <epoch seconds>
+  date -u -d "@$1" +%Y-%m-%dT%H:%M:%S.000Z
+}
+club_at() { # <YYYY-MM-DD> <HH:MM>; prints epoch seconds of that club-time moment
+  TZ="$CLUB_TZ" date -d "$1 $2" +%s
+}
+club_day() { # <YYYY-MM-DD> <days to add>
+  # No time of day in the expression: GNU date would read "12:00 -28" as a zone offset.
+  TZ="$CLUB_TZ" date -d "$1 $2 days" +%F
+}
+club_year() { # <YYYY-MM-DD>
+  printf '%s' "${1%%-*}"
+}
+
+# The live tournament opened on the Sunday four weeks before this week's; each runs six weeks,
+# 6:00 AM on a Sunday to 8:00 PM on the Sunday six weeks on (the Figma sample's shape).
+today="$(TZ="$CLUB_TZ" date +%F)"
+this_sunday="$(club_day "$today" "-$(TZ="$CLUB_TZ" date +%w)")"
+live_start_day="$(club_day "$this_sunday" -28)"
+walleye_start_day="$(club_day "$live_start_day" -84)"
+summer_start_day="$(club_day "$live_start_day" -140)"
+
+# --- tournaments --------------------------------------------------------------------------------
+
+declare -A ENTRY=()
+EVENT_ID=""
+
+# The organizer (Sam) makes a draft and opens it: events_create enters the judge and backup judge
+# with their join rows, events_update checks the Open checklist and writes the open row.
+open_tournament() { # <name> <metric> <best_n> <judge id> <backup id> <starts epoch> <ends epoch> <species json> <code word>
+  as_user "$SAM"
+  jq -n --arg name "$1" --arg metric "$2" --argjson best "$3" --arg judge "$4" --arg backup "$5" \
+    --arg starts "$(iso "$6")" --arg ends "$(iso "$7")" --argjson species "$8" --arg word "$9" '{
+    name: $name, status: "draft", metric: $metric, best_n: $best, judge: $judge, backup_judge: $backup,
+    starts_at: $starts, ends_at: $ends, species: $species, code_word_on: ($word != ""), code_word: $word
+  }' | api_json POST /api/collections/events/records
+  EVENT_ID="$(jq -r '.id' "$work/out")"
+  jq -n '{status: "live"}' | api_json PATCH "/api/collections/events/records/$EVENT_ID"
+  say "tournament $1: opened by ${ORGANIZER_NAMES[1]} ($EVENT_ID)"
+}
+
+join() { # <angler index>
+  as_user "${ANGLERS[$1]}"
+  jq -n --arg event "$EVENT_ID" --arg angler "${ANGLERS[$1]}" '{event: $event, angler: $angler}' |
+    api_json POST /api/collections/entries/records
+  ENTRY["$EVENT_ID:$1"]="$(jq -r '.id' "$work/out")"
+}
+
+# A plausible hour to be fishing: mostly early morning and evening.
+HOURS=(5 6 6 6 7 7 7 8 8 9 10 11 12 14 16 17 18 18 19 19)
+
+catch_file=""
+photo_next=0
+
+# One catch, created by the superuser as pending: two pool photos (stripped by the hook), a
+# capture time on a given day of the window, and the measurement.
+add_catch() { # <angler index> <club day> <species id> <metric> <value>
+  local angler="$1" day="$2" species="$3" metric="$4" value="$5" hour minute at first second
+  hour="${HOURS[$((RANDOM % ${#HOURS[@]}))]}"
+  minute=$((RANDOM % 60))
+  at="$(club_at "$day" "$(printf '%02d:%02d' "$hour" "$minute")")"
+  # Never in the future, and never inside the last hour (a fresh catch is still pending anyway).
+  if [ "$at" -gt $((now - 3600)) ]; then at=$((now - 3600 - RANDOM % 7200)); fi
+  first="${pool[$((photo_next % ${#pool[@]}))]}"
+  second="${pool[$(((photo_next + 1) % ${#pool[@]}))]}"
+  photo_next=$((photo_next + 2))
+  as_super
+  status="$(curl -sS -o "$work/out" -w '%{http_code}' -X POST \
+    -H @<(printf 'Authorization: %s\n' "$token") \
+    --form-string "entry=${ENTRY["$EVENT_ID:$angler"]}" \
+    --form-string "species=$species" \
+    --form-string "$([ "$metric" = weight ] && echo weight_hoz || echo length_q)=$value" \
+    --form-string "captured_at=$(iso "$at")" \
+    --form-string "photo_captured_at=$(jq -cn --arg a "$(iso "$at")" --arg b "$(iso $((at + 90)))" '[$a, $b]')" \
+    --form-string "client_uuid=$(cat /proc/sys/kernel/random/uuid)" \
+    --form-string "status=pending" \
+    --form-string "rev=1" \
+    --form-string "flags=[]" \
+    -F "photo=@$first;type=image/jpeg;filename=photo-1.jpg" \
+    -F "photo=@$second;type=image/jpeg;filename=photo-2.jpg" \
+    "$PB/api/collections/catches/records")" || die "can't reach PocketBase at $PB"
+  [ "$status" = 200 ] || die "creating a catch answered $status: $(cat "$work/out")"
+  printf '%s %s %s %s\n' "$at" "$(jq -r '.id' "$work/out")" "$angler" "$value" >>"$catch_file"
+}
+
+# A fish of the tournament's kind, into FISH_SPECIES and FISH_VALUE: weights in hundredths of an
+# ounce (largemouth 1.5 to 6.5 lb, smallmouth 1 to 4 lb), lengths in quarter inches (15 to 27 in).
+# RANDOM is only ever read in this shell, never in a $(...) subshell, which bash reseeds.
+FISH_SPECIES=""
+FISH_VALUE=0
+fish() { # <metric>
+  if [ "$1" = length ]; then
+    FISH_SPECIES="$WALLEYE" FISH_VALUE=$((60 + RANDOM % 48))
+  elif [ $((RANDOM % 10)) -lt 7 ]; then
+    FISH_SPECIES="$LARGEMOUTH" FISH_VALUE=$((2400 + RANDOM % 8000))
+  else
+    FISH_SPECIES="$SMALLMOUTH" FISH_VALUE=$((1600 + RANDOM % 4800))
+  fi
+}
+
+# Each listed angler joins and logs <min> to <max> catches on random days of the window so far.
+fish_window() { # <metric> <first club day> <days> <min> <max> <angler index...>
+  local metric="$1" first="$2" days="$3" min="$4" max="$5" a n k offset
+  shift 5
+  for a in "$@"; do join "$a"; done
+  for a in "$@"; do
+    n=$((min + RANDOM % (max - min + 1)))
+    for ((k = 0; k < n; k++)); do
+      offset=$((RANDOM % days))
+      fish "$metric"
+      add_catch "$a" "$(club_day "$first" "$offset")" "$FISH_SPECIES" "$metric" "$FISH_VALUE"
+    done
+  done
+}
+
+REASONS=(
+  "The fish isn't on the measuring board in the photo."
+  "The code word isn't in the photo."
+  "The scale's display can't be read in the photo."
+  "This is the same fish as an earlier catch."
+  "The photo shows a different species."
+)
+
+# The judge decides the catches oldest first, the way they came in over the weeks. Every 11th
+# is rejected with a reason, one is corrected, and every 17th was retracted by its angler before
+# the judge got to it. The newest <keep> are left pending: the judge queue.
+judge_window() { # <judge id> <metric> <keep pending>
+  local judge="$1" metric="$2" keep="$3" i=0 n at id angler value field fixed reason
+  n="$(wc -l <"$catch_file")"
+  while read -r at id angler value; do
+    if [ "$i" -ge $((n - keep)) ]; then
+      break
+    elif [ $((i % 17)) = 9 ]; then
+      as_user "${ANGLERS[$angler]}"
+      jq -n '{status: "retracted", rev: 1}' | api_json PATCH "/api/collections/catches/records/$id"
+    elif [ $((i % 11)) = 5 ]; then
+      as_user "$judge"
+      reason="${REASONS[$((i / 11 % ${#REASONS[@]}))]}"
+      jq -n --arg reason "$reason" '{status: "rejected", reason: $reason, rev: 1}' | api_json PATCH "/api/collections/catches/records/$id"
+    elif [ "$i" = 3 ]; then
+      as_user "$judge"
+      if [ "$metric" = weight ]; then
+        field=weight_hoz fixed=$((value - 160)) reason="The scale in the photo reads 0.10 lb less."
+      else
+        field=length_q fixed=$((value - 2)) reason="The board in the photo reads half an inch shorter."
+      fi
+      jq -n --arg field "$field" --argjson fixed "$fixed" --arg reason "$reason" '{($field): $fixed, reason: $reason, rev: 1}' |
+        api_json PATCH "/api/collections/catches/records/$id"
+    else
+      as_user "$judge"
+      jq -n '{status: "verified", rev: 1}' | api_json PATCH "/api/collections/catches/records/$id"
+    fi
+    i=$((i + 1))
+  done < <(sort -n "$catch_file")
+}
+
+# A past tournament: fished and judged while its window was open (it stays open until a day
+# from now so the anglers can join), then the superuser moves the end and the deadline back to
+# their real dates, and the organizer closes and finalizes it.
+past_tournament() { # <name> <metric> <best_n> <species json> <first club day> <angler index...>
+  local name="$1" metric="$2" best="$3" species="$4" first="$5" starts ends
+  shift 5
+  starts="$(club_at "$first" 06:00)"
+  ends="$(club_at "$(club_day "$first" 42)" 20:00)"
+  open_tournament "$name" "$metric" "$best" "$DANA" "$SAM" "$starts" $((now + 86400)) "$species" ""
+  catch_file="$work/catches-$EVENT_ID"
+  : >"$catch_file"
+  fish_window "$metric" "$first" 43 2 5 "$@"
+  judge_window "$DANA" "$metric" 0
+  as_super
+  jq -n --arg ends "$(iso "$ends")" --arg due "$(iso $((ends + 86400)))" '{ends_at: $ends, submit_deadline: $due}' |
+    api_json PATCH "/api/collections/events/records/$EVENT_ID"
+  as_user "$SAM"
+  jq -n '{status: "closed"}' | api_json PATCH "/api/collections/events/records/$EVENT_ID"
+  jq -n '{status: "final"}' | api_json PATCH "/api/collections/events/records/$EVENT_ID"
+  say "tournament $name: $(wc -l <"$catch_file") catches judged, closed and finalized"
+}
+
+past_tournament "Summer Bass $(club_year "$summer_start_day")" weight 5 "[\"$LARGEMOUTH\", \"$SMALLMOUTH\"]" "$summer_start_day" 0 1 2 3 4 5 6 7 8 9
+past_tournament "Walleye Open $(club_year "$walleye_start_day")" length 3 "[\"$WALLEYE\"]" "$walleye_start_day" 2 3 4 5 6 7 8 9 10 11
+
+# The live one: judged by --judge (or Dana), backed up by Dana (or Sam), code word on.
+live_judge="${judge_id:-$DANA}"
+live_backup="$DANA"
+if [ -z "$judge_id" ]; then live_backup="$SAM"; fi
+live_name="Fall Bass $(club_year "$live_start_day")"
+open_tournament "$live_name" weight 5 "$live_judge" "$live_backup" \
+  "$(club_at "$live_start_day" 06:00)" "$(club_at "$(club_day "$live_start_day" 42)" 20:00)" \
+  "[\"$LARGEMOUTH\", \"$SMALLMOUTH\"]" "OAK"
+catch_file="$work/catches-$EVENT_ID"
+: >"$catch_file"
+live_days=$(((now - $(club_at "$live_start_day" 00:00)) / 86400 + 1))
+fish_window weight "$live_start_day" "$live_days" 2 8 0 1 2 3 4 5 6 7 8 9 10 11
+judge_window "$live_judge" weight 8
+# One angler steps out: their entry is withdrawn, so their catches leave the board.
+as_user "${ANGLERS[11]}"
+jq -n '{withdrawn: true}' | api_json PATCH "/api/collections/entries/records/${ENTRY["$EVENT_ID:11"]}"
+say "tournament $live_name: $(wc -l <"$catch_file") catches, ${ANGLER_NAMES[11]} withdrew"
+
+# --- summary -----------------------------------------------------------------------------------
+
+as_super
+api_get /api/collections/events/records -G --data-urlencode 'sort=starts_at'
+jq -r '.items[] | "\(.id) \(.status) \(.name)"' "$work/out" >"$work/events"
+while read -r id state name; do
+  counts=""
+  for s in verified pending rejected retracted; do
+    api_get /api/collections/catches/records -G --data-urlencode "filter=entry.event = \"$id\" && status = \"$s\"" --data-urlencode "perPage=1"
+    counts="$counts $s $(jq -r '.totalItems' "$work/out")"
+  done
+  say "$name ($state):$counts"
+done <"$work/events"
+say "done. Demo users are demo-<name>@example.com; nobody can sign in as them."
+say "The wipe before tournament #1 is a fresh pb_data (nothing can be deleted through the API)."

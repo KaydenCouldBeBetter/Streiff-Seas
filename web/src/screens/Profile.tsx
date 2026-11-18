@@ -2,17 +2,19 @@
 // who you are, your stats, your past results, your settings and your account, on a tab screen.
 //
 // Settings are real: the name and display units save to PocketBase (R-USR-U-01, U-06, U-07), the
-// name follows to the member's entries on the server. The stats are sample data until M0-03
-// opens the reads and scoring.ts (S2a) works out each final's place (lib/sampleProfile.ts).
+// name follows to the member's entries on the server. The stats are read from PocketBase by
+// lib/loadProfileStats.ts (the member's own entries and catches; each final's place by scoring.ts).
 // Appearance (PRF-01g, Figma "Dark mode" section): a Dark mode switch that applies at once and is
 // remembered on this phone only (lib/theme.ts); it is not part of Save.
-// Not live (Gap 25): the stats refresh when the screen opens and on focus, once they are real.
+// Not live (Gap 25): the stats refresh when the screen opens and on focus. While the first read
+// is out the stats say "Loading…"; a failed first read offers Try again, a failed refresh keeps
+// what was shown under "Not up to date" (the Tournaments list's states; decisions.md 2026-11-18).
 //
 // A save that gets no reply shows NOT SENT with Retry and keeps the fields locked
 // (decisions.md 2026-10-05 "No reply on any change"); no Figma frame draws it, so it reuses the
 // SUB-02c banner (proposed as PRF-01d in docs/decisions.md).
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RecordModel } from "pocketbase";
 import { BestTile, IdentityCard, StatusCountsCard } from "../components/profile";
 import { StatsChart, readChart } from "../components/statsChart";
@@ -31,7 +33,8 @@ import {
   type ProfileDraft,
   type SaveOutcome,
 } from "../lib/profile";
-import { computeStats, type ChartId, type MeasureFormat, type ProfileStatsInput, type StatsScope } from "../lib/profileStats";
+import { PROFILE_FORMAT, type ProfileStatsData } from "../lib/loadProfileStats";
+import { computeStats, type ChartId, type StatsScope } from "../lib/profileStats";
 import { APPEARANCE_COPY } from "../lib/theme";
 import { setTheme, useTheme } from "../lib/themeStore";
 import type { MemberTab } from "./memberTabs";
@@ -39,10 +42,8 @@ import { MemberTabBar } from "./MemberTabBar";
 
 interface Props {
   user: RecordModel;
-  stats: ProfileStatsInput;
-  /** The club-time year the "Season" option names. */
-  season: number;
-  format: MeasureFormat;
+  /** Reads the stats (lib/loadProfileStats.ts); called on open, on focus and on Try again. */
+  loadStats: () => Promise<ProfileStatsData>;
   onSave: (changes: ProfileChanges) => Promise<SaveOutcome>;
   onRetry: (changes: ProfileChanges) => Promise<SaveOutcome>;
   /** The saved record, so the whole app shows the new name and units. */
@@ -55,7 +56,29 @@ interface Props {
 
 type Notice = { kind: "saved"; title: string; message: string } | { kind: "not-sent"; changes: ProfileChanges };
 
-export function Profile({ user, stats: statsInput, season, format, onSave, onRetry, onUserChange, onTab, onSignOut, onClubRules }: Props) {
+export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab, onSignOut, onClubRules }: Props) {
+  const [data, setData] = useState<ProfileStatsData | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const read = useCallback(async () => {
+    try {
+      setData(await loadStats());
+      setFailed(false);
+    } catch {
+      // A failed refresh keeps the stats already shown.
+      setFailed(true);
+    }
+  }, [loadStats]);
+
+  useEffect(() => {
+    void read();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void read();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [read]);
+
   const saved = useMemo(() => savedProfile(user), [user]);
   const [draft, setDraft] = useState<ProfileDraft>(saved);
   const [nameProblem, setNameProblem] = useState<string | null>(null);
@@ -66,11 +89,12 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
   const theme = useTheme();
 
   const units = unitsOf(user);
-  const stats = useMemo(() => computeStats(statsInput, scope, season, units, format), [statsInput, scope, season, units, format]);
+  const stats = useMemo(() => (data ? computeStats(data.input, scope, data.season, units, PROFILE_FORMAT) : null), [data, scope, units]);
   const changes = profileChanges(saved, draft);
   const dirty = hasChanges(changes);
   const locked = sending || notice?.kind === "not-sent";
-  const roles = [...(user.role === "organizer" ? [roleLabel(user.role)] : []), ...statsInput.judging.map((j) => `${j.role} · ${j.eventName}`)];
+  const roles = [...(user.role === "organizer" ? [roleLabel(user.role)] : []), ...(data?.input.judging ?? []).map((j) => `${j.role} · ${j.eventName}`)];
+  const unread = failed ? "Couldn't load this. Check your signal and try again." : "Loading…";
 
   async function send(run: () => Promise<SaveOutcome>, sent: ProfileChanges) {
     setSending(true);
@@ -106,22 +130,40 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
           <h2 id="stats-heading" className="t-title-section">
             Your stats
           </h2>
-          <SegmentedToggle
-            labelledBy="stats-heading"
-            options={[
-              { id: "season", label: `Season ${season}` },
-              { id: "all", label: "All time" },
-            ]}
-            selected={scope}
-            onSelect={setScope}
-          />
-          <div className="best-tiles">
-            <BestTile label="Heaviest fish" tile={stats.heaviest} />
-            <BestTile label="Longest fish" tile={stats.longest} />
-          </div>
-          <StatsChart stats={stats} chart={chart} onChart={setChart} />
-          <StatusCountsCard counts={stats.counts} />
-          <p className="t-footnote t-secondary">Bests, charts and counted fish use verified catches only.</p>
+          {failed && data && (
+            <Banner tone="warning" title="Not up to date">
+              Couldn't refresh your stats. They show what was there before.
+            </Banner>
+          )}
+          {!stats || !data ? (
+            <>
+              <p className="t-body t-secondary">{unread}</p>
+              {failed && (
+                <Button variant="secondary" onClick={() => void read()}>
+                  Try again
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <SegmentedToggle
+                labelledBy="stats-heading"
+                options={[
+                  { id: "season", label: `Season ${data.season}` },
+                  { id: "all", label: "All time" },
+                ]}
+                selected={scope}
+                onSelect={setScope}
+              />
+              <div className="best-tiles">
+                <BestTile label="Heaviest fish" tile={stats.heaviest} />
+                <BestTile label="Longest fish" tile={stats.longest} />
+              </div>
+              <StatsChart stats={stats} chart={chart} onChart={setChart} />
+              <StatusCountsCard counts={stats.counts} />
+              <p className="t-footnote t-secondary">Bests, charts and counted fish use verified catches only.</p>
+            </>
+          )}
         </section>
 
         <section className="profile-section profile-section-tight" aria-labelledby="past-heading">
@@ -129,7 +171,9 @@ export function Profile({ user, stats: statsInput, season, format, onSave, onRet
             Past results
           </h2>
           <p className="t-footnote t-secondary">Every final tournament you fished, newest first.</p>
-          {stats.past.length === 0 ? (
+          {!stats ? (
+            <p className="t-callout t-secondary">{unread}</p>
+          ) : stats.past.length === 0 ? (
             <p className="t-callout t-secondary">None yet</p>
           ) : (
             <div className="list-links">

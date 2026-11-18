@@ -16,8 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import type { RecordModel } from "pocketbase";
 import { pb } from "../lib/pb";
 import { checkSession } from "../lib/auth";
+import { loadProfileStats } from "../lib/loadProfileStats";
 import { retrySave, roleLabel, saveProfile } from "../lib/profile";
-import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampleProfile";
 import { loadLeaderboard, type LeaderboardData } from "../lib/leaderboard";
 import { loadAnglerCatches, type AnglerCatchesData } from "../lib/loadAnglerCatches";
 import { useLive } from "../lib/useLive";
@@ -296,6 +296,9 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       setMine((previous) => (previous.state === "ready" ? previous : { state: "error" }));
     }
   }, [ready, user.id, units]);
+
+  // Profile's stats (PRF-01c), read by the screen itself on open and on focus.
+  const loadStats = useCallback(() => loadProfileStats(pb, user.id, serverNowMs()), [user.id]);
 
   // Each time My catches opens (not on every move within it), and whenever the tournament reloads.
   useEffect(() => {
@@ -826,10 +829,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         return (
           <Profile
             user={user}
-            // TODO(M0-03, S2a): the stats are sample data until the member's own entries and catches can be read.
-            stats={SAMPLE_PROFILE_STATS}
-            season={SAMPLE_SEASON}
-            format={SAMPLE_FORMAT}
+            loadStats={loadStats}
             onSave={(changes) => saveProfile(pb, user.id, changes)}
             onRetry={(changes) => retrySave(pb, user.id, changes)}
             onUserChange={onUserChange}

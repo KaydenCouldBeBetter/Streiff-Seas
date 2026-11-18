@@ -271,5 +271,19 @@
       "Left for later: real reads for the stats (M0-03), places from scoring.ts (S2a), the Judge tab (JDG-00), RULES-01a, LB-01g"
     ],
     "passes": true
+  },
+  {
+    "id": "DEMO-01-grading-data",
+    "description": "Demo data on prod for grading (decisions.md Open item 23 and its 2026-11-18 row): scripts/seed-demo for a fresh prod or staging, and real Profile stats in place of lib/sampleProfile.ts",
+    "steps": [
+      "scripts/seed-demo runs on prod or staging only, once (refuses if any tournament or demo user exists), reads the superuser password and MFA code from stdin, and checks the photo pool (2 or more JPEGs, 5 MB or less each) before sending anything",
+      "It makes 12 fake anglers and 2 fake organizers (demo-<name>@example.com), one live weight tournament with a judge queue of 8, rejected, retracted and corrected catches and one withdrawn entry, and two final tournaments (weight and length); --judge makes an existing organizer the live judge",
+      "Create, open, join, judge, retract, withdraw, close and finalize go through the real rules and hooks as each fake user (superuser impersonation); the superuser only creates the catches (pending, no flags) and moves a past tournament's dates back; every photo goes through the exiftool strip",
+      "test/seedDemo.test.ts runs the script against a harness PocketBase with superuser MFA: the refusals, the tournaments and their statuses, one audit row per change by the right actor, no GPS left in a stored photo from gps.jpg in the pool, no email but the superuser's code, and a refused second run",
+      "Profile stats read from PocketBase (web/src/lib/loadProfileStats.ts) through the existing read rules, each final's place by scoring.ts; loading, failed and stale states; MemberApp no longer imports lib/sampleProfile.ts; test/loadProfileStats.test.ts against the fixture world",
+      "decisions.md 2026-11-18 'Demo data on prod for grading' row; the ops steps drafted in docs/drafts/ops-md-demo-seed.md for Kayden",
+      "npm run check output shown"
+    ],
+    "passes": true
   }
 ]
