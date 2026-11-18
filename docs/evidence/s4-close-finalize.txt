@@ -1,0 +1,26 @@
+S4-finalize step 11: the ops.md §9 "Close and finalize" checklist, walked once against a seeded tournament
+Generated 2026-11-17 on the dev machine by:
+    npx vitest run test/closeFinalize.test.ts --silent=false
+Binary: pocketbase 0.40.4 (POCKETBASE_VERSION). A throwaway PocketBase booted from pb_migrations/ and pb_hooks/ with the
+security.md fixture world, then a new tournament made through the app's own calls (web/src/lib/eventAdmin.ts,
+judgeDecision.ts, exports.ts, loadMyCatches.ts) and scripts/archive-event.sh on that server's own pb_data
+(sqlite3 = the node:sqlite shim, exiftool 13.50, GNU sha256sum).
+Faked: the clock. "Time passes" is the superuser moving ends_at and submit_deadline into the past (the superuser
+passes the events hooks unchecked); nothing else is set by hand. Ids and hashes change on every run (record ids are random).
+Not run here (host or phone steps): the post-finalize backup, the laptop pull, FREEZE and the apt timers, and the
+iPhone share sheet / copy on Exports. The UI side of the same path was walked in headless Chrome on 2026-11-17
+(progress.md, S4 screens entry).
+
+setup: "Walk Bass 2027" (6aegphaa1k4b7iw) created as a draft by K, opened; M joined; 3 catches pending (M 3 lb 7 oz, M 2 lb 8 oz, K 3 lb 12 oz)
+1. outage 2 h 20 min after the window closed → K extended to a 3 h total while live: deadline ends_at + 27 h, ends_at unchanged; Y joined and submitted during the extension, flagged after_window; a repeated 3 h total is already saved
+2. close before the final deadline refused (close_too_early); after it, K closed the tournament
+3. finalize refused with 4 pending (3 for the judge, 1 for the backup judge); K approved M's two, rejected Y's late fish with a reason; K's own was refused to K and approved by N; 0 pending
+4. previews built while closed: walk-bass-2027-results.csv (2 rows), walk-bass-2027-audit.csv (16 rows)
+5. K finalized; any change afterwards is refused (final)
+6. exports: walk-bass-2027-results.csv fabd8811aada96aba01387b47495991906e674b7a44928df3d8b80632e24ebff; walk-bass-2027-audit.csv 88bcc599cecb6e99afb51900bcd7fb12ae8a5d72543135ab00a20a6e1cbe9cec (17 audit rows: one open, two event_edit (the draft's dates, the extension), one close, one finalize); results equal the leaderboard (M 1st 5.94 lb, K 2nd 3.75 lb); the same data gives the same hashes
+7. post-finalize backup: host step, not run here
+8. archive-event.sh copy: 8 photos, manifest 668544a447d1386265f254330353bad9360bfe1f649b342bb607592528c16161; desktop verify printed the same hash; remove with it deleted the 8 originals from storage; My catches asks for no file token ("Photo archived")
+9. laptop pull and verify: host step, not run here (the same verify command)
+10. remove FREEZE, start the apt timers: host step, not run here
+
+Found while walking: none needed a code change. The draft's own date edit is an event_edit row too, so the audit CSV holds two.

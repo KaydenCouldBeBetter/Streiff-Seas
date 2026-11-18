@@ -85,3 +85,12 @@ export function formatClubClock(at: Date): string {
 export function sameClubDay(a: Date, b: Date): boolean {
   return CLUB_DAY.format(a) === CLUB_DAY.format(b);
 }
+
+const CLUB_DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric" });
+
+/** A club calendar day: "Sun, Jul 4" (Figma EVT-01b tournament card). */
+export function formatClubDay(at: Date): string {
+  const part: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const { type, value } of CLUB_DATE.formatToParts(at)) part[type] = value;
+  return `${part.weekday}, ${part.month} ${part.day}`;
+}

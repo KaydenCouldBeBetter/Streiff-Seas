@@ -2,7 +2,7 @@
 // opened from their leaderboard row (Figma 60:2831), read by lib/loadAnglerCatches.ts when the
 // page opens and on focus (Gap 25); each card opens LB-03, the catch detail. Never shown here: their rejected or retracted catches, for
 // any viewer (LB-02c), or flag codes.
-// TODO(LB-02b): once the event is final, pass `archived` to the cards ("Photo archived").
+// LB-02b: once the event is final, the cards show "Photo archived" and no photo is requested.
 
 import type { ReactNode } from "react";
 import { CatchCard } from "../components/catch";
@@ -28,9 +28,11 @@ interface Props {
   onTab: (tab: MemberTab) => void;
   /** From 1024 px the selected catch sits beside the list (LB-02 and LB-03 in one view, Figma 223:2611). */
   split?: { selectedId: string; detail: ReactNode };
+  /** The event is final (LB-02b): "Photo archived" in place of every thumbnail. */
+  archived?: boolean;
 }
 
-export function AnglerCatches({ row, unit, bestN, catches, status, onRetry, onOpen, onBack, onTab, split }: Props) {
+export function AnglerCatches({ row, unit, bestN, catches, status, onRetry, onOpen, onBack, onTab, split, archived = false }: Props) {
   const shown = newestFirst(shownOnAnglerPage(catches));
   const facts = anglerFacts(row, unit, bestN, shown.length);
   return (
@@ -66,7 +68,8 @@ export function AnglerCatches({ row, unit, bestN, catches, status, onRetry, onOp
             <li key={item.id}>
               <CatchCard
                 selected={split?.selectedId === item.id}
-                thumbnailUrl={item.photos[0]?.url ?? null}
+                thumbnailUrl={item.photos[0]?.url || null}
+                archived={archived}
                 value={item.measurement.value}
                 unit={item.measurement.unit}
                 title={item.species}

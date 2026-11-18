@@ -5,8 +5,8 @@
 
 export interface TournamentView {
   name: string;
-  /** events.status: EVT-02d is the live:window row, so always live here. */
-  status: "live";
+  /** events.status: the sample is EVT-02d, a live tournament; the real one may be any status (S4). */
+  status: "draft" | "live" | "closed" | "final";
   /** "Weight · best 10 · Largemouth and smallmouth": metric, best_n and species names. */
   rulesLine: string;
   /** The fishing window opens (events.starts_at). */
