@@ -255,7 +255,7 @@
       "archive-event.sh, run on a seeded copy: copies every photo of the event with a sha256 manifest, stops if any file has location metadata, and removes files from pb_data only after the desktop copy's manifest verifies, never through the API (invariant 6)",
       "npm run check output shown; the ops.md 'Close and finalize' checklist walked once against a seeded event"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "PRF-01-profile",
