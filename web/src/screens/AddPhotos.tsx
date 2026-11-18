@@ -11,6 +11,7 @@ import { notSentMessage } from "../lib/changeCopy";
 import { photoSlotName, type Metric } from "../lib/catchForm";
 import { MAX_PHOTOS, type MyCatchView } from "../lib/myCatches";
 import type { PreparedPhoto } from "../lib/sendCatch";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   item: MyCatchView;
@@ -42,10 +43,9 @@ export function AddPhotos({ item, base, metric, prepare, send, onDone, onCancel 
   // Prepared once and kept, so Retry sends the same files.
   const prepared = useRef<PreparedPhoto[] | null>(null);
   const urls = useRef<string[]>([]);
-  const live = useRef(true);
+  const live = useLiveRef();
   useEffect(
     () => () => {
-      live.current = false;
       for (const url of urls.current) URL.revokeObjectURL(url);
     },
     [],

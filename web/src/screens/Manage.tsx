@@ -4,7 +4,7 @@
 // The counts update live (Gap 25: useLive); everything else is read with them. Preconditions show
 // as text, never as a silently disabled button (P11).
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Checklist, ExportCard, Note, StatTile } from "../components/organizer";
 import { ActionBar, Banner, Button, Icon, ListLink, LiveBadge, NavBar, Overlay, Sheet, SwitchRow } from "../components/ui";
 import { loadManage, refusalCopy, retryEventChange, sendEventChange, type EventChangeResult, type ManageData } from "../lib/eventAdmin";
@@ -14,6 +14,7 @@ import { pb } from "../lib/pb";
 import { serverNowMs } from "../lib/serverClock";
 import { useBreakpoint } from "../lib/useBreakpoint";
 import { useLive } from "../lib/useLive";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   eventId: string;
@@ -274,13 +275,7 @@ function StepSheet({ step, data, onCancel, onDone, onJudgeQueue }: StepSheetProp
   const wide = useBreakpoint() !== "compact";
   const [phase, setPhase] = useState<Phase>("form");
   const [checked, setChecked] = useState(false);
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
   const blocked = step === "finalize" && data.counts.pending > 0;
   const body = { status: STATUS_FOR[step] };
 
