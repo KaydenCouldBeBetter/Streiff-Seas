@@ -106,6 +106,28 @@ streiffseas.com -> http://127.0.0.1:8090, still the hand-installed PocketBase (O
     admin login showed normally. Not signed in: it's the old install (Open item 11).
     For ops.md section 9: sign in at the site before opening /_/.
 
+19. M0-06 step 2, tunnel token in prod (pct exec 110, from the Proxmox host):
+    cloudflared.service: ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run
+    --token-file /etc/cloudflared/token (no token on the command line; runs as root).
+    drwxr-xr-x root root /etc/cloudflared
+    -rw------- root root /etc/cloudflared/token
+    Tunnel streiffserver Healthy, 1 replica, cloudflared 2026.10.0 (Zero Trust dashboard).
+
+20. Open item 12 (decisions.md 2026-11-18): in CT 110, apt purge openssh-server postfix, then
+    autoremove --purge (removed ssh, openssh-server, postfix; nothing else). Postfix's master
+    kept 127.0.0.1:25 open until pct reboot 110. After the reboot:
+    pct exec 110 -- ss -tlnp
+      127.0.0.1:8090   pocketbase
+      127.0.0.1:20241  cloudflared (metrics)
+    Nothing on :22 or :25. cloudflared and pocketbase both active after the reboot.
+
+21. Patching (ops.md section 6) in CT 110: unattended-upgrades was not installed (not-found).
+    Installed, dpkg-reconfigure -plow -> Yes. /etc/apt/apt.conf.d/20auto-upgrades:
+    Update-Package-Lists "1", Unattended-Upgrade "1"; unattended-upgrades enabled;
+    apt-daily.timer and apt-daily-upgrade.timer scheduled. Debian's default origins (security
+    only, no automatic reboot) unchanged. The 48 pending packages upgraded by hand, then
+    pct reboot 110: apt list --upgradable -> 0.
+
 ## Still to record for the M0 gate
 
 - Network isolation for the staging LXC, once built: from staging, a LAN host, the
