@@ -32,6 +32,38 @@ const SPECIES_READ = '@request.auth.id != ""';
 // S1 (migration 1794843247_users_read_rule.js): the security.md "users" List / view block.
 const USERS_READ = ['@request.auth.id != "" &&', '(id = @request.auth.id || @request.auth.role = "organizer")'].join("\n");
 const EVENTS_READ = ['@request.auth.id != "" &&', '(status != "draft" || @request.auth.role = "organizer")'].join("\n");
+// S4 (migration 1794961618_events_write_rules.js): the security.md "events" Create and Update blocks.
+const EVENTS_CREATE = [
+  '@request.auth.role = "organizer" &&',
+  '@request.body.status = "draft" &&',
+  "@request.body.submit_deadline:isset = false &&",
+  "@request.body.deadline_ext_min:isset = false &&",
+  "@request.body.code_word_prev:isset = false &&",
+  "@request.body.code_word_changed_at:isset = false &&",
+  "@request.body.judge != @request.body.backup_judge &&",
+  'judge.role = "organizer"',
+].join("\n");
+const EVENTS_UPDATE = [
+  '@request.auth.role = "organizer" &&',
+  'status != "final" &&',
+  "@request.body.submit_deadline:isset = false &&",
+  '(@request.body.deadline_ext_min:isset = false || status = "live") &&',
+  "@request.body.code_word_prev:isset = false &&",
+  "@request.body.code_word_changed_at:isset = false &&",
+  '(status = "draft" || (',
+  "  @request.body.metric:changed = false &&",
+  "  @request.body.best_n:changed = false &&",
+  "  @request.body.species:changed = false &&",
+  "  @request.body.starts_at:changed = false &&",
+  "  @request.body.judge:changed = false",
+  ")) &&",
+  '(status != "closed" || (',
+  "  @request.body.name:changed = false &&",
+  "  @request.body.code_word_on:changed = false &&",
+  "  @request.body.code_word:changed = false &&",
+  "  @request.body.ends_at:changed = false",
+  "))",
+].join("\n");
 const ENTRIES_READ = [
   '@request.auth.id != "" &&',
   'event.status != "draft" &&',
@@ -188,9 +220,11 @@ const RULES: Record<CollectionName, Record<RuleName, string | null>> = {
       "@request.body.emailVisibility:isset = false",
   },
   // R-SPC-L-01 to L-03 (security.md v0.9 text; opened by M0-03, Kayden's call 2026-11-13).
-  species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ },
-  // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line).
-  events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ },
+  // R-SPC-C-01, C-02 (security.md, S4 step 2): the organizer adds a species.
+  species: { ...LOCKED, listRule: SPECIES_READ, viewRule: SPECIES_READ, createRule: '@request.auth.role = "organizer"' },
+  // R-EVT-L-01 to L-03, R-EVT-V-01 (security.md v0.9 text, line for line); R-EVT-C-01 to C-10 and
+  // R-EVT-U-01 to U-29 (S4 steps 1 to 5): the organizer creates and edits tournaments.
+  events: { ...LOCKED, listRule: EVENTS_READ, viewRule: EVENTS_READ, createRule: EVENTS_CREATE, updateRule: EVENTS_UPDATE },
   // R-ENT-L-01 to L-06; R-ENT-C-01 to C-08 (self-join, S1 step 1); R-ENT-U-01 to U-14 (withdraw and rejoin, S1 step 4).
   entries: { ...LOCKED, listRule: ENTRIES_READ, viewRule: ENTRIES_READ, createRule: ENTRIES_CREATE, updateRule: ENTRIES_UPDATE },
   // R-CAT-L-01 to L-08, L-10 to L-12, R-CAT-V-01; R-CAT-C-01 to C-23 (submit, S1 step 2);

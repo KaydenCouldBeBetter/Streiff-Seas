@@ -13,8 +13,14 @@
 //
 // The row's actor is the angler: through the API the rule makes the angler the caller, and the
 // only other creator is the superuser, whose audit rows would otherwise have no actor to name.
+// The one exception is an automatic entry made by the events hooks (the judge and backup judge,
+// R-EVT-C-08, U-17, U-19): they leave the actor (the organizer, or "" for the superuser) in
+// $app.store() under event_lib.js's joinActorKey, and the row names them instead.
 onRecordCreate((e) => {
   const angler = e.record.getString("angler")
+  const lib = require(`${__hooks}/event_lib.js`)
+  const actorKey = lib.joinActorKey(e.record.getString("event"), angler)
+  const actor = $app.store().has(actorKey) ? $app.store().get(actorKey) : angler
 
   if (e.record.getString("display_name") === "") {
     // A missing user is the validation's to refuse (angler is a required relation), not ours.
@@ -28,7 +34,7 @@ onRecordCreate((e) => {
   e.next()
 
   const audit = new Record(e.app.findCollectionByNameOrId("audit_log"))
-  audit.set("actor", angler)
+  audit.set("actor", actor)
   audit.set("action", "join")
   audit.set("event", e.record.getString("event"))
   audit.set("target_id", e.record.id)

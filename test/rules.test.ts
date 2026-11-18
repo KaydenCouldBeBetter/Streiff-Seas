@@ -690,22 +690,6 @@ describe("live reads (M0-03)", () => {
       expect(listed).toEqual(expect.arrayContaining(rowsOf("E1.Y.rejected", "E1.Y.retracted")));
     });
 
-    // Last of the audit tests: it makes S the judge of E1 for a moment and puts K back. The
-    // superuser sets the fields directly, which is what the R-EVT-U-19 step-down leaves behind
-    // (no events hook exists yet; S3 tests the step-down itself in its own file).
-    it("R-AUD-L-08: after a step-down makes S the judge of E1, S lists every row of every E1 catch", async () => {
-      const events = pocketbase().superuser.collection("events");
-      try {
-        await events.update(world.events.E1.id, { judge: users.S.id, backup_judge: users.N.id });
-
-        const expected = rowsOfCatches(catchIds(({ event }) => event === "E1"));
-        expect(await listedWorldRows("S", e1())).toEqual(expected);
-        expect(expected).toEqual(expect.arrayContaining(rowsOf("E1.Y.rejected", "E1.M.rejected", "E1.W.pending")));
-        // Still no event or entry rows: S isn't an organizer.
-        expect((await all(await as("S"), "audit_log")).filter((row) => row.catch === "")).toEqual([]);
-      } finally {
-        await events.update(world.events.E1.id, { judge: users.K.id, backup_judge: users.S.id });
-      }
-    });
+    // R-AUD-L-08 is in test/stepDown.test.ts, after the real R-EVT-U-19 step-down (S4 step 6).
   });
 });
