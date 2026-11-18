@@ -159,6 +159,65 @@ streiffseas.com -> http://127.0.0.1:8090, still the hand-installed PocketBase (O
     printed on the desktop it reached the local dev PocketBase instead, which refused it (403).
     MFA not on yet: it needs SMTP for the emailed code (Phase 4).
 
+## SMTP, proxy header, rate limits, MFA (2026-11-18, Kayden; DNS checked by Claude Code)
+
+25. Resend (free tier: 100 emails a day, 3,000 a month, reset at 00:00 UTC). Domain
+    streiffseas.com added and verified, sending on, receiving off. Records in Cloudflare DNS,
+    checked with dig +short @1.1.1.1 (and @8.8.8.8 for _dmarc):
+      TXT   resend._domainkey  "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC1NKbM5V1TGa98..."
+      CNAME rsend              rsend.forge.rmta.net. (SPF include:amazonses.com,
+                               MX 10 feedback-smtp.us-east-1.amazonses.com)
+      CNAME send               send.forge.rmta.net. (its own SPF and MX)
+      TXT   _dmarc             "v=DMARC1; p=none;"
+    Resend now asks for two CNAMEs for SPF, not the MX and TXT its older guides show.
+    API key: Sending access, limited to streiffseas.com (the domain list offers only
+    "All domains" until the domain is verified).
+
+26. Prod Mail settings: sender "Streiff Seas" <noreply@streiffseas.com>; SMTP
+    smtp.resend.com:465, username resend, password the API key, TLS always, AUTH PLAIN,
+    EHLO streiffseas.com. (The form defaulted to "Auto (StartTLS)"; with 465 that would hang,
+    so it was changed before saving.) Send test email, Verification template, to Kayden's
+    Gmail: arrived. Show original: SPF PASS, DKIM PASS, DMARC PASS.
+
+27. Prod Application settings: name "Streiff Seas" (Kayden's call: the whole app is to be
+    rebranded from Chromie Fishing, Open item 22). Application URL was http://localhost:8090,
+    set to https://streiffseas.com.
+    IP proxy headers, before: "Resolved user IP: 127.0.0.1, Detected proxy header:
+    CF-Connecting-IP". Trusted header first saved as CF-Connecting_IP (typo): still 127.0.0.1.
+    Saved as CF-Connecting-IP, IP priority "Use rightmost IP": the resolved IP became Kayden's
+    public IP. PocketBase listens only on 127.0.0.1:8090 (check 20), so only cloudflared can
+    set the header, and Cloudflare overwrites any client copy.
+
+28. Sign-up and code email. Prod's users collection was empty. Sign-in with an Access-listed
+    email that had no users record: the app showed the code screen and nothing was sent
+    (R-USR-A-02, as designed; Resend logged nothing). Then AUTH-03 "Create an account" in the
+    app: the code arrived, sign-in worked and opened the Tournaments page; users record
+    "Kayden Streiff", verified true, created 2026-11-18 16:11:25Z. A second test member,
+    added to club-members first, signed up the same way (M0-06 step 6).
+
+29. Superuser MFA: _superusers options, OTP on and MFA on. Logged out and back in at /_/:
+    password, then an emailed code to the superuser address; signed in.
+    Access gotcha, seen twice in Safari private windows: /_/ showed "Something went wrong" or
+    a blank "Superuser login" with no form. Console: GET
+    /api/collections/_superusers/auth-methods redirected to
+    streiffseas.cloudflareaccess.com/cdn-cgi/access/login/streiffseas.com?kid=9fbf0f85...
+    (the Scoreboard app, check 15), "Blocked by Content Security Policy". The admin page's
+    /api/ calls belong to the Scoreboard app and that tab wasn't signed in there. Opening
+    /api/health in the same tab (Access PIN, then the health JSON) and reloading /_/ fixed it.
+
+30. Rate limiting on, PocketBase's defaults kept (*:auth 2 per 3 s, *:create 20 per 5 s,
+    /api/batch 3 per 1 s, /api/ 300 per 10 s), plus, all users, per IP:
+      /api/collections/users/request-otp     3 per 60 s
+      /api/collections/users/auth-with-otp   5 per 60 s
+      users:create                           3 per 60 s
+    Checked from the Safari console on a tab signed in to Access (no service token on this
+    Mac), requests back to back, nothing sent or created:
+      request-otp, unknown email x4:   200 200 200 429
+      auth-with-otp, fake otpId x6:    400 400 429 429 429 429 (*:auth, 2 per 3 s, trips
+                                       first; the 5-per-60-s rule alone isn't shown)
+      users create, empty body x4:     400 400 400 429
+    Whether a code is invalidated after failed tries (ops.md section 14) isn't checked yet.
+
 ## Still to record for the M0 gate
 
 - Network isolation for the staging LXC, once built: from staging, a LAN host, the
