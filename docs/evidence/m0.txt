@@ -77,11 +77,39 @@ Every deny row has a control from the Proxmox host showing the target answers th
     (pocketbase.service, /opt/pocketbase/releases/v0.40.4) listens on 127.0.0.1:8090; sshd on
     *:22 and Postfix on 127.0.0.1:25 run in prod.
 
+## Access (2026-11-18, Kayden; curl from his Fedora desktop, browser checks in private windows)
+
+Setup: Zero Trust team streiffseas (streiffseas.cloudflareaccess.com), Free plan. App
+"Scoreboard" on streiffseas.com: policies Members (Allow, Email List club-members) and
+Uptime probe (Service Auth, Service Token uptime-probe); One-time PIN only, instant auth,
+1-week session; no Bypass. App "Scoreboard admin" on streiffseas.com/_/: policy Kayden only
+(Allow, his email); One-time PIN only. Tunnel streiffserver (cloudflared 2026.10.0) route
+streiffseas.com -> http://127.0.0.1:8090, still the hand-installed PocketBase (Open item 11).
+
+15. X-ACC-02, no cookie or token:
+    GET /api/health -> 302 https://streiffseas.cloudflareaccess.com/cdn-cgi/access/login/streiffseas.com?kid=9fbf0f85...
+    GET /_/         -> 302 https://streiffseas.cloudflareaccess.com/cdn-cgi/access/login/streiffseas.com?kid=131d5735...
+    Never PocketBase. The two kid (aud) values differ: /_/ is held by the separate admin app.
+
+16. X-ACC-03, with the uptime-probe service token headers:
+    GET /api/health -> {"message":"API is healthy.","code":200,"data":{}}
+    GET /_/         -> 403 (the probe token is refused by the admin app)
+
+17. X-ACC-01: an email not in club-members entered at the PIN page; no code ever arrived.
+
+18. X-ACC-04: a test member on the list got a code and reached PocketBase on /
+    (a 404 from the old install, which serves no app). The same member at /_/ was refused
+    by the admin app. Kayden's own email at /_/ got a code and reached PocketBase's admin
+    page, which then showed "Something went wrong": not an Access failure. The /_/ page is
+    the admin app's, but its /api/ calls are the Scoreboard app's, and that window wasn't
+    signed in there. Signed in at / first (his email is also in club-members), then /_/: the
+    admin login showed normally. Not signed in: it's the old install (Open item 11).
+    For ops.md section 9: sign in at the site before opening /_/.
+
 ## Still to record for the M0 gate
 
 - Network isolation for the staging LXC, once built: from staging, a LAN host, the
   Proxmox UI and the prod LXC unreachable; from the dev VM, staging unreachable.
-- X-ACC-01 to X-ACC-04 (Access checks, security.md).
 - X-ACC-05: 15-minute idle soak through the named tunnel, catch appears within 5 s,
   recovers after phone lock and unlock.
 - Backup reaches B2 and restores; Healthchecks alert reaches the phone.
