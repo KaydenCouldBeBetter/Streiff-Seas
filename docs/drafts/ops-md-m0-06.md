@@ -9,7 +9,9 @@ Kayden has.
 
 - **Prod container:** "Own bridge `vmbr1`" stays; add "(a host-routed bridge, not a VLAN;
   decisions.md 2026-11-18). No `sshd` or Postfix: access is `pct exec` from the host."
-- **cloudflared:** Version `2026.10.0`. Notes: "Named tunnel `streiffserver`, route
+- **cloudflared:** Version `2026.11.1` (2026.10.0 until the hand `apt upgrade` of 2026-11-18;
+  unattended-upgrades takes Debian security updates only, so cloudflared moves only by hand,
+  as §6 wants). Notes: "Named tunnel `streiffserver`, route
   `streiffseas.com` → `http://127.0.0.1:8090`. `cloudflared.service` runs
   `tunnel run --no-autoupdate --token-file /etc/cloudflared/token` as root."
 - **Cloudflare Access app, whole hostname:** "App `Scoreboard` on `streiffseas.com`, team
