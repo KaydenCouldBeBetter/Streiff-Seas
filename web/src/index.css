@@ -523,6 +523,13 @@ dd {
   padding: var(--cf-spacing-sm) var(--cf-spacing-lg) var(--cf-spacing-md);
   background: var(--cf-color-bg-default);
 }
+/* The back link sits above the large title, as wide as its label (not the push bar's 112 px). */
+.nav-bar-large .nav-bar-large-back {
+  width: auto;
+  max-width: 100%;
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--cf-spacing-2xs));
+}
 .nav-bar-large-title {
   display: flex;
   align-items: center;
@@ -2924,6 +2931,32 @@ a.review-photo-image:focus-visible {
 .checklist-item img {
   flex: none;
 }
+/* A "To do" row opens the tournament form (ORG-02b). */
+.checklist-fix {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--cf-spacing-sm);
+  min-width: 0;
+  min-height: var(--cf-size-control-lg);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.checklist-fix > .t-callout {
+  flex: 1;
+}
+.checklist-fix:active {
+  background: var(--cf-color-bg-sunken);
+}
+.checklist-fix:focus-visible {
+  outline: none;
+  box-shadow: var(--cf-focus-ring);
+}
 
 /* Export card (86:579): the hash in 8 groups, two per line, never wrapping unevenly. */
 .export-card {
@@ -3005,20 +3038,16 @@ a.review-photo-image:focus-visible {
   padding: var(--cf-spacing-md) 0;
   border-bottom: 1px solid var(--cf-color-border-divider);
 }
+/* The field above its button at every width (decisions.md 2026-11-18). On a phone the button fills
+   the row; from the rail up it is as wide as its label, so it never stretches beside the field. */
 .species-add {
   display: flex;
   flex-direction: column;
   gap: var(--cf-spacing-md);
 }
-@media (min-width: 64em) {
-  .species-add {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  .species-add > .field {
-    flex: 1;
-  }
-  .species-add > .button {
-    margin-top: 26px;
+@media (min-width: 37.5em) {
+  .species-add > .button.button-full {
+    align-self: flex-start;
+    width: auto;
   }
 }

@@ -52,7 +52,7 @@ export function usePreloadedIcons(paths: readonly string[]): void {
 export function Brand() {
   return (
     <div className="brand">
-      <p className="t-title-large">Chromie Fishing</p>
+      <p className="t-title-large">Streiff Seas</p>
       <p className="t-callout t-secondary">Club scoreboard · members only</p>
     </div>
   );
@@ -291,12 +291,23 @@ interface LargeNavBarProps {
   /** The title row's trailing badge: an EventStatus, or a LiveBadge on the leaderboard. */
   badge?: ReactNode;
   subtitle?: string;
+  /**
+   * A back link above the title, for a top-level screen reached from somewhere it should lead back
+   * to: a tournament opened from the list, or a past tournament's board (decisions.md 2026-11-18).
+   */
+  back?: { label: string; onBack: () => void };
 }
 
 /** Large title type: top-level screens. The title is the screen's h1. */
-export function LargeNavBar({ title, badge, subtitle }: LargeNavBarProps) {
+export function LargeNavBar({ title, badge, subtitle, back }: LargeNavBarProps) {
   return (
     <header className="nav-bar-large">
+      {back && (
+        <button type="button" className="nav-bar-back nav-bar-large-back t-body" aria-label={`Back to ${back.label}`} onClick={back.onBack}>
+          <Icon src="/icons/chevron-left.svg" size={24} />
+          <span>{back.label}</span>
+        </button>
+      )}
       <div className="nav-bar-large-title">
         <h1 className="t-title-large">{title}</h1>
         {badge}

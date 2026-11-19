@@ -1,4 +1,4 @@
-# Development lifecycle guide: Chromie Fishing
+# Development lifecycle guide: Streiff Seas
 
 **Status:** v2, 7 Oct 2026. Rewritten from v1 (30 Sep 2026) to match `decisions.md` through 2026-10-07. v1 was written before the tournament format, roles and stack were known, and contradicted later decisions in many places (listed below).
 **What this is:** the process. How the project goes from agreed rules to a running season, and how to work with Claude Code safely along the way. It does not repeat the facts other docs own, and it points to them instead:

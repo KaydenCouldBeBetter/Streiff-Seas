@@ -4,10 +4,11 @@
 // the first control in it, in the same place on every screen. Sidebar and rail are one <nav
 // aria-label="Main"> that responsive.css resizes, so there is one set of controls to keep right.
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "./ui";
 import type { MemberTab } from "../screens/memberTabs";
 import { useMemberTabs } from "../screens/MemberTabBar";
+import { setSidebarHidden, useSidebarHidden } from "../lib/sidebarStore";
 
 interface Props {
   /** The section the screen belongs to, or null when none is (Submit a catch). */
@@ -25,8 +26,23 @@ interface Props {
 export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, children }: Props) {
   const content = useRef<HTMLDivElement>(null);
   const tabs = useMemberTabs();
+  const hidden = useSidebarHidden();
+  // The button that was pressed leaves the page, so focus follows to the one that replaces it.
+  // Not on first render: a new screen must not steal focus.
+  const hideButton = useRef<HTMLButtonElement>(null);
+  const showButton = useRef<HTMLButtonElement>(null);
+  const toggled = useRef(false);
+  useEffect(() => {
+    if (!toggled.current) return;
+    toggled.current = false;
+    (hidden ? showButton : hideButton).current?.focus();
+  }, [hidden]);
+  const toggle = (next: boolean) => {
+    toggled.current = true;
+    setSidebarHidden(next);
+  };
   return (
-    <div className="shell">
+    <div className="shell" data-nav={hidden ? "hidden" : "shown"}>
       {/* The first control on the page: lets keyboard users skip the navigation (build note 2). */}
       <a
         className="skip-link"
@@ -38,9 +54,19 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
       >
         Skip to content
       </a>
-      <nav className="side-nav" aria-label="Main">
+      {hidden && (
+        <div className="side-nav-reveal">
+          <button ref={showButton} type="button" className="side-nav-toggle" aria-label="Show menu" aria-expanded={false} aria-controls="main-nav" onClick={() => toggle(false)}>
+            <Icon src="/icons/chevron-right.svg" size={24} />
+          </button>
+        </div>
+      )}
+      <nav className="side-nav" id="main-nav" aria-label="Main" hidden={hidden}>
+        <button ref={hideButton} type="button" className="side-nav-toggle" aria-label="Hide menu" aria-expanded={true} aria-controls="main-nav" onClick={() => toggle(true)}>
+          <Icon src="/icons/chevron-left.svg" size={24} />
+        </button>
         <div className="side-nav-brand">
-          <p className="t-title-section">Chromie Fishing</p>
+          <p className="t-title-section">Streiff Seas</p>
           <p className="t-footnote t-secondary">Club scoreboard</p>
         </div>
 

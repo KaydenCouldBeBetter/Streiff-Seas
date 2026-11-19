@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# wipe-demo: the wipe of the grading demo data before tournament #1 (decisions.md 2026-11-18
+# "Demo data on prod for grading"; Open item 23). Nothing can be deleted through the API, so the
+# wipe is a new, empty pb_data: the old one is backed up, then moved aside (not deleted) and
+# PocketBase starts on an empty one, running every migration. Run by Kayden as root inside the
+# container (`pct enter 110`), never by the app or the agent.
+#
+#   wipe-demo report
+#       Read-only. What pb_data holds: the demo users and everyone else (who will have to sign up
+#       again), each tournament and whether the seed made it, catches and photo files.
+#
+#   wipe-demo run [--force]
+#       The report, then asks you to type WIPE. Stops the service, backs pb_data up to
+#       BACKUPS/pre-wipe-<time>.tar.zst and checks the archive, moves pb_data to
+#       OPT/pb_data.demo-<time> (mode 700), starts the service on an empty pb_data and waits for
+#       the migrations to have built an empty users collection. If the new start fails, it puts
+#       the old pb_data back and starts that. Then it prints what's left to do by hand.
+#       Refuses while ETC/FREEZE exists, or while a tournament the seed didn't make is live,
+#       closed or final (tournament #1 under way: real catches would go), unless --force.
+#
+# Takes the deploy lock, so it never runs during a deploy. Needs sqlite3, tar, zstd, systemctl.
+# Exit codes: 0 done (or report printed); 1 the new start failed and the old pb_data is back;
+# 2 usage; 3 refused (FREEZE or a real tournament); 4 not confirmed; 5 backup failed, nothing
+# changed; 6 another deploy or wipe is running; 9 a tool or pb_data/data.db is missing.
+#
+# Written for bash 3.2 too (the tests run on macOS), like deploy.sh.
+set -euo pipefail
+umask 077
+
+# Paths and the service as deploy.sh has them; the environment moves them for test/wipeDemo.test.ts.
+ETC="${SCOREBOARD_ETC:-/etc/scoreboard}"
+OPT="${SCOREBOARD_OPT:-/opt/scoreboard}"
+BACKUPS="${SCOREBOARD_BACKUPS:-/var/backups/scoreboard}"
+SERVICE="${SCOREBOARD_SERVICE:-scoreboard}"
+SERVICE_USER="${SCOREBOARD_USER:-scoreboard}"
+START_TRIES="${SCOREBOARD_WIPE_TRIES:-30}"
+START_WAIT="${SCOREBOARD_WIPE_WAIT:-2}"
+LOCK="$OPT/.deploy.lock"
+DATA="$OPT/pb_data"
+DB="$DATA/data.db"
+DEMO_EMAIL="demo-%@example.com"
+
+say() { echo "wipe-demo: $*"; }
+die() {
+  local code=$1
+  shift
+  echo "wipe-demo: $*" >&2
+  exit "$code"
+}
+usage() {
+  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
+
+command=${1:-}
+[ -n "$command" ] || usage
+shift
+force=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force) force=1 ;;
+    *) usage ;;
+  esac
+  shift
+done
+case "$command" in
+  report) [ "$force" = 0 ] || usage ;;
+  run) ;;
+  *) usage ;;
+esac
+
+for tool in sqlite3 tar zstd systemctl; do
+  command -v "$tool" >/dev/null 2>&1 || die 9 "$tool is not installed"
+done
+[ -f "$DB" ] || die 9 "no database at $DB"
+
+q() { sqlite3 -readonly "$DB" "$1"; }
+
+# Each tournament with the email of whoever its first audit row names: the seed's organizer is a
+# demo user, so a tournament made through the app by anyone else shows their email (or none).
+TOURNAMENTS_SQL="select e.status, e.name, coalesce((select u.email from audit_log a join users u on u.id = a.actor where a.event = e.id order by a.created, a.id limit 1), '') from events e order by e.rowid;"
+
+report() {
+  local environment users demo others events catches real_catches photos
+  environment="$(cat "$ETC/ENVIRONMENT" 2>/dev/null || echo unknown)"
+  users="$(q "select count(*) from users;")"
+  demo="$(q "select count(*) from users where email like '$DEMO_EMAIL';")"
+  others=$((users - demo))
+  events="$(q "select count(*) from events;")"
+  catches="$(q "select count(*) from catches;")"
+  real_catches="$(q "select count(*) from catches c join entries n on n.id = c.entry join users u on u.id = n.angler where u.email not like '$DEMO_EMAIL';")"
+  photos=0
+  if [ -d "$DATA/storage" ]; then photos="$(find "$DATA/storage" -type f ! -name '*thumb*' | wc -l | tr -d ' ')"; fi
+
+  echo "pb_data: $DATA ($environment)"
+  echo "users: $users ($demo demo, $others who will sign up again)"
+  if [ "$others" -gt 0 ]; then
+    q "select '  ' || email || case when role = 'organizer' then ' (organizer: set the role again)' else '' end from users where email not like '$DEMO_EMAIL' order by email;"
+  fi
+  echo "tournaments: $events"
+  local status name email rows
+  rows="$(q "$TOURNAMENTS_SQL")"
+  while IFS='|' read -r status name email; do
+    [ -n "$status" ] || continue
+    case "$email" in
+      demo-*@example.com) echo "  $status  $name  (seed)" ;;
+      *) echo "  $status  $name  (not the seed: ${email:-no audit row})" ;;
+    esac
+  done <<EOF
+$rows
+EOF
+  echo "catches: $catches ($real_catches by people who aren't demo users)"
+  echo "photo files in storage: $photos"
+}
+
+# A tournament the seed didn't make that has gone past draft: tournament #1 under way.
+# The query runs on its own line so a failure stops the script (set -e) instead of passing.
+real_started() {
+  local status name email rows
+  rows="$(q "$TOURNAMENTS_SQL")"
+  while IFS='|' read -r status name email; do
+    [ -n "$status" ] || continue
+    case "$email" in demo-*@example.com) continue ;; esac
+    if [ "$status" != draft ]; then echo "$name ($status)"; fi
+  done <<EOF
+$rows
+EOF
+}
+
+if [ "$command" = report ]; then
+  report
+  exit 0
+fi
+
+# --- run ---------------------------------------------------------------------------------------
+
+if ! mkdir "$LOCK" 2>/dev/null; then
+  holder="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+    die 6 "a deploy or another wipe is running (pid $holder)"
+  fi
+  rm -rf "$LOCK"
+  mkdir "$LOCK" || die 6 "can't take the lock $LOCK"
+fi
+trap 'rm -rf "$LOCK"' EXIT
+echo "$$" >"$LOCK/pid"
+
+if [ -e "$ETC/FREEZE" ]; then
+  if [ "$force" = 1 ]; then
+    say "FREEZE is set; going ahead because of --force (log it in ops.md §12)"
+  else
+    die 3 "refused: $ETC/FREEZE exists (hard freeze, ops.md §6); a wipe during a tournament needs --force"
+  fi
+fi
+
+report
+started="$(real_started)" || die 9 "couldn't read the tournaments from $DB"
+if [ -n "$started" ]; then
+  if [ "$force" = 1 ]; then
+    say "going ahead because of --force, though these aren't the seed's and have started: $started"
+  else
+    echo "$started" | sed 's/^/  /' >&2
+    die 3 "refused: a tournament the seed didn't make has started, so real catches would go; use --force if that's intended"
+  fi
+fi
+
+echo
+echo "This replaces pb_data with an empty one: every account, tournament, catch, photo and setting"
+echo "above goes (kept in the backup and the moved-aside copy). Type WIPE to go ahead:"
+answer=""
+read -r answer || true
+[ "$answer" = WIPE ] || die 4 "not confirmed; nothing changed"
+
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+backup="$BACKUPS/pre-wipe-$stamp.tar.zst"
+aside="$OPT/pb_data.demo-$stamp"
+mkdir -p "$BACKUPS"
+
+say "stopping $SERVICE and backing up pb_data to $backup"
+systemctl stop "$SERVICE"
+if ! tar -C "$OPT" -cf - pb_data | zstd -q -o "$backup" || ! zstd -dc "$backup" | tar -tf - | grep -x 'pb_data/data.db' >/dev/null; then
+  rm -f "$backup"
+  systemctl start "$SERVICE" || true
+  die 5 "backup failed; $SERVICE was started again on the old pb_data and nothing changed"
+fi
+
+say "moving pb_data to $aside"
+mv "$DATA" "$aside"
+chmod 700 "$aside"
+mkdir "$DATA"
+chown "$SERVICE_USER:" "$DATA"
+
+# The migrations ran when the users collection exists in the new database and holds no one.
+fresh() {
+  [ -f "$DB" ] || return 1
+  [ "$(q "select count(*) from _collections where name = 'users';" 2>/dev/null)" = 1 ] || return 1
+  [ "$(q "select count(*) from users;" 2>/dev/null)" = 0 ]
+}
+
+say "starting $SERVICE on an empty pb_data"
+ok=0
+if systemctl start "$SERVICE"; then
+  tries=0
+  while [ "$tries" -lt "$START_TRIES" ]; do
+    if fresh; then
+      ok=1
+      break
+    fi
+    tries=$((tries + 1))
+    sleep "$START_WAIT"
+  done
+fi
+
+if [ "$ok" != 1 ]; then
+  say "the new pb_data didn't come up; putting the old one back"
+  systemctl stop "$SERVICE" || true
+  rm -rf "$DATA"
+  mv "$aside" "$DATA"
+  systemctl start "$SERVICE" || true
+  die 1 "$SERVICE is on the old pb_data again; the backup $backup is kept. Check: journalctl -u $SERVICE -n 50"
+fi
+
+cat <<EOF
+wipe-demo: done. $SERVICE runs on an empty pb_data with every migration applied.
+  backup:        $backup
+  moved aside:   $aside (keep it until tournament #1 is under way, then: rm -r $aside)
+
+Left to do by hand (docs/drafts/ops-md-demo-seed.md, "The wipe before tournament #1"):
+  1. Create the first superuser as on the first install (journalctl -u $SERVICE -n 50 shows the
+     setup link), then turn on MFA and OTP in _superusers.
+  2. Re-enter the settings: ops.md §14 (rate limits, trusted proxy header CF-Connecting-IP,
+     application name and URL) and the SMTP settings in §3; check them as in evidence/m0.txt.
+  3. Members create their accounts again; set the organizers' roles in /_/.
+  4. Take graders off club-members unless they're members.
+  5. Strike decisions.md Open item 23 with the date.
+EOF

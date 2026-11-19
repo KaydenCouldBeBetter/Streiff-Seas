@@ -16,8 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import type { RecordModel } from "pocketbase";
 import { pb } from "../lib/pb";
 import { checkSession } from "../lib/auth";
+import { loadProfileStats } from "../lib/loadProfileStats";
 import { retrySave, roleLabel, saveProfile } from "../lib/profile";
-import { SAMPLE_FORMAT, SAMPLE_PROFILE_STATS, SAMPLE_SEASON } from "../lib/sampleProfile";
 import { loadLeaderboard, type LeaderboardData } from "../lib/leaderboard";
 import { loadAnglerCatches, type AnglerCatchesData } from "../lib/loadAnglerCatches";
 import { useLive } from "../lib/useLive";
@@ -27,7 +27,6 @@ import { EventForm } from "./EventForm";
 import { Exports } from "./Exports";
 import { ExtendDeadline } from "./ExtendDeadline";
 import { Manage } from "./Manage";
-import { Species } from "./Species";
 import { Tournaments } from "./Tournaments";
 import { loadNewEventOptions, type ManageData, type Person } from "../lib/eventAdmin";
 import { JudgeFlow } from "./Judging";
@@ -35,7 +34,7 @@ import { MemberTabsContext } from "./MemberTabBar";
 import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, statusOf, type LiveTournament } from "../lib/liveTournament";
+import { backToTournamentLabel, canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, submitClosed, type LiveTournament, type SubmitClosed as Closed } from "../lib/liveTournament";
 import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
@@ -60,6 +59,7 @@ import { MyCatchHistory } from "./MyCatchHistory";
 import { MyCatches, MyCatchesStatus } from "./MyCatches";
 import { Profile } from "./Profile";
 import { RetractSheet } from "./RetractSheet";
+import { SubmitClosed } from "./SubmitClosed";
 import { SubmitFlow } from "./SubmitFlow";
 import { Withdraw } from "./Withdraw";
 import { ClubRules } from "./ClubRules";
@@ -85,14 +85,13 @@ type Screen =
   | "manage"
   | "eventForm"
   | "extend"
-  | "exports"
-  | "species";
+  | "exports";
 
 /** The screens that set their own page title. */
-const SELF_TITLED: readonly Screen[] = ["submit", "judge", "entries", "tournaments", "manage", "eventForm", "extend", "exports", "species"];
+const SELF_TITLED: readonly Screen[] = ["submit", "judge", "entries", "tournaments", "manage", "eventForm", "extend", "exports"];
 
 /** The page title's first part; the screens named after the live tournament add its name. */
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries" | "tournaments" | "manage" | "eventForm" | "extend" | "exports" | "species">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries" | "tournaments" | "manage" | "eventForm" | "extend" | "exports">, string> = {
   leaderboard: "Leaderboard",
   catches: "My catches",
   catch: "Catch",
@@ -114,7 +113,6 @@ function tabFor(screen: Screen, rulesFrom: "tournament" | "profile"): MemberTab 
     case "eventForm":
     case "extend":
     case "exports":
-    case "species":
       return "home";
     case "judge":
       return "judge";
@@ -201,7 +199,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   const [manageSaved, setManageSaved] = useState<string | null>(null);
   const [newOptions, setNewOptions] = useState<{ people: Person[]; species: { id: string; name: string }[] } | null>(null);
   const [entriesFrom, setEntriesFrom] = useState<"tournament" | "manage">("tournament");
-  const [speciesFrom, setSpeciesFrom] = useState<"tournaments">("tournaments");
   const organizer = user.role === "organizer";
 
   const reload = useCallback(async () => {
@@ -297,6 +294,9 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     }
   }, [ready, user.id, units]);
 
+  // Profile's stats (PRF-01c), read by the screen itself on open and on focus.
+  const loadStats = useCallback(() => loadProfileStats(pb, user.id, serverNowMs()), [user.id]);
+
   // Each time My catches opens (not on every move within it), and whenever the tournament reloads.
   useEffect(() => {
     if (screen === "catches") void loadMine();
@@ -371,6 +371,22 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     [user.id, units],
   );
 
+  // A units change (Profile saves it at once) drops every read that was shown in the old units, so
+  // nothing shows them again while the next read is out: each screen reads afresh when it opens
+  // (decisions.md 2026-11-18). The live board and the Judge and Home screens restart by themselves.
+  const unitsShown = useRef(units);
+  useEffect(() => {
+    if (unitsShown.current === units) return;
+    unitsShown.current = units;
+    setMine({ state: "loading" });
+    setAnglerPage({ state: "loading" });
+    setStandingRead({ state: "loading" });
+    // Units can also change under an open screen (a session refresh brings another phone's save).
+    if (onMyCatchScreen) void loadMine();
+    if (onAnglerScreen && anglerEntryId) void loadAngler(anglerEntryId);
+    // Deps are units only on purpose: it runs once per change, with this render's loaders.
+  }, [units]);
+
   useEffect(() => {
     if (!onAnglerScreen || !anglerEntryId) return;
     const onVisible = () => {
@@ -394,13 +410,22 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       : screen === "withdraw" ? "Withdraw"
       : (MY_CATCH_SCREENS.includes(screen) || screen === "leaderboard") && ready ? `${TITLES[screen as keyof typeof TITLES]} · ${view.name}`
       : TITLES[screen as keyof typeof TITLES];
-    document.title = `${title} · Chromie Fishing`;
+    document.title = `${title} · Streiff Seas`;
     window.scrollTo(0, 0);
   }, [screen, anglerRow, ready, view.name]);
 
   /** Every "Submit a catch" button: the form only while submitting is open, else the tournament page says why. */
+  // SUB-01e: a Submit that can't open says why in a pop-up, instead of doing nothing visible.
+  const [submitBlocked, setSubmitBlocked] = useState<Closed | null>(null);
   function openSubmit() {
-    setScreen(ready && sender && canSubmit(ready, serverNowMs()) ? "submit" : "tournament");
+    const now = serverNowMs();
+    if (ready && sender && canSubmit(ready, now)) {
+      setScreen("submit");
+      return;
+    }
+    setSubmitBlocked(
+      submitClosed(live.state, ready, now) ?? { title: "Not available yet", message: "Submitting isn't ready yet. Try again in a moment.", next: null },
+    );
   }
 
   async function join() {
@@ -470,10 +495,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         organizer={organizer}
         onOpen={openTournament}
         onNewTournament={() => void openNewTournament()}
-        onSpecies={() => {
-          setSpeciesFrom("tournaments");
-          setScreen("species");
-        }}
         onClubRules={() => openClubRules("tournament")}
         onTab={openTab}
       />
@@ -504,6 +525,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         entry={ready.entry.kind}
         action={tournamentAction(ready)}
         onTab={openTab}
+        onBackToList={() => setScreen("tournaments")}
         onMyCatches={() => setScreen("catches")}
         onLeaderboard={() => setScreen("leaderboard")}
         onWithdraw={() => {
@@ -567,6 +589,10 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }
 
   const myData = mine.state === "ready" ? mine.data : null;
+  // My catches and the leaderboard of a tournament that isn't live (one opened from Past, or a
+  // draft) lead back to its page, so the tab isn't a dead end (decisions.md 2026-11-18).
+  const backLabel = backToTournamentLabel(ready);
+  const backToTournament = backLabel ? { label: backLabel, onBack: () => setScreen("tournament") } : undefined;
   const openedCatch = myData?.catches.find((c) => c.id === catchId);
 
   /** Edit, Add photos or Retract on a catch: the opened one, or the one the wide pane is showing. */
@@ -607,6 +633,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       <MyCatches
         context={myData.context}
         catches={myData.catches}
+        back={backToTournament}
         onOpen={openCatch}
         onSubmit={openSubmit}
         onTab={openTab}
@@ -643,14 +670,15 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     <Leaderboard
       name={ready.submit.name}
       leaderboard={boardData?.view}
-      // A final board can't change, so it shows no badge (Gap 25).
-      badge={boardData?.status === "final" ? null : board.badge}
+      // A draft or final board shows no badge (Gap 25): showsBoardBadge in liveTournament.ts.
+      badge={showsBoardBadge(ready) && boardData?.status !== "final" ? board.badge : null}
       canSubmit={canSubmit(ready, serverNowMs())}
       onClubRules={() => openClubRules("tournament")}
       window={{ endsAt: ready.submit.endsAt, submitDeadline: ready.submit.submitDeadline }}
       onTab={openTab}
       onSubmit={openSubmit}
       onOpenRow={openAngler}
+      back={backToTournament}
     />
   ) : (
     home()
@@ -826,10 +854,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         return (
           <Profile
             user={user}
-            // TODO(M0-03, S2a): the stats are sample data until the member's own entries and catches can be read.
-            stats={SAMPLE_PROFILE_STATS}
-            season={SAMPLE_SEASON}
-            format={SAMPLE_FORMAT}
+            loadStats={loadStats}
             onSave={(changes) => saveProfile(pb, user.id, changes)}
             onRetry={(changes) => retrySave(pb, user.id, changes)}
             onUserChange={onUserChange}
@@ -909,9 +934,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       case "exports":
         if (!ready || !organizer) return home();
         return <Exports eventId={ready.submit.eventId} onBack={() => setScreen("manage")} />;
-      case "species":
-        if (!organizer) return home();
-        return <Species backLabel="Tournaments" onBack={() => setScreen(speciesFrom)} />;
       case "clubRules":
         return (
           <ClubRules
@@ -937,6 +959,17 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       onClubRules={() => openClubRules("tournament")}
     >
       {content}
+      {submitBlocked && (
+        <SubmitClosed
+          closed={submitBlocked}
+          tournamentName={ready?.submit.name ?? null}
+          onClose={() => setSubmitBlocked(null)}
+          onNext={(next) => {
+            setSubmitBlocked(null);
+            setScreen(next);
+          }}
+        />
+      )}
     </AppShell>
     </MemberTabsContext.Provider>
   );

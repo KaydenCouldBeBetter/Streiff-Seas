@@ -212,8 +212,11 @@ export function StatTile({ value, label }: { value: number; label: string }) {
   );
 }
 
-/** The Open checklist (ORG-01a): done items with a check, the rest as "To do" with what to fix. */
-export function Checklist({ items }: { items: readonly ChecklistItem[] }) {
+/**
+ * The Open checklist (ORG-01a): done items with a check, the rest as "To do" with what to fix.
+ * With `onFix`, each "To do" row is a button that opens the tournament form to fix it.
+ */
+export function Checklist({ items, onFix }: { items: readonly ChecklistItem[]; onFix?: () => void }) {
   const ready = items.every((item) => item.done);
   return (
     <section className="checklist-card" aria-labelledby="checklist-heading">
@@ -221,15 +224,29 @@ export function Checklist({ items }: { items: readonly ChecklistItem[] }) {
         {ready ? "Ready to open" : "Before you can open"}
       </h2>
       <ul className="checklist">
-        {items.map((item) => (
-          <li key={item.id} className={`checklist-item${item.done ? " is-done" : ""}`}>
-            <Icon src={item.done ? "/icons/check-success-24.svg" : "/icons/alert-warning.svg"} size={24} />
-            <span className="t-callout">
-              {item.done ? item.label : item.fix}
-              <span className="visually-hidden">{item.done ? ", done" : ", to do"}</span>
-            </span>
-          </li>
-        ))}
+        {items.map((item) => {
+          const row = (
+            <>
+              <Icon src={item.done ? "/icons/check-success-24.svg" : "/icons/alert-warning.svg"} size={24} />
+              <span className="t-callout">
+                {item.done ? item.label : item.fix}
+                <span className="visually-hidden">{item.done ? ", done" : ", to do"}</span>
+              </span>
+            </>
+          );
+          return (
+            <li key={item.id} className={`checklist-item${item.done ? " is-done" : ""}`}>
+              {!item.done && onFix ? (
+                <button type="button" className="checklist-fix" onClick={onFix}>
+                  {row}
+                  <Icon src="/icons/chevron-right.svg" size={24} />
+                </button>
+              ) : (
+                row
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

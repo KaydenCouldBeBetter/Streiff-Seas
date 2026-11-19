@@ -25,6 +25,8 @@ interface Props {
   tournament: TournamentView;
   /** ORG-01 Manage: organizers only (EVT-02m). */
   onManage?: () => void;
+  /** Back to the Tournaments list (EVT-01), where every tournament is opened from. */
+  onBackToList?: () => void;
   /** screens.md §1 "Entry state": the standing and Withdraw show only for an active entry (EVT-02a has neither). */
   entry: "none" | "active" | "withdrawn";
   action: TournamentAction;
@@ -49,7 +51,7 @@ const JOIN_FAILED = {
   "not-accepted": "Joining isn't open for this tournament any more.",
 } as const;
 
-export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules, onEntries, onManage }: Props) {
+export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLeaderboard, onWithdraw, onClubRules, onEntries, onManage, onBackToList }: Props) {
   const { standing, catches } = tournament;
   // On a draft only the facts, Manage and Entries show (Figma EVT-02m note): nobody can join yet.
   const draft = tournament.status === "draft";
@@ -57,7 +59,12 @@ export function Tournament({ tournament, entry, action, onTab, onMyCatches, onLe
   const counts = catches ? `${catches.pending} pending · ${catches.rejected} rejected` : "";
   return (
     <div className="screen tab-screen screen-wide">
-      <LargeNavBar title={tournament.name} badge={<EventStatus status={tournament.status} />} subtitle={tournament.rulesLine} />
+      <LargeNavBar
+        title={tournament.name}
+        badge={<EventStatus status={tournament.status} />}
+        subtitle={tournament.rulesLine}
+        back={onBackToList && { label: "Tournaments", onBack: onBackToList }}
+      />
       <div className="screen-content tournament-grid">
         {action.kind === "closed" && (
           <Banner tone="neutral" title={action.title}>

@@ -5,11 +5,12 @@
 // Opened from the tournament page until ORG-01 Manage tournament exists (S4). Read when it opens
 // and after each change; it isn't live (Gap 25).
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Banner, Button, Icon, LockedField, NavBar, Overlay, Sheet, TextAreaField } from "../components/ui";
 import { loadEntries, retryEntryWithdrawn, setEntryWithdrawn, type EntriesData, type EntryChangeResult, type EntryRow } from "../lib/entriesAdmin";
 import { pb } from "../lib/pb";
 import { useBreakpoint } from "../lib/useBreakpoint";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   eventId: string;
@@ -39,7 +40,7 @@ export function Entries({ eventId, me, onBack }: Props) {
   }, [read]);
 
   useEffect(() => {
-    document.title = `Entries${data ? ` · ${data.eventName}` : ""} · Chromie Fishing`;
+    document.title = `Entries${data ? ` · ${data.eventName}` : ""} · Streiff Seas`;
   }, [data]);
 
   return (
@@ -134,13 +135,7 @@ function EntryChange({ row, onClose, onDone }: { row: EntryRow; onClose: () => v
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
   const [phase, setPhase] = useState<Phase>("form");
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
   const first = row.isYou ? "You" : row.name.split(" ")[0];
   const title = withdrawing ? (row.isYou ? "Withdraw your entry?" : `Withdraw ${row.name}?`) : `Reinstate ${row.name}?`;
 

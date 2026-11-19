@@ -2,9 +2,8 @@
 // through the CatchSender. The draft is fixed at Send and reused, with its `client_uuid`, for
 // every retry (R-CAT-C-10).
 //
-// Not built yet: SUB-01e (submitting not available: window not open, deadline passed, event not
-// live, not joined, withdrawn). It needs the event's live phase and the viewer's entry (M0-03);
-// until then the tournament page only links here while submitting is open.
+// SUB-01e (submitting not available) never reaches this flow: MemberApp's openSubmit shows it as a
+// pop-up (screens/SubmitClosed.tsx, lib/liveTournament.ts submitClosed) and stays where it was.
 
 import { useEffect, useRef, useState } from "react";
 import type { CatchDraft, CatchSender, ReceivedCatch, SendProgress, SendResult } from "../lib/catchSender";
@@ -53,7 +52,7 @@ export function SubmitFlow({ tournament, sender, onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    document.title = `${TITLES[phase.kind]} · Chromie Fishing`;
+    document.title = `${TITLES[phase.kind]} · Streiff Seas`;
   }, [phase.kind]);
 
   // Leaving while the catch hasn't landed warns (decisions.md 2026-10-02).

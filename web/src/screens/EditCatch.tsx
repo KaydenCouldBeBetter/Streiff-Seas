@@ -3,7 +3,7 @@
 // loaded rev (lib/changeCatch.ts). A refusal (MY-03b) is shown on My catch, reloaded, so it isn't
 // here. Both prefills are exact, so an untouched measurement is never sent.
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LengthInput, SpeciesPicker, WeightInput } from "../components/catch";
 import { ActionBar, Banner, Button, LockedField, NavBar } from "../components/ui";
 import { editFields, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
@@ -14,6 +14,7 @@ import { enteredLengthText, lengthEntryFromQ, parseLength } from "../lib/lengthE
 import type { MyCatchesContext } from "../lib/myCatches";
 import type { DisplayUnits } from "../lib/profile";
 import { enteredWeightText, parseWeight, weightEntryFromHoz } from "../lib/weightEntry";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   context: MyCatchesContext;
@@ -35,13 +36,7 @@ export function EditCatch({ context, base, species, units, send, onDone, onCance
   const [length, setLength] = useState(() => lengthEntryFromQ(base.lengthQ));
   const [phase, setPhase] = useState<"form" | "sending" | "not-sent">("form");
   const [sent, setSent] = useState<Change | null>(null);
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
 
   const metric = context.metric;
   const parsed = metric === "weight" ? parseWeight(weight) : parseLength(length);

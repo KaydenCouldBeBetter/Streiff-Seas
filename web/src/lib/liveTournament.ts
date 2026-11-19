@@ -9,6 +9,7 @@ import type PocketBase from "pocketbase";
 import type { RecordModel } from "pocketbase";
 import type { Metric } from "./catchForm";
 import type { SpeciesChoice } from "./catchSender";
+import { formatClubTime } from "./format";
 import { parsePbDate } from "./liveBoard";
 import type { SubmitTournament } from "./sampleSubmit";
 import { failureKind, type FailureKind } from "./sendCatch";
@@ -68,6 +69,68 @@ export function livePhase(tournament: LiveTournament, nowMs: number): LivePhase 
 /** events.status, live when a hand-built tournament leaves it out. */
 export function statusOf(tournament: LiveTournament): TournamentStatus {
   return tournament.status ?? "live";
+}
+
+/**
+ * Whether the leaderboard shows its realtime badge (Gap 25; screens.md LB-01). A live or closed board
+ * still changes as catches are judged; a draft has no board yet and a final one can't change, so
+ * neither says "Live". Found 2026-11-18: an organizer's draft showed Live.
+ */
+export function showsBoardBadge(tournament: LiveTournament): boolean {
+  const status = statusOf(tournament);
+  return status === "live" || status === "closed";
+}
+
+/**
+ * SUB-01e, Submit: not available (screens.md). Why Submit a catch can't open, for the pop-up that
+ * answers the button instead of doing nothing (found in Kayden's testing, 2026-11-18). Null when
+ * it can open. `next` is the one way on: the tournament's page (Join, Rejoin, its dates) or the
+ * Tournaments list (another tournament may be live); none while it's still loading.
+ */
+export interface SubmitClosed {
+  title: string;
+  message: string;
+  next: "tournament" | "tournaments" | null;
+}
+
+export function submitClosed(live: "loading" | "none" | "error" | "ready", tournament: LiveTournament | null, nowMs: number): SubmitClosed | null {
+  if (live === "loading") return { title: "Still loading", message: "The tournament is still loading. Try again in a moment.", next: null };
+  if (live === "error") return { title: "Couldn't load the tournament", message: "Check your signal, then open the tournament again from Home.", next: "tournaments" };
+  if (!tournament) {
+    return { title: "No tournament is live", message: "There's no live tournament to submit to right now. When the organizer opens one, join it from Home.", next: "tournaments" };
+  }
+  if (canSubmit(tournament, nowMs)) return null;
+  const name = tournament.submit.name;
+  switch (statusOf(tournament)) {
+    case "draft":
+      return { title: "Not open yet", message: `${name} is still a draft. You can submit once the organizer opens it.`, next: "tournament" };
+    case "closed":
+      return { title: "Submitting has closed", message: `${name} is closed and takes no more catches. The judge is finishing the last ones.`, next: "tournaments" };
+    case "final":
+      return { title: "Submitting has closed", message: `${name} is final and takes no more catches.`, next: "tournaments" };
+    case "live":
+      break;
+  }
+  const entry = tournament.entry;
+  if (entry.kind === "none") return { title: "Join first", message: `Join ${name} to submit catches to it.`, next: "tournament" };
+  if (entry.kind === "withdrawn") {
+    return entry.bySelf
+      ? { title: "You've withdrawn", message: `You withdrew from ${name}. Rejoin it to submit catches.`, next: "tournament" }
+      : { title: "Your entry was withdrawn", message: `An organizer withdrew your entry from ${name}, so it takes no catches from you. Ask them if that's a mistake.`, next: "tournament" };
+  }
+  if (livePhase(tournament, nowMs) === "pre") {
+    return { title: "Not open yet", message: `Submitting opens when ${name} starts, ${formatClubTime(tournament.startsAt)}.`, next: "tournament" };
+  }
+  return { title: "Submitting has closed", message: `The submit deadline for ${name} passed ${formatClubTime(tournament.submit.submitDeadline)}.`, next: "tournament" };
+}
+
+/**
+ * The back link My catches and the leaderboard show (decisions.md 2026-11-18): the tournament's
+ * name when it isn't the live one (opened from Past, or a draft), so its tab isn't a dead end; null
+ * while it's live, where those tabs are top-level. Found 2026-11-18: stuck on "Nothing submitted".
+ */
+export function backToTournamentLabel(tournament: LiveTournament | null): string | null {
+  return tournament && statusOf(tournament) !== "live" ? tournament.submit.name : null;
 }
 
 export function canJoin(tournament: LiveTournament, nowMs: number): boolean {

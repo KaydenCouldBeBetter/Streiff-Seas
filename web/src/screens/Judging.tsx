@@ -7,7 +7,7 @@
 // focus. Every decision echoes the rev the review loaded (lib/judgeDecision.ts): a catch the angler
 // changed meanwhile comes back reloaded with what changed (JDG-02b), never decided blind.
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CatchStatusChip, LengthInput, SpeciesPicker, WeightInput } from "../components/catch";
 import { DecisionSummary, QueueCard, ReviewBody } from "../components/judge";
 import {
@@ -37,6 +37,7 @@ import type { DisplayUnits } from "../lib/profile";
 import { useBreakpoint } from "../lib/useBreakpoint";
 import { useLive } from "../lib/useLive";
 import { enteredWeightText, parseWeight, weightEntryFromHoz } from "../lib/weightEntry";
+import { useLiveRef } from "../lib/useLiveRef";
 import type { MemberTab } from "./memberTabs";
 import { MemberTabBar } from "./MemberTabBar";
 
@@ -152,7 +153,7 @@ function JudgeHome({ me, units, onTab, onOpenQueue, onOpenCatch }: Props & { onO
   }, [read]);
 
   useEffect(() => {
-    document.title = "Judging · Chromie Fishing";
+    document.title = "Judging · Streiff Seas";
   }, []);
 
   const count = sections?.length ?? 0;
@@ -240,7 +241,7 @@ function QueueFlow(props: QueueFlowProps) {
   const selectedId = catchId ?? (expanded ? (items[0]?.id ?? null) : null);
 
   useEffect(() => {
-    if (queue) document.title = `Judge queue · ${queue.eventName} · Chromie Fishing`;
+    if (queue) document.title = `Judge queue · ${queue.eventName} · Streiff Seas`;
   }, [queue]);
 
   if (!expanded && catchId) {
@@ -334,13 +335,7 @@ function useReview({ me, units, catchId, onNotice, onForm, onBackToQueue, expand
   const [data, setData] = useState<ReviewData | null>(null);
   const [failed, setFailed] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
 
   const read = useCallback(async () => {
     try {

@@ -3,12 +3,13 @@
 // up, only while live (R-EVT-U-12 to U-15). The fishing window never moves (scoring.md §6, example
 // 23). A total is safe to repeat, so Retry after NOT SENT checks first and never adds twice.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Note } from "../components/organizer";
 import { ActionBar, Banner, Button, NavBar, TextField } from "../components/ui";
 import { refusalCopy, retryEventChange, sendEventChange, type ManageData } from "../lib/eventAdmin";
 import { formatClubTime } from "../lib/format";
 import { pb } from "../lib/pb";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   data: ManageData;
@@ -23,16 +24,10 @@ export function ExtendDeadline({ data, onBack, onSaved }: Props) {
   const [hours, setHours] = useState(String(current + 1));
   const [phase, setPhase] = useState<Phase>("form");
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
 
   useEffect(() => {
-    document.title = `Extend deadline · ${data.name} · Chromie Fishing`;
+    document.title = `Extend deadline · ${data.name} · Streiff Seas`;
   }, [data.name]);
 
   const whole = /^\d+$/.test(hours) ? Number(hours) : null;

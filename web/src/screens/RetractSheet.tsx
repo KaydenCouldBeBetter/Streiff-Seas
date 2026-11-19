@@ -2,11 +2,12 @@
 // and its NOT SENT state MY-05c (132:9405). Retract goes alone, with the loaded rev
 // (lib/changeCatch.ts). A refusal (MY-05b) is shown on My catch, reloaded.
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Banner, Button, Icon, Sheet } from "../components/ui";
 import type { Change, ChangeResult } from "../lib/changeCatch";
 import { notSentMessage } from "../lib/changeCopy";
 import type { MyCatchView } from "../lib/myCatches";
+import { useLiveRef } from "../lib/useLiveRef";
 
 interface Props {
   item: MyCatchView;
@@ -30,13 +31,7 @@ export function RetractSheet({ item, send, onDone, onCancel }: Props) {
   const [phase, setPhase] = useState<"confirm" | "sending" | "not-sent">("confirm");
   // Set once a send got no reply: from then on the sheet is MY-05c, and each send is a Retry.
   const [unanswered, setUnanswered] = useState(false);
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
 
   async function go() {
     setPhase("sending");

@@ -4,7 +4,7 @@
 // A draft saves even incomplete (Gap 11); once live or closed, locked fields stay visible with a
 // lock and their reason (§14.3). The body sends only what changed and may change (eventAdmin.ts).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckGroup, DateTimeField, Note, PickerField } from "../components/organizer";
 import { ActionBar, Banner, Button, LockedField, NavBar, SegmentedToggle, SwitchRow, TextField } from "../components/ui";
 import { clubInputToIso, phoneIsClubTime, phoneZoneName } from "../lib/clubTime";
@@ -26,6 +26,7 @@ import {
 import { formatClubTime } from "../lib/format";
 import type { TournamentStatus } from "../lib/liveTournament";
 import { pb } from "../lib/pb";
+import { useLiveRef } from "../lib/useLiveRef";
 import { Species } from "./Species";
 
 interface Props {
@@ -55,18 +56,12 @@ export function EventForm({ editing, options, me, onBack, onSaved }: Props) {
   const [phase, setPhase] = useState<Phase>("form");
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
   const [addingSpecies, setAddingSpecies] = useState(false);
-  const live = useRef(true);
-  useEffect(
-    () => () => {
-      live.current = false;
-    },
-    [],
-  );
+  const live = useLiveRef();
   const editable = editableFields(status);
   const title = status === "new" ? "New tournament" : status === "draft" ? "Edit draft" : status === "live" ? "Edit live tournament" : "Edit closed tournament";
 
   useEffect(() => {
-    document.title = `${title} · Chromie Fishing`;
+    document.title = `${title} · Streiff Seas`;
   }, [title]);
 
   // Leaving a NOT SENT form asks first (responsive spec 231:5828).
