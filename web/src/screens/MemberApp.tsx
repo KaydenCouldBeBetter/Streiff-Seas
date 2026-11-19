@@ -774,6 +774,14 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
               setScreen("tournament");
               void reload();
             }}
+            onViewCatch={(catchId) => {
+              // The list read before this catch was sent doesn't have it: read again, then open it
+              // (MY-02; beside the list from 1024 px). "Loading…" until the read lands, not a stale list.
+              setMine({ state: "loading" });
+              void loadMine();
+              setCatchId(catchId);
+              setScreen("catch");
+            }}
           />
         );
       case "catch":
