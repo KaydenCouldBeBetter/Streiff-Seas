@@ -39,11 +39,23 @@ the organizer view, set that user's `role` to organizer in `/_/` and log it in "
 actions". The demo anglers can't sign in: `example.com` takes no mail.
 
 **The wipe before tournament #1** (nothing can be deleted through the API, so it's a new
-`pb_data`):
+`pb_data`; `scripts/wipe-demo` does the first part, `test/wipeDemo.test.ts`):
 
-- [ ] Final backup, then stop `scoreboard`.
-- [ ] Move `pb_data` aside (keep it until tournament #1 is under way, then delete it), start
-      `scoreboard` on an empty `pb_data`.
+- [ ] Final backup (§7), and the container has the tools:
+      `pct exec 110 -- sh -c 'command -v sqlite3 tar zstd'` prints three paths.
+- [ ] Push the script: `pct push 110 scripts/wipe-demo /usr/local/sbin/wipe-demo --perms 0755`
+- [ ] Look first, read-only: `pct exec 110 -- wipe-demo report`. It lists the demo users, the
+      people who'll have to sign up again, each tournament marked "(seed)" or "not the seed", the
+      catches and photo files.
+- [ ] Run it with a terminal, so the prompt works: `pct enter 110`, then `wipe-demo run`, and
+      type `WIPE`. It stops `scoreboard`, backs `pb_data` up to
+      `/var/backups/scoreboard/pre-wipe-<time>.tar.zst` and checks the archive, moves `pb_data` to
+      `/opt/scoreboard/pb_data.demo-<time>` (mode 700), starts on an empty `pb_data` and waits
+      for the migrations. If that start fails it puts the old `pb_data` back and starts it.
+      It refuses during a deploy, while `FREEZE` exists, or once a tournament the seed didn't make
+      is past draft (real catches would go); `--force` overrides the last two, log it here.
+- [ ] Keep `pb_data.demo-<time>` until tournament #1 is under way, then `rm -r` it and
+      `rm /usr/local/sbin/wipe-demo`.
 - [ ] Create the first superuser (the setup link above), turn on MFA, re-enter every setting in §14
       and the SMTP settings in §3, and check them as in `evidence/m0.txt`.
 - [ ] Members create their accounts again; set the organizers' roles in `/_/`.
