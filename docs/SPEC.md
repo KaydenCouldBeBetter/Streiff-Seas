@@ -1,4 +1,4 @@
-# SPEC: Fishing Scoreboard
+# SPEC: Streiff Seas
 
 **Status:** Draft v0.3, 7 Oct 2026: Q7 closed, Q6 tracked in `decisions.md` Open items (one list for the whole project), risk R9 added for the release pipeline, and paths updated now that the repo is the source of truth (`decisions.md` 2026-10-07). v0.2, 1 Oct 2026; `scoring.md` v0.4 agreed by the group the same day, and v0.5 on 3 Oct 2026 (Must do 1 updated for the two required photos); v0.6 in force from 5 Oct 2026 without a group vote (`decisions.md` 2026-10-05). Q1–Q4 closed by `decisions.md` entries of 2026-10-01; slices and roles updated to match. Q8 closed 6 Oct 2026 (`ops.md` v0.6). Sources of truth: `scoring.md` (rules), `decisions.md` (choices), `security.md` (who may do what). Where this page and `dev-lifecycle-guide.md` disagree, this page wins; `decisions.md` wins over both. v0.4, 16 Nov 2026: Q6 closed by the photo spike (2026-11-13), open self sign-up recorded in Must do 1 (2026-10-25), and "nothing is deleted" now covers the superuser (2026-11-16, invariant 6).
 

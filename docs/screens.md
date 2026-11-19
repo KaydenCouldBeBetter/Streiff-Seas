@@ -1,4 +1,4 @@
-# Screens: Fishing Scoreboard (UI step 1, screen inventory)
+# Screens: Streiff Seas (UI step 1, screen inventory)
 
 **Status:** Draft v0.11, 17 Nov 2026. v0.11: PRF-01c to PRF-01g accepted as written (decisions.md 2026-11-17, Open items 17 and 20); "proposed" dropped. v0.10, 12 Nov 2026. Text only: data, actions and states. No colors, layouts or components (the Figma file holds those).
 **v0.10:** proposes the Profile stats (PRF-01c, PRF-01e, PRF-01f) and a NOT SENT row for Profile Save (PRF-01d), `decisions.md` 2026-11-12; PRF-01a and PRF-01b are built with a real save. Nothing here is settled until Open item 17 closes.
