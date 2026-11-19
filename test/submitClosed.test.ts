@@ -3,7 +3,7 @@
 // with no tournament open. Pure; no PocketBase.
 
 import { describe, expect, it } from "vitest";
-import { backToTournamentLabel, submitClosed, type EntryState, type LiveTournament, type TournamentStatus } from "../web/src/lib/liveTournament";
+import { backToTournamentLabel, leaderboardBack, submitClosed, type EntryState, type LiveTournament, type TournamentStatus } from "../web/src/lib/liveTournament";
 
 const STARTS = new Date("2026-10-01T10:00:00Z");
 const ENDS = new Date("2026-11-12T05:00:00Z");
@@ -87,5 +87,17 @@ describe("backToTournamentLabel", () => {
   it("is null for the live tournament, where those tabs are top-level, and with none open", () => {
     expect(backToTournamentLabel(tournament("live"))).toBeNull();
     expect(backToTournamentLabel(null)).toBeNull();
+  });
+});
+
+describe("leaderboardBack", () => {
+  it("leads back to Profile when a Past results row opened the board (PRF-01c → LB-01g)", () => {
+    expect(leaderboardBack("profile", tournament("final"))).toEqual({ label: "Profile", to: "profile" });
+  });
+
+  it("otherwise leads to a tournament that isn't live, and nowhere from the live board", () => {
+    expect(leaderboardBack("tournament", tournament("final"))).toEqual({ label: "Fall Bass 2026", to: "tournament" });
+    expect(leaderboardBack("tournament", tournament("live"))).toBeNull();
+    expect(leaderboardBack("tournament", null)).toBeNull();
   });
 });

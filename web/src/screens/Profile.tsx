@@ -53,11 +53,13 @@ interface Props {
   onSignOut: () => void;
   /** RULES-01a, club-wide only. */
   onClubRules: () => void;
+  /** A Past results row: that tournament's final leaderboard (LB-01g). */
+  onOpenResult: (eventId: string) => void;
 }
 
 type Notice = { kind: "saved"; title: string; message: string } | { kind: "not-sent"; changes: ProfileChanges };
 
-export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab, onSignOut, onClubRules }: Props) {
+export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab, onSignOut, onClubRules, onOpenResult }: Props) {
   const [data, setData] = useState<ProfileStatsData | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -190,7 +192,7 @@ export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab,
           ) : (
             <div className="list-links">
               {stats.past.map((result) => (
-                <ListLink key={result.eventId} icon="/icons/leaderboard.svg" title={result.title} detail={result.detail} todo="LB-01g" />
+                <ListLink key={result.eventId} icon="/icons/leaderboard.svg" title={result.title} detail={result.detail} onClick={() => onOpenResult(result.eventId)} />
               ))}
             </div>
           )}

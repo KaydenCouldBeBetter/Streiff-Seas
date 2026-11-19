@@ -120,11 +120,14 @@ export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, 
       </div>
 
       <div className="tab-screen-bottom">
-        <AccessoryBar>
-          <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={onSubmit}>
-            Submit a catch
-          </Button>
-        </AccessoryBar>
+        {/* Only while submitting is open, as on My catches: never on a draft, closed or final board. */}
+        {canSubmit && (
+          <AccessoryBar>
+            <Button variant="primary" full icon="/icons/plus-on-primary.svg" onClick={onSubmit}>
+              Submit a catch
+            </Button>
+          </AccessoryBar>
+        )}
         <MemberTabBar selected="leaderboard" onSelect={onTab} />
       </div>
     </div>

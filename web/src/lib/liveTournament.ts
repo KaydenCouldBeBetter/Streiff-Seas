@@ -133,6 +133,17 @@ export function backToTournamentLabel(tournament: LiveTournament | null): string
   return tournament && statusOf(tournament) !== "live" ? tournament.submit.name : null;
 }
 
+/**
+ * The leaderboard's back link (decisions.md 2026-11-18): "Profile" when it was opened from a Past
+ * results row there (PRF-01c → LB-01g), else the tournament's own page when it isn't the live one
+ * (backToTournamentLabel), else none: the live board is a top-level tab.
+ */
+export function leaderboardBack(from: "tournament" | "profile", tournament: LiveTournament | null): { label: string; to: "profile" | "tournament" } | null {
+  if (from === "profile") return { label: "Profile", to: "profile" };
+  const label = backToTournamentLabel(tournament);
+  return label ? { label, to: "tournament" } : null;
+}
+
 export function canJoin(tournament: LiveTournament, nowMs: number): boolean {
   return statusOf(tournament) === "live" && tournament.entry.kind === "none" && livePhase(tournament, nowMs) !== "over";
 }
