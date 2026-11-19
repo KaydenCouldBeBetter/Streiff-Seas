@@ -34,7 +34,7 @@ import { MemberTabsContext } from "./MemberTabBar";
 import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, type LiveTournament } from "../lib/liveTournament";
+import { backToTournamentLabel, canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, submitClosed, type LiveTournament, type SubmitClosed as Closed } from "../lib/liveTournament";
 import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
@@ -59,6 +59,7 @@ import { MyCatchHistory } from "./MyCatchHistory";
 import { MyCatches, MyCatchesStatus } from "./MyCatches";
 import { Profile } from "./Profile";
 import { RetractSheet } from "./RetractSheet";
+import { SubmitClosed } from "./SubmitClosed";
 import { SubmitFlow } from "./SubmitFlow";
 import { Withdraw } from "./Withdraw";
 import { ClubRules } from "./ClubRules";
@@ -370,6 +371,22 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     [user.id, units],
   );
 
+  // A units change (Profile saves it at once) drops every read that was shown in the old units, so
+  // nothing shows them again while the next read is out: each screen reads afresh when it opens
+  // (decisions.md 2026-11-18). The live board and the Judge and Home screens restart by themselves.
+  const unitsShown = useRef(units);
+  useEffect(() => {
+    if (unitsShown.current === units) return;
+    unitsShown.current = units;
+    setMine({ state: "loading" });
+    setAnglerPage({ state: "loading" });
+    setStandingRead({ state: "loading" });
+    // Units can also change under an open screen (a session refresh brings another phone's save).
+    if (onMyCatchScreen) void loadMine();
+    if (onAnglerScreen && anglerEntryId) void loadAngler(anglerEntryId);
+    // Deps are units only on purpose: it runs once per change, with this render's loaders.
+  }, [units]);
+
   useEffect(() => {
     if (!onAnglerScreen || !anglerEntryId) return;
     const onVisible = () => {
@@ -398,8 +415,17 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }, [screen, anglerRow, ready, view.name]);
 
   /** Every "Submit a catch" button: the form only while submitting is open, else the tournament page says why. */
+  // SUB-01e: a Submit that can't open says why in a pop-up, instead of doing nothing visible.
+  const [submitBlocked, setSubmitBlocked] = useState<Closed | null>(null);
   function openSubmit() {
-    setScreen(ready && sender && canSubmit(ready, serverNowMs()) ? "submit" : "tournament");
+    const now = serverNowMs();
+    if (ready && sender && canSubmit(ready, now)) {
+      setScreen("submit");
+      return;
+    }
+    setSubmitBlocked(
+      submitClosed(live.state, ready, now) ?? { title: "Not available yet", message: "Submitting isn't ready yet. Try again in a moment.", next: null },
+    );
   }
 
   async function join() {
@@ -499,6 +525,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         entry={ready.entry.kind}
         action={tournamentAction(ready)}
         onTab={openTab}
+        onBackToList={() => setScreen("tournaments")}
         onMyCatches={() => setScreen("catches")}
         onLeaderboard={() => setScreen("leaderboard")}
         onWithdraw={() => {
@@ -562,6 +589,10 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }
 
   const myData = mine.state === "ready" ? mine.data : null;
+  // My catches and the leaderboard of a tournament that isn't live (one opened from Past, or a
+  // draft) lead back to its page, so the tab isn't a dead end (decisions.md 2026-11-18).
+  const backLabel = backToTournamentLabel(ready);
+  const backToTournament = backLabel ? { label: backLabel, onBack: () => setScreen("tournament") } : undefined;
   const openedCatch = myData?.catches.find((c) => c.id === catchId);
 
   /** Edit, Add photos or Retract on a catch: the opened one, or the one the wide pane is showing. */
@@ -602,6 +633,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       <MyCatches
         context={myData.context}
         catches={myData.catches}
+        back={backToTournament}
         onOpen={openCatch}
         onSubmit={openSubmit}
         onTab={openTab}
@@ -646,6 +678,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       onTab={openTab}
       onSubmit={openSubmit}
       onOpenRow={openAngler}
+      back={backToTournament}
     />
   ) : (
     home()
@@ -926,6 +959,17 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       onClubRules={() => openClubRules("tournament")}
     >
       {content}
+      {submitBlocked && (
+        <SubmitClosed
+          closed={submitBlocked}
+          tournamentName={ready?.submit.name ?? null}
+          onClose={() => setSubmitBlocked(null)}
+          onNext={(next) => {
+            setSubmitBlocked(null);
+            setScreen(next);
+          }}
+        />
+      )}
     </AppShell>
     </MemberTabsContext.Provider>
   );

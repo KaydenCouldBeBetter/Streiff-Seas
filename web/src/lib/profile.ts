@@ -84,11 +84,23 @@ export const PROFILE_COPY = {
   unitsSaved: { lb: "Weights now show as decimal pounds.", lb_oz: "Weights now show as pounds and ounces." },
   notSentTitle: "NOT SENT",
   notSentMessage: "Your changes didn't reach the club. Nothing here is lost. Tap Retry when you have signal.",
-  nothingToSave: "Change your name or how weights show to save.",
+  nothingToSave: "Change your name to save. How weights show saves as soon as you choose.",
   nameHelp: "Shown on leaderboards and catch history.",
-  unitsHelp: "Only changes how weights look to you. Lengths always show in inches.",
+  unitsHelp: "Saves as soon as you choose, and every screen follows. Only changes how weights look to you; lengths always show in inches.",
   nameRefused: COPY.nameMissing,
 } as const;
+
+/**
+ * The form after a save: only what was sent takes the saved value, so a name still being typed
+ * survives a units save (units save as soon as they're chosen; decisions.md 2026-11-18).
+ */
+export function draftAfterSave(current: ProfileDraft, sent: ProfileChanges, user: ProfileFields): ProfileDraft {
+  const next = savedProfile(user);
+  return {
+    name: sent.name !== undefined ? next.name : current.name,
+    units: sent.display_units !== undefined ? next.units : current.units,
+  };
+}
 
 export interface SavedNotice {
   title: string;

@@ -24,14 +24,16 @@ interface Props {
    * view, Figma 222:1408): `detail` is the catch pane and `selectedId` marks its card.
    */
   split?: { selectedId: string; detail: ReactNode };
+  /** Back to the tournament's page when these aren't the live tournament's catches (a past one). */
+  back?: { label: string; onBack: () => void };
 }
 
-export function MyCatches({ context, catches, onOpen, onSubmit, onTab, split }: Props) {
+export function MyCatches({ context, catches, onOpen, onSubmit, onTab, split, back }: Props) {
   const row = myCatchesRow(context, catches.length);
   const canSubmit = submittingOpen(context);
   return (
     <div className="screen tab-screen screen-wide">
-      <LargeNavBar title="My catches" subtitle={myCatchesSubtitle(context, catches)} />
+      <LargeNavBar title="My catches" subtitle={myCatchesSubtitle(context, catches)} back={back} />
       <div className={`screen-content catch-list${split && row !== "MY-01a" ? " catch-split" : ""}`}>
         {row === "MY-01a" ? (
           <EmptyState

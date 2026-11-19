@@ -31,6 +31,7 @@
     display: contents;
   }
   .side-nav,
+  .nav-show-rail,
   .skip-link {
     display: none;
   }
@@ -56,6 +57,24 @@
     display: grid;
     grid-template-columns: 6rem minmax(0, 1fr);
     align-items: start;
+  }
+
+  /* Menu hidden (decisions.md 2026-11-18): a slim column with one "Menu" button, the page beside it. */
+  .shell.shell-nav-hidden {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .nav-show-rail {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    align-self: start;
+    padding: var(--cf-spacing-lg) var(--cf-spacing-xs);
+  }
+  .nav-show-rail .side-nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--cf-spacing-xs);
+    width: 4.5rem;
   }
 
   /* A phone's tab bar and pinned Submit are replaced by the rail and sidebar. */

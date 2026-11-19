@@ -29,9 +29,11 @@ interface Props {
   onSubmit: () => void;
   /** Opens the row's angler's catches (LB-02), by entry id. */
   onOpenRow: (entryId: string) => void;
+  /** Back to the tournament's page when this board isn't the live one (a past or draft tournament). */
+  back?: { label: string; onBack: () => void };
 }
 
-export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, window: dates, onTab, onSubmit, onOpenRow }: Props) {
+export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, window: dates, onTab, onSubmit, onOpenRow, back }: Props) {
   const you = leaderboard?.you ?? null;
   const rows = leaderboard?.rows ?? [];
   const unit = leaderboard?.unit ?? "";
@@ -42,7 +44,7 @@ export function Leaderboard({ name, leaderboard, badge, canSubmit, onClubRules, 
   const leaderHasFish = rows.some((row) => row.place === 1 && row.counted > 0);
   return (
     <div className="screen tab-screen screen-wide">
-      <LargeNavBar title={leaderboard?.name ?? name} badge={badge && <LiveBadge state={badge} />} subtitle={leaderboard?.subtitle} />
+      <LargeNavBar title={leaderboard?.name ?? name} badge={badge && <LiveBadge state={badge} />} subtitle={leaderboard?.subtitle} back={back} />
       <div className="screen-content leaderboard-content">
         <div className="leaderboard-summary">
           {you && (

@@ -22,6 +22,7 @@ import { Banner, Button, LargeNavBar, ListLink, SegmentedToggle, SwitchRow, Text
 import {
   PROFILE_COPY,
   UNIT_OPTIONS,
+  draftAfterSave,
   draftNameError,
   hasChanges,
   profileChanges,
@@ -103,7 +104,7 @@ export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab,
     setSending(false);
     if (outcome.kind === "saved") {
       onUserChange(outcome.user);
-      setDraft(savedProfile(outcome.user));
+      setDraft((current) => draftAfterSave(current, sent, outcome.user));
       setNameProblem(null);
       setNotice({ kind: "saved", ...savedNotice(sent, unitsOf(outcome.user)) });
     } else if (outcome.kind === "name-refused") {
@@ -111,6 +112,17 @@ export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab,
     } else {
       setNotice({ kind: "not-sent", changes: sent });
     }
+  }
+
+  /**
+   * Units save as soon as they're chosen (decisions.md 2026-11-18), so every screen switches without
+   * a Save tap that was easy to miss; Save changes is for the name. NOT SENT and Retry as for Save.
+   */
+  function chooseUnits(units: ProfileDraft["units"]) {
+    setDraft((current) => ({ ...current, units }));
+    if (units === saved.units) return;
+    const change = { display_units: units };
+    void send(() => onSave(change), change);
   }
 
   function save() {
@@ -228,7 +240,7 @@ export function Profile({ user, loadStats, onSave, onRetry, onUserChange, onTab,
               options={UNIT_OPTIONS}
               selected={draft.units}
               disabled={locked}
-              onSelect={(units) => setDraft((current) => ({ ...current, units }))}
+              onSelect={chooseUnits}
             />
             <p className="t-footnote t-secondary">{PROFILE_COPY.unitsHelp}</p>
           </div>
