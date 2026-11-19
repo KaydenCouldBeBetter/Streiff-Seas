@@ -30,9 +30,11 @@ interface Props {
   tournament: SubmitTournament;
   sender: CatchSender;
   onBack: () => void;
+  /** SUB-02b and SUB-02d's View this catch: the received catch's page (MY-02). */
+  onViewCatch: (catchId: string) => void;
 }
 
-export function SubmitFlow({ tournament, sender, onBack }: Props) {
+export function SubmitFlow({ tournament, sender, onBack, onViewCatch }: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
   const [formKey, setFormKey] = useState(0);
   const previews = useRef<string[]>([]);
@@ -130,6 +132,10 @@ export function SubmitFlow({ tournament, sender, onBack }: Props) {
             revokePreviews();
             setFormKey((key) => key + 1);
             setPhase({ kind: "form" });
+          }}
+          onView={(catchId) => {
+            revokePreviews();
+            onViewCatch(catchId);
           }}
           onBack={onBack}
         />

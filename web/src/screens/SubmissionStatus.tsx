@@ -130,10 +130,12 @@ interface ReceivedProps {
   /** SUB-02d: a retry found the catch already stored; only View is offered. */
   alreadyReceived: boolean;
   onSubmitAnother: () => void;
+  /** View this catch (→ MY-02), by the stored catch's id. */
+  onView: (catchId: string) => void;
   onBack: () => void;
 }
 
-export function Received({ stored, thumbnailUrl, alreadyReceived, onSubmitAnother, onBack }: ReceivedProps) {
+export function Received({ stored, thumbnailUrl, alreadyReceived, onSubmitAnother, onView, onBack }: ReceivedProps) {
   const photos = stored.photoCount === 1 ? "1 photo" : `${stored.photoCount} photos`;
   return (
     <div className="screen">
@@ -151,13 +153,13 @@ export function Received({ stored, thumbnailUrl, alreadyReceived, onSubmitAnothe
           title={`${stored.species} · ${photos}`}
           time={`Submitted ${formatClubTime(stored.created)}`}
           status="pending"
-          todo="MY-02"
+          onClick={() => onView(stored.id)}
         />
         <p className="t-callout t-secondary">You can still edit it, add photos or retract it until the judge decides or the deadline passes.</p>
       </div>
       <ActionBar>
         {alreadyReceived ? (
-          <Button variant="primary" large todo="MY-02">
+          <Button variant="primary" large onClick={() => onView(stored.id)}>
             View this catch
           </Button>
         ) : (
@@ -165,7 +167,7 @@ export function Received({ stored, thumbnailUrl, alreadyReceived, onSubmitAnothe
             <Button variant="primary" large onClick={onSubmitAnother}>
               Submit another catch
             </Button>
-            <Button variant="text" todo="MY-02">
+            <Button variant="text" onClick={() => onView(stored.id)}>
               View this catch
             </Button>
           </>

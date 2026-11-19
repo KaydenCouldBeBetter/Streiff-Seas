@@ -34,7 +34,7 @@ import { MemberTabsContext } from "./MemberTabBar";
 import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { backToTournamentLabel, canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, submitClosed, type LiveTournament, type SubmitClosed as Closed } from "../lib/liveTournament";
+import { backToTournamentLabel, canJoin, leaderboardBack, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, submitClosed, type LiveTournament, type SubmitClosed as Closed } from "../lib/liveTournament";
 import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
@@ -477,14 +477,25 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   }
 
   /** EVT-01: open one tournament's page; the rest of the app follows it. */
-  function openTournament(eventId: string) {
+  function openTournament(eventId: string, then: "tournament" | "leaderboard" = "tournament") {
     if (eventId !== selectedEventId) {
       setSelectedEventId(eventId);
       setLive({ state: "loading" });
       setStandingRead({ state: "loading" });
       setMine({ state: "loading" });
     }
-    setScreen("tournament");
+    setScreen(then);
+  }
+
+  // PRF-01c → LB-01g: a Past results row opens that final's board, and its back link says Profile
+  // until the member leaves the board (and the angler pages under it).
+  const [boardFrom, setBoardFrom] = useState<"tournament" | "profile">("tournament");
+  useEffect(() => {
+    if (!BOARD_SCREENS.includes(screen)) setBoardFrom("tournament");
+  }, [screen]);
+  function openResult(eventId: string) {
+    setBoardFrom("profile");
+    openTournament(eventId, "leaderboard");
   }
 
   function tournaments() {
@@ -593,6 +604,8 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   // draft) lead back to its page, so the tab isn't a dead end (decisions.md 2026-11-18).
   const backLabel = backToTournamentLabel(ready);
   const backToTournament = backLabel ? { label: backLabel, onBack: () => setScreen("tournament") } : undefined;
+  const boardBackTo = leaderboardBack(boardFrom, ready);
+  const boardBack = boardBackTo ? { label: boardBackTo.label, onBack: () => setScreen(boardBackTo.to) } : undefined;
   const openedCatch = myData?.catches.find((c) => c.id === catchId);
 
   /** Edit, Add photos or Retract on a catch: the opened one, or the one the wide pane is showing. */
@@ -678,7 +691,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       onTab={openTab}
       onSubmit={openSubmit}
       onOpenRow={openAngler}
-      back={backToTournament}
+      back={boardBack}
     />
   ) : (
     home()
@@ -774,6 +787,14 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
               setScreen("tournament");
               void reload();
             }}
+            onViewCatch={(catchId) => {
+              // The list read before this catch was sent doesn't have it: read again, then open it
+              // (MY-02; beside the list from 1024 px). "Loading…" until the read lands, not a stale list.
+              setMine({ state: "loading" });
+              void loadMine();
+              setCatchId(catchId);
+              setScreen("catch");
+            }}
           />
         );
       case "catch":
@@ -861,6 +882,7 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
             onTab={openTab}
             onSignOut={onSignOut}
             onClubRules={() => openClubRules("profile")}
+            onOpenResult={openResult}
           />
         );
       case "judge":

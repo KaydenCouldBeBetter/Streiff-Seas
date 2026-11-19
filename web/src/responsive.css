@@ -700,12 +700,78 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  .judging-home .queue-list {
+  /* Judging home: the tournaments' panels two across (one when the window can't fit two). */
+  .judging-home {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+    align-items: start;
+    gap: var(--cf-spacing-xl);
   }
-  .judging-home .judging-section > .button {
-    align-self: flex-start;
+  .judging-home > :not(.judging-section) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Judging from 600 px (decisions.md 2026-11-18; drafted from screenshots, no Figma frame yet). */
+@media (min-width: 37.5em) {
+  /* JDG-00: each tournament is a panel; Open queue sits in its header, not under its cards. */
+  .shell-content .judging-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--cf-spacing-md);
+    padding: var(--cf-spacing-xl);
+    border: 1px solid var(--cf-color-border-divider);
+    border-radius: var(--cf-radius-lg);
+  }
+  .shell-content .judging-section > .judging-section-head {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .shell-content .judging-section > .button {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+  }
+  .shell-content .judging-section > :not(.judging-section-head, .button) {
+    grid-column: 1 / -1;
+  }
+  .shell-content .judging-section > p {
+    margin: 0;
+  }
+
+  /* JDG-02 as a page (below 1024 px): the photos share the column, the checks sit beside the facts. */
+  .shell-content .review-content .review-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .shell-content .review-content .review-checks {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .shell-content .review-content .review-checks > :only-child {
+    grid-column: 1 / -1;
+  }
+  /* Its decisions fill the row: Correct…, Reject…, Approve (or Correct… and Change decision…). */
+  .shell-content .action-bar > .review-actions,
+  .shell-content .action-bar > .review-actions-row {
+    flex: 1;
+  }
+  .shell-content .action-bar > .review-actions {
+    flex-direction: row;
+  }
+  .shell-content .action-bar > .review-actions > .button {
+    flex: 1.4;
+    width: auto;
+    height: var(--cf-size-control-lg);
+  }
+  .shell-content .action-bar > .review-actions > .review-actions-row {
+    flex: 2;
+  }
+  .shell-content .action-bar .review-actions-row > .button-large {
+    flex: 1;
     width: auto;
   }
 }
