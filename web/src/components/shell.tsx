@@ -3,14 +3,12 @@
 // (each screen keeps its own bottom tab bar, and this navigation is hidden). "Submit a catch" is
 // the first control in it, in the same place on every screen. Sidebar and rail are one <nav
 // aria-label="Main"> that responsive.css resizes, so there is one set of controls to keep right.
-// "Hide menu" takes it away so the page gets the whole width; a slim "Menu" button brings it back
-// (decisions.md 2026-11-18). This browser remembers the choice (lib/navHidden.ts).
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { readNavHidden, writeNavHidden } from "../lib/navHidden";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "./ui";
 import type { MemberTab } from "../screens/memberTabs";
 import { useMemberTabs } from "../screens/MemberTabBar";
+import { setSidebarHidden, useSidebarHidden } from "../lib/sidebarStore";
 
 interface Props {
   /** The section the screen belongs to, or null when none is (Submit a catch). */
@@ -25,33 +23,26 @@ interface Props {
   children: ReactNode;
 }
 
-function browserStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, children }: Props) {
   const content = useRef<HTMLDivElement>(null);
   const tabs = useMemberTabs();
-  const [hidden, setHidden] = useState(() => readNavHidden(browserStorage()));
-  // After a toggle, focus goes to the control that undoes it, so keyboard users aren't dropped.
-  const toggled = useRef(false);
+  const hidden = useSidebarHidden();
+  // The button that was pressed leaves the page, so focus follows to the one that replaces it.
+  // Not on first render: a new screen must not steal focus.
   const hideButton = useRef<HTMLButtonElement>(null);
   const showButton = useRef<HTMLButtonElement>(null);
+  const toggled = useRef(false);
   useEffect(() => {
     if (!toggled.current) return;
+    toggled.current = false;
     (hidden ? showButton : hideButton).current?.focus();
   }, [hidden]);
   const toggle = (next: boolean) => {
     toggled.current = true;
-    writeNavHidden(browserStorage(), next);
-    setHidden(next);
+    setSidebarHidden(next);
   };
   return (
-    <div className={`shell${hidden ? " shell-nav-hidden" : ""}`}>
+    <div className="shell" data-nav={hidden ? "hidden" : "shown"}>
       {/* The first control on the page: lets keyboard users skip the navigation (build note 2). */}
       <a
         className="skip-link"
@@ -63,15 +54,17 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
       >
         Skip to content
       </a>
-      {hidden ? (
-        <div className="nav-show-rail">
-          <button ref={showButton} type="button" className="side-nav-item" aria-label="Show menu" aria-expanded="false" onClick={() => toggle(false)}>
-            <Icon src="/icons/list.svg" size={24} />
-            <span className="side-nav-label">Menu</span>
+      {hidden && (
+        <div className="side-nav-reveal">
+          <button ref={showButton} type="button" className="side-nav-toggle" aria-label="Show menu" aria-expanded={false} aria-controls="main-nav" onClick={() => toggle(false)}>
+            <Icon src="/icons/chevron-right.svg" size={24} />
           </button>
         </div>
-      ) : (
-      <nav id="main-nav" className="side-nav" aria-label="Main">
+      )}
+      <nav className="side-nav" id="main-nav" aria-label="Main" hidden={hidden}>
+        <button ref={hideButton} type="button" className="side-nav-toggle" aria-label="Hide menu" aria-expanded={true} aria-controls="main-nav" onClick={() => toggle(true)}>
+          <Icon src="/icons/chevron-left.svg" size={24} />
+        </button>
         <div className="side-nav-brand">
           <p className="t-title-section">Streiff Seas</p>
           <p className="t-footnote t-secondary">Club scoreboard</p>
@@ -100,13 +93,6 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
         </ul>
 
         <div className="side-nav-foot">
-          <button ref={hideButton} type="button" className="side-nav-item" aria-label="Hide menu" aria-expanded="true" onClick={() => toggle(true)}>
-            <Icon src="/icons/chevron-left.svg" size={24} />
-            <span className="side-nav-long">Hide menu</span>
-            <span className="side-nav-short" aria-hidden="true">
-              Hide
-            </span>
-          </button>
           <button type="button" className="side-nav-item" aria-label="Club rules" onClick={onClubRules}>
             <Icon src="/icons/info.svg" size={24} />
             <span className="side-nav-long">Club rules</span>
@@ -120,7 +106,6 @@ export function AppShell({ tab, name, role, onTab, onSubmit, onClubRules, childr
           </div>
         </div>
       </nav>
-      )}
 
       <div className="shell-content" id="content" ref={content} tabIndex={-1}>
         {children}

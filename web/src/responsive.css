@@ -31,7 +31,6 @@
     display: contents;
   }
   .side-nav,
-  .nav-show-rail,
   .skip-link {
     display: none;
   }
@@ -57,24 +56,6 @@
     display: grid;
     grid-template-columns: 6rem minmax(0, 1fr);
     align-items: start;
-  }
-
-  /* Menu hidden (decisions.md 2026-11-18): a slim column with one "Menu" button, the page beside it. */
-  .shell.shell-nav-hidden {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  .nav-show-rail {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    align-self: start;
-    padding: var(--cf-spacing-lg) var(--cf-spacing-xs);
-  }
-  .nav-show-rail .side-nav-item {
-    flex-direction: column;
-    justify-content: center;
-    gap: var(--cf-spacing-xs);
-    width: 4.5rem;
   }
 
   /* A phone's tab bar and pinned Submit are replaced by the rail and sidebar. */
@@ -726,5 +707,71 @@
   .judging-home .judging-section > .button {
     align-self: flex-start;
     width: auto;
+  }
+}
+
+/* ---- Hide and show the sidebar (decisions.md 2026-11-18) ------------------------------------- */
+
+/* The reveal strip only exists in the shell's sizes; a phone never shows it (and has no toggle). */
+.side-nav-reveal {
+  display: none;
+}
+
+@media (min-width: 37.5em) {
+  /* Hidden: the navigation goes and a slim strip with the Show button keeps the column, so
+     nothing in the page sits under the button. The page gets the rest of the width. */
+  .shell[data-nav="hidden"] {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+  }
+  .shell[data-nav="hidden"] .side-nav {
+    display: none;
+  }
+  .side-nav-reveal {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    align-self: start;
+    display: flex;
+    justify-content: center;
+    height: 100dvh;
+    padding: var(--cf-spacing-lg) var(--cf-spacing-xs);
+    border-right: 1px solid var(--cf-color-border-divider);
+    background: var(--cf-color-bg-sunken);
+  }
+
+  .side-nav-toggle {
+    flex: none;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: none;
+    border-radius: var(--cf-radius-md);
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .side-nav-toggle:hover {
+    background: color-mix(in srgb, var(--cf-color-bg-selected) 55%, transparent);
+  }
+  .side-nav-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--cf-focus-ring);
+  }
+}
+
+@media (min-width: 64em) {
+  /* In the sidebar the toggle sits at the top right, level with the club name; the brand's
+     right padding keeps a longer name clear of it. */
+  .side-nav > .side-nav-toggle {
+    position: absolute;
+    top: var(--cf-spacing-lg);
+    right: var(--cf-spacing-sm);
+  }
+  .side-nav-brand {
+    padding-right: 3.5rem;
   }
 }
