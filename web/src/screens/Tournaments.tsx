@@ -1,7 +1,8 @@
 // EVT-01 Tournaments, the Home tab (Figma 90:4446 EVT-01b; Desktop note 219:1027): Live now, then
 // Drafts and the organizer's links (organizers only, R-EVT-L-03), then Past. A card opens that
 // tournament's page (EVT-02). Read by lib/tournaments.ts when Home opens and on focus (Gap 25).
-// No tab is added for organizer tasks (Figma note).
+// No tab is added for organizer tasks (Figma note). Species are added only from the tournament form
+// (ORG-02's "Add species"), not from Home (Kayden, decisions.md 2026-11-18).
 
 import { useCallback, useEffect, useState } from "react";
 import { GroupHeading, TournamentCard } from "../components/organizer";
@@ -18,12 +19,11 @@ interface Props {
   organizer: boolean;
   onOpen: (eventId: string) => void;
   onNewTournament: () => void;
-  onSpecies: () => void;
   onClubRules: () => void;
   onTab: (tab: MemberTab) => void;
 }
 
-export function Tournaments({ me, units, organizer, onOpen, onNewTournament, onSpecies, onClubRules, onTab }: Props) {
+export function Tournaments({ me, units, organizer, onOpen, onNewTournament, onClubRules, onTab }: Props) {
   const [data, setData] = useState<TournamentsData | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -96,12 +96,6 @@ export function Tournaments({ me, units, organizer, onOpen, onNewTournament, onS
             <GroupHeading>Organizer</GroupHeading>
             <div className="list-links">
               <ListLink icon="/icons/plus.svg" title="New tournament" detail="Starts as a draft only you can see" onClick={onNewTournament} />
-              <ListLink
-                icon="/icons/list.svg"
-                title="Species"
-                detail={`${data.speciesCount} ${data.speciesCount === 1 ? "species" : "species"} · add one for a new tournament`}
-                onClick={onSpecies}
-              />
             </div>
           </>
         )}

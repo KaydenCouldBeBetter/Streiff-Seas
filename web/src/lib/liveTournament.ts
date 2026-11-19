@@ -70,6 +70,16 @@ export function statusOf(tournament: LiveTournament): TournamentStatus {
   return tournament.status ?? "live";
 }
 
+/**
+ * Whether the leaderboard shows its realtime badge (Gap 25; screens.md LB-01). A live or closed board
+ * still changes as catches are judged; a draft has no board yet and a final one can't change, so
+ * neither says "Live". Found 2026-11-18: an organizer's draft showed Live.
+ */
+export function showsBoardBadge(tournament: LiveTournament): boolean {
+  const status = statusOf(tournament);
+  return status === "live" || status === "closed";
+}
+
 export function canJoin(tournament: LiveTournament, nowMs: number): boolean {
   return statusOf(tournament) === "live" && tournament.entry.kind === "none" && livePhase(tournament, nowMs) !== "over";
 }

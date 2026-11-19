@@ -27,7 +27,6 @@ import { EventForm } from "./EventForm";
 import { Exports } from "./Exports";
 import { ExtendDeadline } from "./ExtendDeadline";
 import { Manage } from "./Manage";
-import { Species } from "./Species";
 import { Tournaments } from "./Tournaments";
 import { loadNewEventOptions, type ManageData, type Person } from "../lib/eventAdmin";
 import { JudgeFlow } from "./Judging";
@@ -35,7 +34,7 @@ import { MemberTabsContext } from "./MemberTabBar";
 import { memberTabs } from "./memberTabs";
 import { SAMPLE_TOURNAMENT, type TournamentView } from "../lib/sampleTournament";
 import { formatClubTime } from "../lib/format";
-import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, statusOf, type LiveTournament } from "../lib/liveTournament";
+import { canJoin, canRejoin, canSubmit, canWithdraw, joinTournament, livePhase, loadTournament, setWithdrawn, showsBoardBadge, statusOf, type LiveTournament } from "../lib/liveTournament";
 import { retryChange, sendChange, type CatchBase, type Change, type ChangeResult } from "../lib/changeCatch";
 import { changeNotice, type ChangeAction, type ChangeNotice } from "../lib/changeCopy";
 import { loadMyCatches, type MyCatchesData } from "../lib/loadMyCatches";
@@ -85,14 +84,13 @@ type Screen =
   | "manage"
   | "eventForm"
   | "extend"
-  | "exports"
-  | "species";
+  | "exports";
 
 /** The screens that set their own page title. */
-const SELF_TITLED: readonly Screen[] = ["submit", "judge", "entries", "tournaments", "manage", "eventForm", "extend", "exports", "species"];
+const SELF_TITLED: readonly Screen[] = ["submit", "judge", "entries", "tournaments", "manage", "eventForm", "extend", "exports"];
 
 /** The page title's first part; the screens named after the live tournament add its name. */
-const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries" | "tournaments" | "manage" | "eventForm" | "extend" | "exports" | "species">, string> = {
+const TITLES: Record<Exclude<Screen, "submit" | "angler" | "anglerCatch" | "tournament" | "withdraw" | "judge" | "entries" | "tournaments" | "manage" | "eventForm" | "extend" | "exports">, string> = {
   leaderboard: "Leaderboard",
   catches: "My catches",
   catch: "Catch",
@@ -114,7 +112,6 @@ function tabFor(screen: Screen, rulesFrom: "tournament" | "profile"): MemberTab 
     case "eventForm":
     case "extend":
     case "exports":
-    case "species":
       return "home";
     case "judge":
       return "judge";
@@ -201,7 +198,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
   const [manageSaved, setManageSaved] = useState<string | null>(null);
   const [newOptions, setNewOptions] = useState<{ people: Person[]; species: { id: string; name: string }[] } | null>(null);
   const [entriesFrom, setEntriesFrom] = useState<"tournament" | "manage">("tournament");
-  const [speciesFrom, setSpeciesFrom] = useState<"tournaments">("tournaments");
   const organizer = user.role === "organizer";
 
   const reload = useCallback(async () => {
@@ -473,10 +469,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
         organizer={organizer}
         onOpen={openTournament}
         onNewTournament={() => void openNewTournament()}
-        onSpecies={() => {
-          setSpeciesFrom("tournaments");
-          setScreen("species");
-        }}
         onClubRules={() => openClubRules("tournament")}
         onTab={openTab}
       />
@@ -646,8 +638,8 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
     <Leaderboard
       name={ready.submit.name}
       leaderboard={boardData?.view}
-      // A final board can't change, so it shows no badge (Gap 25).
-      badge={boardData?.status === "final" ? null : board.badge}
+      // A draft or final board shows no badge (Gap 25): showsBoardBadge in liveTournament.ts.
+      badge={showsBoardBadge(ready) && boardData?.status !== "final" ? board.badge : null}
       canSubmit={canSubmit(ready, serverNowMs())}
       onClubRules={() => openClubRules("tournament")}
       window={{ endsAt: ready.submit.endsAt, submitDeadline: ready.submit.submitDeadline }}
@@ -909,9 +901,6 @@ export function MemberApp({ user, onUserChange, onSignOut, onSessionEnded }: Pro
       case "exports":
         if (!ready || !organizer) return home();
         return <Exports eventId={ready.submit.eventId} onBack={() => setScreen("manage")} />;
-      case "species":
-        if (!organizer) return home();
-        return <Species backLabel="Tournaments" onBack={() => setScreen(speciesFrom)} />;
       case "clubRules":
         return (
           <ClubRules

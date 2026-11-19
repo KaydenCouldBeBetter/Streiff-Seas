@@ -3031,20 +3031,16 @@ a.review-photo-image:focus-visible {
   padding: var(--cf-spacing-md) 0;
   border-bottom: 1px solid var(--cf-color-border-divider);
 }
+/* The field above its button at every width (decisions.md 2026-11-18). On a phone the button fills
+   the row; from the rail up it is as wide as its label, so it never stretches beside the field. */
 .species-add {
   display: flex;
   flex-direction: column;
   gap: var(--cf-spacing-md);
 }
-@media (min-width: 64em) {
-  .species-add {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  .species-add > .field {
-    flex: 1;
-  }
-  .species-add > .button {
-    margin-top: 26px;
+@media (min-width: 37.5em) {
+  .species-add > .button.button-full {
+    align-self: flex-start;
+    width: auto;
   }
 }

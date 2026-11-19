@@ -144,7 +144,7 @@ One row per distinct state. The table is split by area; the columns are the same
 | ID | Screen | Who sees it | Event status | Entry/catch state | Data shown | Actions available | Actions NOT shown and why | Rule / test IDs | Source |
 |---|---|---|---|---|---|---|---|---|---|
 | EVT-01a | Tournaments | M, J, S | live, closed, final | Per event: none, active or withdrawn | Per event: `name`, `status`, `starts_at`, `ends_at`, `submit_deadline`, `metric`; own entry state from `entries.withdrawn` | Open a tournament (→ EVT-02); Profile (→ PRF-01) | Drafts (R-EVT-L-02, V-01); New tournament (R-EVT-C-02) | R-EVT-L-02, R-ENT-L-02, R-ENT-L-04 | SEC events, entries |
-| EVT-01b | Tournaments | K | draft, live, closed, final | Same | Same, drafts included and marked as draft | Open; New tournament (→ ORG-02); Species (→ ORG-10); Profile | — | R-EVT-L-03, R-EVT-C-01, R-SPC-C-01 | SEC events; FEAT S4 step 1 |
+| EVT-01b | Tournaments | K | draft, live, closed, final | Same | Same, drafts included and marked as draft | Open; New tournament (→ ORG-02); Profile. Species are added from ORG-02 only (DEC 2026-11-18) | — | R-EVT-L-03, R-EVT-C-01, R-SPC-C-01 | SEC events; FEAT S4 step 1 |
 | EVT-01d | Tournaments: two live entries | M, J, S | live (two or more) | Active entries in two or more live tournaments | "Your tournaments": each live tournament with an active entry, with its pending count and the viewer's place; then other live tournaments and past ones | Open a tournament (→ EVT-02); its leaderboard (→ LB-01) | — | R-EVT-L-02, R-ENT-L-02 | DEC 2026-10-03 "Home screen and landing" |
 | EVT-01c | Tournaments: empty | M, J, S (none live/closed/final); K (none at all) | — | — | "No tournaments yet" | K: New tournament. Everyone: Profile | M: nothing else to open | R-EVT-L-02, L-03 | SEC events |
 | EVT-02a | Tournament | M | live:open | none | `name`, `status`, `starts_at`, `ends_at`, `submit_deadline`, `metric`, `best_n`, `species` names; judge and backup judge named from their entries' `display_name` (role alone if that entry is withdrawn: Gap 13) | Join; Leaderboard (→ LB-01) | Submit (no own entry: R-CAT-C-02) | R-ENT-C-01; S, N: R-ALL-S-01. The event's judge and backup judge never see this row: they were entered when the event was created and start in the active rows (R-EVT-C-08, R-ENT-C-08) | SPEC roles; SCO §3; DEC "Members join a tournament themselves", "Judge must be an organizer; judge and backup judge are entered automatically" |
@@ -341,7 +341,7 @@ Indented items lead from the item above them. Conditions in brackets.
 - EVT-02 → JDG-01 (the judge's catches only) → JDG-02 → JDG-03, JDG-04, JDG-05
 
 **Organizer (K), in addition**
-- EVT-01 → ORG-02 New tournament; ORG-10 Species
+- EVT-01 → ORG-02 New tournament → ORG-10 Species (Add species)
 - EVT-02 → ORG-01 Manage tournament; ORG-08 Entries
   - ORG-02 Edit draft [draft]; Open [draft, checklist met] → confirmation sheet
   - ORG-03 Edit live tournament [live]; ORG-03b [closed: backup judge only]

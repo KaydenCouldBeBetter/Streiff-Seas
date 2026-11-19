@@ -71,7 +71,7 @@ export function Species({ backLabel, onBack }: Props) {
   }
 
   return (
-    <div className="screen screen-wide">
+    <div className="screen">
       <NavBar title="Species" backLabel="Back" backName={`Back to ${backLabel}`} onBack={() => onBack(added?.id ?? null)} />
       <div className="screen-content org-content">
         {failed && !species && (
