@@ -218,6 +218,38 @@ streiffseas.com -> http://127.0.0.1:8090, still the hand-installed PocketBase (O
       users create, empty body x4:     400 400 400 429
     Whether a code is invalidated after failed tries (ops.md section 14) isn't checked yet.
 
+## Grading deploy, wipe and seed (2026-11-19, Kayden; guided by Claude Code, which ran nothing on prod)
+
+31. Second interim deploy (decisions.md 2026-11-17). main at a3d7ca9 (PR #21). On Kayden's Fedora
+    machine: scripts/make-bundle.sh -> bundles/a3d7ca9ff1495584be6c6b6b8bded53d6075bde7/,
+    bundle.tar.gz sha256 e60a197de8963d350d4ddf8fa22a67c99737e7a39a7ecba03033802ed1b965d3; BUILD_INFO
+    and pb_public/build.json both a3d7ca9..., migration 1795026855 (rebrand alert wording) inside.
+    Before it: sqlite3 -readonly ... "select status, name from events;" -> draft|Example Derby
+    (nothing live, so the migration wasn't refused). scp to the host, pct push into CT 110.
+    "pct exec 110 -- scoreboard-deploy ..." failed: lxc-attach "Failed to exec scoreboard-deploy"
+    (pct exec has no /usr/local/sbin on its PATH). With the full path:
+      deploy: WARNING: a locally built bundle; its on-main check was made only when it was built (make-bundle.sh)
+      deploy: bundle sha256 e60a197de8963d350d4ddf8fa22a67c99737e7a39a7ecba03033802ed1b965d3 ok
+      deploy: bundle is commit a3d7ca9ff1495584be6c6b6b8bded53d6075bde7
+      deploy: PocketBase 0.40.4 verified
+      deploy: stopping scoreboard and backing up pb_data to /var/backups/scoreboard/pre-deploy-a3d7ca9ff1495584be6c6b6b8bded53d6075bde7-20261119T041333Z.tar.zst
+      deploy: current -> releases/a3d7ca9ff1495584be6c6b6b8bded53d6075bde7; starting scoreboard
+      deploy: smoke test passed: https://streiffseas.com runs a3d7ca9ff1495584be6c6b6b8bded53d6075bde7
+      deploy: done: a3d7ca9ff1495584be6c6b6b8bded53d6075bde7
+
+32. wipe-demo run in CT 110 (typed WIPE): finished with its "Left to do by hand" list;
+    journalctl shows scoreboard restarted at 04:15:07 UTC with a new pbinstall link. First
+    superuser through that link opened on https://streiffseas.com. The admin Access app first
+    said "you don't have access" (fixed in its policy by Kayden), then /_/ said "Something went
+    wrong" until /api/health was signed in to Access in the same tab (as check 29). Its sign-in
+    page showed team black-dust-5b45.cloudflareaccess.com (ops.md §1 records streiffseas; TODO).
+    Mail: the test email sent nothing and Resend logged nothing while TLS was "Auto (StartTLS)"
+    on 465; set to Always and saved, it arrived. Rate limits re-entered (the seven rules of
+    check 30, checked by screenshot). Superuser MFA on; login with the emailed code worked.
+    seed-demo --judge Kayden ran to the end with 24 photos (12 bass catches from the prototype's
+    Supabase catch-photos bucket). Phone: Kayden reported the app and the phone layout look right.
+    Counts printed by seed-demo: TODO (not recorded).
+
 ## Still to record for the M0 gate
 
 - Network isolation for the staging LXC, once built: from staging, a LAN host, the
