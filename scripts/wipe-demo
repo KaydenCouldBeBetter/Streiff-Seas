@@ -225,7 +225,7 @@ wipe-demo: done. $SERVICE runs on an empty pb_data with every migration applied.
   backup:        $backup
   moved aside:   $aside (keep it until tournament #1 is under way, then: rm -r $aside)
 
-Left to do by hand (docs/drafts/ops-md-demo-seed.md, "The wipe before tournament #1"):
+Left to do by hand (docs/ops.md §12, "Demo data for grading"; settings in §14):
   1. Create the first superuser as on the first install (journalctl -u $SERVICE -n 50 shows the
      setup link), then turn on MFA and OTP in _superusers.
   2. Re-enter the settings: ops.md §14 (rate limits, trusted proxy header CF-Connecting-IP,
