@@ -1,4 +1,4 @@
-# Architecture: Fishing Scoreboard
+# Architecture: Streiff Seas
 
 **Status:** Draft v0.7, 16 Nov 2026. §3 brought in line with the migrations (users create and read, nothing deleted), §4 with the `rev` compare-and-swap, "What the Phase 2 work must confirm" with the spike result; CI, the pre-push hook and the staging pipeline are marked not built. v0.6 (7 Oct 2026): Section 5 redrawn for the 2026-10-07 pipeline (`decisions.md` L3): a bundle built on every push to `main`, a staging container that deploys it automatically, and a tag that promotes the same bundle to prod; restic for the offsite backups. v0.5 (6 Oct) was brought in line with `security.md` v0.9, `scoring.md` v0.6.1 and `decisions.md` through 2026-10-06 (Node 24, public catch history, two required photos, `photo_captured_at`, fixed flag codes and audit snapshots, `rev` echoed by anglers too, judge must be an organizer with automatic entries, judge step-down, live and closed event edits, Open preconditions, code word history on the event). v0.4 (1 Oct) matched `security.md` v0.3. Regenerate at milestones (M0, M1, off-season), not on every change.
 **Sources of truth:** `SPEC.md` (scope, roles, invariants), `scoring.md` (rules), `security.md` (API rules and test IDs), `decisions.md` (choices). This page only draws them; where it disagrees with any of them, they win and this page gets fixed. `pb_migrations/` is the source of truth for the schema once it exists.
@@ -37,8 +37,8 @@ flowchart TB
   SAM(["Backup judge<br/>Sam in tournament 1, judges only the judge's catches"])
   ORG(["Organizer: Kayden<br/>judge, developer, superuser"])
   CF["Cloudflare Tunnel + Access<br/>explicit email list on the whole hostname"]
-  SB["Fishing Scoreboard<br/>PocketBase: API, realtime, React app in pb_public, one origin"]
-  GH["GitHub<br/>private repo, CI, release bundles"]
+  SB["Streiff Seas<br/>PocketBase: API, realtime, React app in pb_public, one origin"]
+  GH["GitHub<br/>repo, CI, release bundles"]
   MAIL["Members' email<br/>Access PINs, PocketBase OTP codes"]
   HC["Healthchecks.io<br/>dead-man alerts"]
   ARC[("Photo archive<br/>Proxmox host, desktop, laptop")]

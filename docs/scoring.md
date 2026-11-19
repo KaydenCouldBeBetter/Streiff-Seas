@@ -1,4 +1,4 @@
-# Scoring rules: Fishing Scoreboard
+# Scoring rules: Streiff Seas
 
 **Status:** v0.6.1, **in force from 5 Oct 2026**. Kayden decides rule changes and posts them in the club group chat; a group vote is no longer needed (`decisions.md` 2026-10-05, "Rule changes no longer wait for a group vote").
 **In force since:** 5 October 2026 (v0.6.1; v0.6 the same day). Earlier versions: v0.5 agreed by the group 3 October 2026, v0.4 on 1 October 2026.
